@@ -1,6 +1,6 @@
 # Prototype PoC
 
-The project is to create a core testing bed for key concepts we have developed around here.news. We will try to use this prototype to define some key functions of MVP development and understand the key UX concerns by using real data, and partially real users(internal team members) to showcase the potential of the contemplations we have been working on in the passing months. 
+The project is to create a testing bed for key concepts we have developed around here.news. We will try to use this prototype to investigate some key functions for further MVP development, understand the key UX concerns by using real data, and partially real users(internal team members) to showcase the potential of the contemplations we have been working on in the passing months. 
 
 # Epic description
 
@@ -12,4 +12,4 @@ Two stories under this epic:
 
 # Methodology
 
-We will have the simplest UX design(by using Figma) referring to Product Definition Spec and the Epic description above, then transferring into code implementation, and deploy it on a remote server under domain name (0.here.news) to share with internal users only. 
+We will have the simplest UX design(by using Figma) referring to Product Definition Spec and the Epic description above, as well as some modern content publishing UIs, transferring the ideas/designs into code implementation, and deploy it on a remote server under domain name (0.here.news) to share with internal users only. 
