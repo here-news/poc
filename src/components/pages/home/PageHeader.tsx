@@ -19,7 +19,7 @@ function PageHeader() {
 
   return (
     <div className='mb-12 h-12'>
-      <header className='flex items-center justify-center p-0 fixed left-0 right-0 top-0 z-[1] h-12 my-12'>
+      <header className='flex items-center justify-center p-0 fixed left-0 right-0 top-0 h-12 my-12'>
         <div
           className='grid h-full max-w-[40rem]'
           style={{

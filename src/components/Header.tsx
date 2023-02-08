@@ -52,7 +52,7 @@ function Header() {
             flex: '1 1 0%'
           }}
         >
-          <div className='flex justify-between items-center'>
+          <div className='flex justify-between items-center pb-2'>
             <h2 className='cursor-pointer text-xl pl-4'>Posts</h2>
 
             <div className='flex flex-row gap-4'>
