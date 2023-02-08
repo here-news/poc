@@ -70,7 +70,7 @@ function LoginModal({
       isVisible={isLoginVisible}
       toggleVisible={toggleIsLoginVisible}
     >
-      <div className='p-4 w-full h-full'>
+      <div className='p-4 w-full h-full bg-white rounded-lg'>
         <h2 className='mb-4'>Login</h2>
         <Input
           value={username}
