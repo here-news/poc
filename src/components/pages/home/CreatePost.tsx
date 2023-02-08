@@ -1,12 +1,14 @@
 import axios from 'axios'
-import TextEditor from 'components/TextEditor'
+import TextEditor from 'components/TextEditor/TextEditor'
 import { ENV } from 'lib/env'
+import Image from 'next/image'
 import React, { useRef, useState } from 'react'
-import { useMutation } from 'react-query'
+import { QueryClient, useMutation } from 'react-query'
 import { toast } from 'react-toastify'
 import { useAppSelector } from 'store/hooks'
 
 function CreatePost() {
+  const queryClient = new QueryClient()
   const { accounts, selectedAccount } = useAppSelector(
     state => state.auth
   )
@@ -30,6 +32,20 @@ function CreatePost() {
   const clearImages = () => {
     setFiles(null)
   }
+
+  const removeFile = (index: number) => {
+    if (!files) return
+
+    const dt = new DataTransfer()
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      if (index !== i) dt.items.add(file)
+    }
+
+    setFiles(dt.files && dt.files.length > 0 ? dt.files : null)
+  }
+
   const createPost = useMutation(
     (data: FormData) => {
       return axios.post(`${ENV.API_URL}/createPost`, data)
@@ -39,6 +55,7 @@ function CreatePost() {
         toast('Successfully created posts!')
         setText('')
         setFiles(null)
+        queryClient.invalidateQueries('getExplorePosts')
       },
       onError: () => {
         toast.error('There was some error create post!')
@@ -62,27 +79,20 @@ function CreatePost() {
       formData.append('text', text)
     }
 
-    formData.append('accountId', selectedAccount._id)
+    formData.append('userId', selectedAccount._id)
     createPost.mutate(formData)
   }
 
   if (!accounts || !selectedAccount) return <React.Fragment />
   return (
     <div className='w-full max-w-[40rem] px-4'>
-      <div className='flex justify-end mb-1'>
-        <p className='text-slate-400 text-xs'>
-          {text.length}/1000 characters
-        </p>
-      </div>
-
-      {/* <TextEditor /> */}
-
-      <textarea
-        className='border-[1px] border-slate-300 p-2 rounded-md text-sm w-full'
-        value={text}
-        onChange={e => handleText(e.target.value)}
+      <TextEditor
+        html={text}
+        handleChange={handleText}
+        containerClassName='w-full'
         placeholder="What's on your mind?"
       />
+
       <div className='flex flex-row items-center justify-between mt-2'>
         <input
           type='file'
@@ -94,26 +104,50 @@ function CreatePost() {
           accept='image/png, image/gif, image/jpeg'
           onChange={handleFileSelected}
         />
-        <div className='flex flex-row gap-2 items-end'>
-          <p
-            className='cursor-pointer text-md text-blue-500 underline'
-            onClick={() => handleUploadImages()}
-          >
-            Images
-          </p>
-          {files && files.length && (
-            <React.Fragment>
-              <p className='text-md text-slate-400'>
-                {files.length} Selected
-              </p>
-              <p
-                className='cursor-pointer text-md text-blue-500 underline'
-                onClick={clearImages}
-              >
-                Clear
-              </p>
-            </React.Fragment>
-          )}
+        <div className='flex flex-col gap-2'>
+          <div className='flex flex-row gap-x-2'>
+            {files &&
+              files.length &&
+              Array(files.length)
+                .fill(null)
+                .map((_, i) => (
+                  <div key={i} className='group relative w-10 h-10'>
+                    <div
+                      onClick={() => removeFile(i)}
+                      className='hidden group-hover:flex justify-center items-center cursor-pointer absolute right-[-5px] top-[-5px] shadow-md bg-white p-1 w-4 h-4 rounded-full z-[1] '
+                    >
+                      <p className='text-xs'>x</p>
+                    </div>
+                    <Image
+                      src={URL.createObjectURL(files[i])}
+                      alt='file'
+                      fill
+                      className='rounded-lg object-cover'
+                    />
+                  </div>
+                ))}
+          </div>
+          <div className='flex flex-row gap-2 items-end'>
+            <p
+              className='cursor-pointer text-md text-blue-500 underline'
+              onClick={() => handleUploadImages()}
+            >
+              Images
+            </p>
+            {files && files.length && (
+              <React.Fragment>
+                <p className='text-md text-slate-400'>
+                  {files.length} Selected
+                </p>
+                <p
+                  className='cursor-pointer text-md text-blue-500 underline'
+                  onClick={clearImages}
+                >
+                  Clear
+                </p>
+              </React.Fragment>
+            )}
+          </div>
         </div>
 
         <div
