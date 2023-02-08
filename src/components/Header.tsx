@@ -45,7 +45,7 @@ function Header() {
 
   return (
     <React.Fragment>
-      <header className='bg-white flex items-center justify-center p-0 fixed left-0 right-0 top-0 z-[1] h-14'>
+      <header className='bg-white flex items-center justify-center p-0 fixed left-0 right-0 top-0 z-[2] h-14'>
         <div
           className='grid h-full max-w-[40rem]'
           style={{
