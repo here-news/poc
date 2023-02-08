@@ -70,8 +70,17 @@ function Header() {
                         className='rounded-full'
                       />
                     </div>
-                    <p className='text-sm ml-2'>
+                    <p className='text-sm ml-2 font-semibold'>
                       {selectedAccount.displayName}
+                      <span
+                        className={`${
+                          selectedAccount.reputation === 5
+                            ? 'bg-yellow-400'
+                            : 'bg-blue-400 text-white'
+                        } ml-1 px-2 py-[2px] rounded-md text-xs`}
+                      >
+                        {selectedAccount.reputation}
+                      </span>
                     </p>
                     <p className='ml-4 text-xs'>▼</p>
                   </div>
@@ -91,9 +100,20 @@ function Header() {
                             onClick={() => switchAccount(account)}
                           >
                             {
-                              <p className='text-sm px-2 py-3 border-t-[1px] border-slate-400 cursor-pointer hover:bg-slate-400 hover:text-white'>
-                                {account.displayName}
-                              </p>
+                              <React.Fragment>
+                                <p className='text-sm font-semibold px-2 py-3 border-t-[1px] border-slate-400 cursor-pointer hover:bg-slate-400 hover:text-white'>
+                                  {account.displayName}
+                                  <span
+                                    className={`${
+                                      account.reputation === 5
+                                        ? 'bg-yellow-400'
+                                        : 'bg-blue-400 text-white'
+                                    } ml-1 px-2 py-[2px] rounded-md text-xs`}
+                                  >
+                                    {account.reputation}
+                                  </span>
+                                </p>
+                              </React.Fragment>
                             }
                           </div>
                         )

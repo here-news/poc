@@ -8,13 +8,17 @@ interface ModalProps {
 function Modal({ isVisible, toggleVisible, children }: ModalProps) {
   return (
     <div
-      className='bg-[rgba(0,0,0,0.3)] w-screen h-screen fixed top-0 left-0 z-[9999]'
+      className='fixed top-0 left-0 w-screen h-screen items-center justify-center z-20'
       style={{
-        display: isVisible ? 'inline-block' : 'none'
+        display: isVisible ? 'flex' : 'none'
       }}
     >
-      <div className='w-full h-full flex items-center justify-center'>
-        <div className='relative max-w-[40rem] h-auto bg-white rounded-md'>
+      <div
+        className='bg-[rgba(0,0,0,0.4)] w-screen h-screen z-20 fixed top-0 left-0'
+        onClick={toggleVisible}
+      />
+      <div className='rounded-lg z-30'>
+        <div className='relative rounded-md'>
           <div
             className='absolute top-3 right-3 cursor-pointer'
             onClick={toggleVisible}

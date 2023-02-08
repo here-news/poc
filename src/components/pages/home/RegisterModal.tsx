@@ -69,7 +69,7 @@ function RegisterModal({
       isVisible={isRegisterVisible}
       toggleVisible={toggleIsRegisterVisible}
     >
-      <div className='p-4 w-full h-full'>
+      <div className='p-4 w-full h-full bg-white rounded-lg'>
         <h2 className='mb-4'>Register</h2>
         <Input
           value={username}
