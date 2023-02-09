@@ -8,7 +8,7 @@ export interface IUser {
 
 export interface IPost {
   _id: string
-  userId: IUser | string
+  userId: IUser
   text?: string
   images?: string[]
   createdAt: Date
