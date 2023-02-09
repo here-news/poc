@@ -18,7 +18,7 @@ function Post({ _id, userId, createdAt, images, text }: IPost) {
             />
           </div>
           <div className='flex flex-col ml-2'>
-            <h4 className='text-md'>Malik AA</h4>
+            <h4 className='text-md'>{userId.displayName}</h4>
             <p className='text-xs text-slate-500'>
               {formatDistance(new Date(createdAt), new Date(), {
                 addSuffix: true
