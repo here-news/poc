@@ -37,6 +37,12 @@ function RegisterModal({
     setPassword(value)
   }
 
+  const handleCloseModal = () => {
+    setUsername('')
+    setPassword('')
+    toggleIsRegisterVisible()
+  }
+
   const registerUser = useMutation(
     (user: IRegisterUser) => {
       return axios.post(`${ENV.API_URL}/register`, user)
@@ -45,7 +51,7 @@ function RegisterModal({
       onSuccess: ({ data }) => {
         dispatch(setAccounts(data.data))
         dispatch(setSelectedAccount(data.data[0]))
-        toggleIsRegisterVisible()
+        handleCloseModal()
       },
       onError: () => {
         toast.error('There was an error registering user!')
@@ -67,7 +73,8 @@ function RegisterModal({
   return (
     <Modal
       isVisible={isRegisterVisible}
-      toggleVisible={toggleIsRegisterVisible}
+      toggleVisible={handleCloseModal}
+      hasCloseButton
     >
       <div className='p-4 w-full h-full bg-white rounded-lg'>
         <h2 className='mb-4'>Register</h2>

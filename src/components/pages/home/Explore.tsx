@@ -1,11 +1,18 @@
-import axios from 'axios'
-import { ENV } from 'lib/env'
 import React, { useMemo } from 'react'
+import axios from 'axios'
+import Head from 'next/head'
 import { useQuery } from 'react-query'
+
+import { useAppSelector } from 'store/hooks'
+import { ENV } from 'lib/env'
 import { IPost } from 'types/interfaces'
-import Post from './Post'
+
+import MinifiedPost from './MinifiedPost'
 
 function Explore() {
+  const selectedAccount = useAppSelector(
+    state => state.auth.selectedAccount
+  )
   const query = useQuery('getExplorePosts', () => {
     return axios.get(`${ENV.API_URL}/getExplorePosts`)
   })
@@ -15,16 +22,31 @@ function Explore() {
   }, [query.data])
 
   return (
-    <div className='w-full max-w-[40rem] px-4 mt-4'>
+    <div
+      className={`w-full max-w-[40rem] px-2 md:px-0 ${
+        selectedAccount ? 'mt-2' : ''
+      }`}
+    >
+      <Head>
+        <title>Explore - Here News</title>
+      </Head>
       {postList &&
-        postList.map(({ _id, userId, createdAt, images, text }) => (
-          <div key={_id} className='w-full mt-4'>
-            <Post
-              _id={_id}
-              userId={userId}
-              createdAt={createdAt}
-              images={images}
-              text={text}
+        postList.map((post, i) => (
+          <div
+            key={post._id}
+            className={`w-full ${
+              i === 0 && !selectedAccount ? 'mt-0' : 'mt-4'
+            }`}
+          >
+            <MinifiedPost
+              index={i + 1}
+              _id={post._id}
+              userId={post.userId}
+              createdAt={post.createdAt}
+              title={post.title}
+              totalVotes={post.totalVotes}
+              upvotes={post.upvotes}
+              downvotes={post.downvotes}
             />
           </div>
         ))}

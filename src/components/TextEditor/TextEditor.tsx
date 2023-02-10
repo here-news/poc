@@ -22,10 +22,7 @@ function TextEditor({
   placeholder
 }: TextEditorProps) {
   const handleQuillChange = (value: string) => {
-    import('sanitize-html').then(async func => {
-      const sanitizedHTML = func.default(value)
-      handleChange(sanitizedHTML)
-    })
+    handleChange(value)
   }
   return (
     <div className={containerClassName}>

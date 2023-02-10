@@ -6,6 +6,11 @@ interface InputProps {
   type: string
   placeholder: string
   className?: string
+  inputClassName?: string
+  inputProps?: React.DetailedHTMLProps<
+    React.InputHTMLAttributes<HTMLInputElement>,
+    HTMLInputElement
+  >
 }
 
 function Input({
@@ -13,16 +18,21 @@ function Input({
   onChange,
   type,
   placeholder,
-  className
+  className,
+  inputClassName,
+  inputProps
 }: InputProps) {
   return (
     <div className={className}>
       <input
-        className='border-[1px] border-slate-300 p-2 rounded-md text-sm w-full'
+        className={`border-[1px] border-slate-300 p-2 rounded-md text-sm w-full ${
+          inputClassName ? inputClassName : ''
+        }`}
         type={type}
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
+        {...inputProps}
       />
     </div>
   )

@@ -2,24 +2,27 @@ import React, { useState } from 'react'
 
 const pages = [
   {
-    name: 'Explore',
-    value: 'explore'
-  },
-  {
     name: 'Trending',
     value: 'trending'
+  },
+  {
+    name: 'Explore',
+    value: 'explore'
   }
 ]
-function PageHeader() {
-  const [activePage, setActivePage] = useState('explore')
 
-  const changeActivePage = (page: string) => {
-    setActivePage(page)
-  }
+interface PageHeaderProps {
+  activePage: string
+  changeActivePage: (page: string) => void
+}
 
+function PageHeader({
+  activePage,
+  changeActivePage
+}: PageHeaderProps) {
   return (
     <div className='mb-12 h-12'>
-      <header className='flex z-[1] items-center justify-center p-0 fixed left-0 right-0 top-0 h-12 my-12'>
+      <header className='flex z-[2] items-center justify-center p-0 fixed left-0 right-0 top-0 h-12 my-12'>
         <div
           className='grid h-full max-w-[40rem]'
           style={{
@@ -29,12 +32,12 @@ function PageHeader() {
           <div className='bg-white flex justify-evenly items-center'>
             {pages.map(page => {
               return (
-                <div
+                <button
                   key={page.value}
                   className={`${
                     activePage === page.value
-                      ? 'border-b-2 border-blue-600'
-                      : 'cursor-pointer'
+                      ? 'border-b-2 border-blue-600 border-[inset]'
+                      : 'cursor-pointer hover:border-b-2 hover:border-blue-600 hover:border-opacity-50'
                   } flex items-center justify-center flex-1 h-full`}
                   onClick={() =>
                     activePage !== page.value
@@ -42,7 +45,7 @@ function PageHeader() {
                       : {}
                   }
                 >
-                  <p
+                  <b
                     className={`text-sm font-semibold ${
                       activePage === page.value
                         ? 'text-blue-600'
@@ -50,8 +53,8 @@ function PageHeader() {
                     }`}
                   >
                     {page.name}
-                  </p>
-                </div>
+                  </b>
+                </button>
               )
             })}
           </div>
