@@ -53,7 +53,7 @@ function Header() {
           }}
         >
           <div className='flex justify-between items-center pb-2'>
-            <h2 className='cursor-pointer text-xl pl-4'>Posts</h2>
+            <h2 className='cursor-pointer text-xl pl-4'>News@HERE</h2>
 
             <div className='flex flex-row gap-4'>
               {selectedAccount ? (
