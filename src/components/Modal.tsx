@@ -1,11 +1,20 @@
 import React, { ReactNode } from 'react'
+import { AiOutlineClose } from 'react-icons/ai'
 
 interface ModalProps {
   isVisible: boolean
   toggleVisible: () => void
+  hasCloseButton?: boolean
+  whiteCloseButton?: boolean
   children: ReactNode
 }
-function Modal({ isVisible, toggleVisible, children }: ModalProps) {
+function Modal({
+  isVisible,
+  toggleVisible,
+  hasCloseButton,
+  whiteCloseButton,
+  children
+}: ModalProps) {
   return (
     <div
       className='fixed top-0 left-0 w-screen h-screen items-center justify-center z-20'
@@ -19,12 +28,18 @@ function Modal({ isVisible, toggleVisible, children }: ModalProps) {
       />
       <div className='rounded-lg z-30'>
         <div className='relative rounded-md'>
-          <div
-            className='absolute top-3 right-3 cursor-pointer'
-            onClick={toggleVisible}
-          >
-            <h2>X</h2>
-          </div>
+          {hasCloseButton && (
+            <div
+              className='absolute top-3 right-3 cursor-pointer'
+              onClick={toggleVisible}
+            >
+              <AiOutlineClose
+                className={`h-6 w-6 ${
+                  whiteCloseButton ? 'text-white' : ''
+                }`}
+              />
+            </div>
+          )}
           {children}
         </div>
       </div>

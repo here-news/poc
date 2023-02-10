@@ -1,23 +1,30 @@
-import axios from 'axios'
-import TextEditor from 'components/TextEditor/TextEditor'
-import { ENV } from 'lib/env'
-import Image from 'next/image'
 import React, { useRef, useState } from 'react'
-import { QueryClient, useMutation } from 'react-query'
+import axios from 'axios'
+import { ENV } from 'lib/env'
+import { useMutation, useQueryClient } from 'react-query'
 import { toast } from 'react-toastify'
+import { IoMdImages } from 'react-icons/io'
+
 import { useAppSelector } from 'store/hooks'
+import TextEditor from 'components/TextEditor/TextEditor'
+import Input from 'components/Input'
+import UploadedImages from './UploadedImages'
 
 function CreatePost() {
-  const queryClient = new QueryClient()
+  const queryClient = useQueryClient()
   const { accounts, selectedAccount } = useAppSelector(
     state => state.auth
   )
+
+  const [title, setTitle] = useState('')
   const [text, setText] = useState('')
   const [files, setFiles] = useState<FileList | null>(null)
+  const [posted, setPosted] = useState(false)
   const imageRef = useRef<HTMLInputElement | null>(null)
 
-  const handleText = (value: string) =>
-    value.length <= 1000 && setText(value)
+  const handleTitle = (value: string) => setTitle(value)
+
+  const handleText = (value: string) => setText(value)
 
   const handleUploadImages = () => {
     imageRef.current && imageRef.current.click()
@@ -26,7 +33,31 @@ function CreatePost() {
   const handleFileSelected = (
     e: React.ChangeEvent<HTMLInputElement>
   ): void => {
-    setFiles(e.target.files)
+    if (!e.target.files) return
+
+    let lengthOfFiles = files
+      ? files.length + e.target.files.length
+      : e.target.files
+
+    if (lengthOfFiles > 10) {
+      toast.error('You can only upload 10 images')
+    } else {
+      const dt = new DataTransfer()
+
+      if (files && files.length) {
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i]
+          dt.items.add(file)
+        }
+      }
+
+      for (let i = 0; i < e.target.files.length; i++) {
+        const file = e.target.files[i]
+        dt.items.add(file)
+      }
+
+      setFiles(dt.files)
+    }
   }
 
   const clearImages = () => {
@@ -52,10 +83,14 @@ function CreatePost() {
     },
     {
       onSuccess: () => {
-        toast('Successfully created posts!')
+        setTitle('')
         setText('')
         setFiles(null)
         queryClient.invalidateQueries('getExplorePosts')
+        setPosted(true)
+        setTimeout(() => {
+          setPosted(false)
+        }, 1000)
       },
       onError: () => {
         toast.error('There was some error create post!')
@@ -63,12 +98,19 @@ function CreatePost() {
     }
   )
 
-  const handlePost = () => {
+  const handlePost = async () => {
+    if (posted) return
     if (!selectedAccount) return toast.error('Please log in!')
 
-    if (!text && !files)
+    if (
+      !title ||
+      (!text && !files && !(text && text === '<p><br /></p>'))
+    )
       return toast.error('Please enter some details!')
+
     const formData = new FormData()
+
+    formData.append('title', title)
 
     if (files && files.length) {
       for (let i = 0; i < files.length; i++) {
@@ -76,7 +118,9 @@ function CreatePost() {
       }
     }
     if (text) {
-      formData.append('text', text)
+      const sanitize = await import('sanitize-html')
+      const sanitizedHTML = await sanitize.default(text)
+      formData.append('text', sanitizedHTML)
     }
 
     formData.append('userId', selectedAccount._id)
@@ -85,13 +129,29 @@ function CreatePost() {
 
   if (!accounts || !selectedAccount) return <React.Fragment />
   return (
-    <div className='w-full max-w-[40rem] px-4'>
+    <div className='w-full max-w-[40rem] bg-white p-4'>
+      <Input
+        onChange={handleTitle}
+        value={title}
+        placeholder='Enter title'
+        type='text'
+        className='mb-2'
+        inputClassName='rounded-none placeholder:text-[#666]'
+        inputProps={{
+          maxLength: 120
+        }}
+      />
       <TextEditor
         html={text}
         handleChange={handleText}
         containerClassName='w-full'
         placeholder="What's on your mind?"
       />
+      <div className='flex flex-row gap-2 flex-wrap mt-2'>
+        {files && files.length && (
+          <UploadedImages files={files} removeFile={removeFile} />
+        )}
+      </div>
 
       <div className='flex flex-row items-center justify-between mt-2'>
         <input
@@ -101,39 +161,22 @@ function CreatePost() {
           style={{
             display: 'none'
           }}
-          accept='image/png, image/gif, image/jpeg'
+          accept='image/png, image/gif, image/jpeg, image/webp'
           onChange={handleFileSelected}
         />
         <div className='flex flex-col gap-2'>
-          <div className='flex flex-row gap-x-2'>
-            {files &&
-              files.length &&
-              Array(files.length)
-                .fill(null)
-                .map((_, i) => (
-                  <div key={i} className='group relative w-10 h-10'>
-                    <div
-                      onClick={() => removeFile(i)}
-                      className='hidden group-hover:flex justify-center items-center cursor-pointer absolute right-[-5px] top-[-5px] shadow-md bg-white p-1 w-4 h-4 rounded-full z-[1] '
-                    >
-                      <p className='text-xs'>x</p>
-                    </div>
-                    <Image
-                      src={URL.createObjectURL(files[i])}
-                      alt='file'
-                      fill
-                      className='rounded-lg object-cover'
-                    />
-                  </div>
-                ))}
-          </div>
           <div className='flex flex-row gap-2 items-end'>
-            <p
-              className='cursor-pointer text-md text-blue-500 underline'
-              onClick={() => handleUploadImages()}
-            >
-              Images
-            </p>
+            <div className='flex items-center justify-center z-[1] cursor-pointer'>
+              <p
+                className='text-white text-sm bg-black px-3 py-2 rounded-lg flex flex-row items-center'
+                onClick={() => handleUploadImages()}
+              >
+                <span className='mr-2 text-lg'>
+                  <IoMdImages color='white' />
+                </span>
+                Images
+              </p>
+            </div>
             {files && files.length && (
               <React.Fragment>
                 <p className='text-md text-slate-400'>
@@ -149,15 +192,22 @@ function CreatePost() {
             )}
           </div>
         </div>
-
         <div
-          className={`cursor-pointer ${
-            createPost.isLoading ? 'bg-slate-600' : 'bg-blue-600'
+          className={`cursor-pointer transition duration-500 ease-in-out ${
+            createPost.isLoading
+              ? 'bg-slate-600'
+              : posted
+              ? 'bg-green-600'
+              : 'bg-blue-600'
           } px-4 py-2 rounded-md text-white flex justify-center items-center`}
           onClick={() => !createPost.isLoading && handlePost()}
         >
           <p className='text-sm'>
-            {createPost.isLoading ? 'Posting...' : 'Post'}
+            {createPost.isLoading
+              ? 'Posting...'
+              : posted
+              ? 'Posted!'
+              : 'Post'}
           </p>
         </div>
       </div>

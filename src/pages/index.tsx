@@ -1,20 +1,45 @@
-import Explore from 'components/pages/home/Explore'
-import PageHeader from 'components/pages/home/PageHeader'
-import React from 'react'
+import React, { useState } from 'react'
+import Head from 'next/head'
+
 import Header from '../components/Header'
-import CreatePost from '../components/pages/home/CreatePost'
-import Post from '../components/pages/home/Post'
+import PageHeader from 'components/pages/home/PageHeader'
+import CreatePost from 'components/pages/home/CreatePost/CreatePost'
+import Trending from 'components/pages/home/Trending'
+import Explore from 'components/pages/home/Explore'
 
 function Home() {
+  const [activePage, setActivePage] = useState('trending')
+
+  const changeActivePage = (page: string) => {
+    setActivePage(page)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   return (
     <div>
+      <Head>
+        <title>POC - Here News</title>
+      </Head>
       <Header />
-      <PageHeader />
-      <div className='mt-[56px] pt-4 flex flex-col items-center'>
-        <CreatePost />
-        <Explore />
-        {/* <Post /> */}
+      <PageHeader
+        activePage={activePage}
+        changeActivePage={changeActivePage}
+      />
+      <div className='mt-[3.5rem] flex flex-col items-center'>
+        <div className='w-full max-w-[40rem] mt-2 px-2 md:px-0'>
+          <CreatePost />
+        </div>
       </div>
+
+      {activePage === 'trending' ? (
+        <div className='flex flex-col items-center'>
+          <Trending />
+        </div>
+      ) : (
+        <div className='flex flex-col items-center'>
+          <Explore />
+        </div>
+      )}
     </div>
   )
 }

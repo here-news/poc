@@ -1,15 +1,18 @@
 import axios from 'axios'
-import { ENV } from 'lib/env'
-import Input from 'components/Input'
-import Modal from 'components/Modal'
 import React, { useState } from 'react'
 import { useMutation } from 'react-query'
 import { toast } from 'react-toastify'
-import { useAppDispatch } from 'store/hooks'
+
+import { useAppDispatch, useAppSelector } from 'store/hooks'
 import {
   setSelectedAccount,
-  setAccounts
+  setAccounts,
+  toggleIsLoginModalVisible
 } from 'store/slices/auth.slice'
+import { ENV } from 'lib/env'
+
+import Input from 'components/Input'
+import Modal from 'components/Modal'
 
 interface LoginModalProps {
   isLoginVisible: boolean
@@ -26,6 +29,9 @@ function LoginModal({
   toggleIsLoginVisible
 }: LoginModalProps) {
   const dispatch = useAppDispatch()
+  const isGlobalModalVisible = useAppSelector(
+    state => state.auth && state.auth.isLoginModalVisible
+  )
 
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -38,6 +44,13 @@ function LoginModal({
     setPassword(value)
   }
 
+  const handleCloseModal = () => {
+    setUsername('')
+    setPassword('')
+    dispatch(toggleIsLoginModalVisible(false))
+    toggleIsLoginVisible()
+  }
+
   const registerUser = useMutation(
     (user: ILoginUser) => {
       return axios.post(`${ENV.API_URL}/login`, user)
@@ -46,7 +59,7 @@ function LoginModal({
       onSuccess: ({ data }) => {
         dispatch(setAccounts(data.data))
         dispatch(setSelectedAccount(data.data[0]))
-        toggleIsLoginVisible()
+        handleCloseModal()
       },
       onError: () => {
         toast.error('Username or password incorrect!')
@@ -67,8 +80,9 @@ function LoginModal({
 
   return (
     <Modal
-      isVisible={isLoginVisible}
-      toggleVisible={toggleIsLoginVisible}
+      isVisible={isLoginVisible || isGlobalModalVisible}
+      toggleVisible={handleCloseModal}
+      hasCloseButton
     >
       <div className='p-4 w-full h-full bg-white rounded-lg'>
         <h2 className='mb-4'>Login</h2>

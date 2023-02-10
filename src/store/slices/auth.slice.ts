@@ -1,35 +1,51 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 import { RootState } from 'store'
-
-export interface User {
-  _id: string
-  username: string
-  password: string
-  displayName: string
-  reputation: number
-}
+import { IUser } from 'types/interfaces'
 
 type AuthState = {
-  accounts: User[] | null
-  selectedAccount: User | null
+  accounts: IUser[] | null
+  selectedAccount: IUser | null
+  isLoginModalVisible: boolean
 }
 
 const initialState: AuthState = {
   accounts: null,
-  selectedAccount: null
+  selectedAccount: null,
+  isLoginModalVisible: false
 }
 
 export const authSlice = createSlice({
   name: 'user',
   initialState,
   reducers: {
-    setAccounts: (state, action: PayloadAction<User[]>) => {
+    setAccounts: (state, action: PayloadAction<IUser[]>) => {
       const users = action.payload
       state.accounts = users
     },
-    setSelectedAccount: (state, action: PayloadAction<User>) => {
+    setSelectedAccount: (state, action: PayloadAction<IUser>) => {
       const singleUser = action.payload
       state.selectedAccount = singleUser
+    },
+    deductBalance: (state, action: PayloadAction<number>) => {
+      if (!state.selectedAccount || !state.accounts) return
+
+      const account = state.accounts.find(
+        acc => acc._id === state.selectedAccount?._id
+      )
+      if (account) {
+        account.balance = Number(
+          (state.selectedAccount.balance - action.payload).toFixed(2)
+        )
+      }
+      state.selectedAccount.balance = Number(
+        (state.selectedAccount.balance - action.payload).toFixed(2)
+      )
+    },
+    toggleIsLoginModalVisible: (
+      state,
+      action: PayloadAction<boolean>
+    ) => {
+      state.isLoginModalVisible = action.payload
     },
     logout: state => {
       state.accounts = null
@@ -39,8 +55,13 @@ export const authSlice = createSlice({
 })
 
 // actions
-export const { setAccounts, setSelectedAccount, logout } =
-  authSlice.actions
+export const {
+  setAccounts,
+  setSelectedAccount,
+  deductBalance,
+  toggleIsLoginModalVisible,
+  logout
+} = authSlice.actions
 
 // selectors
 export const selectUser = (state: RootState) => state.auth.accounts
