@@ -97,7 +97,7 @@ function Post({
           </div>
         </div>
 
-        {!accounts ||
+        {/* {!accounts ||
           (accounts &&
             !accounts
               .map(account => account._id)
@@ -133,7 +133,7 @@ function Post({
                   </div>
                 )}
               </div>
-            ))}
+            ))} */}
       </div>
       <div>
         {text && (
