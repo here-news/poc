@@ -45,7 +45,7 @@ function MinifiedPost({
 
   useEffect(() => {
     if (accountId) {
-      if (upvotes.includes(accountId)) setIsUpvoted(true)
+      if (upvotes && upvotes.includes(accountId)) setIsUpvoted(true)
       else setIsUpvoted(false)
     } else {
       setIsUpvoted(false)
@@ -99,7 +99,7 @@ function MinifiedPost({
           <p>
             <AnimatedNumber
               className='select-none text-slate-600'
-              value={votes}
+              value={votes || 0}
               hasComma={false}
               size={12}
             />

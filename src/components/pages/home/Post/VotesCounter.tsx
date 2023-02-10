@@ -48,8 +48,9 @@ function VotesCounter({
 
   useEffect(() => {
     if (accountId) {
-      if (upvotes.includes(accountId)) setVoted('upvote')
-      else if (downvotes.includes(accountId)) setVoted('downvote')
+      if (upvotes && upvotes.includes(accountId)) setVoted('upvote')
+      else if (downvotes && downvotes.includes(accountId))
+        setVoted('downvote')
       else setVoted(null)
     } else {
       setVoted(null)
@@ -138,7 +139,7 @@ function VotesCounter({
               : 'text-green-600'
             : 'text-black'
         }`}
-        value={votes}
+        value={votes || 0}
         hasComma={false}
         size={16}
       />
