@@ -65,7 +65,9 @@ function VotesCounter({
     if (voted === 'upvote') return
 
     setIsVoteChanged(true)
-    setVotes(prev => prev + 1)
+    setVotes(prev =>
+      voted === 'downvote' ? (prev ? prev + 2 : prev + 1) : 1
+    )
     setVoted('upvote')
     handleUpvoteQuery.mutate({
       userId: accountId
@@ -80,7 +82,10 @@ function VotesCounter({
     if (voted === 'downvote') return
 
     setIsVoteChanged(true)
-    setVotes(prev => prev - 1)
+    setVotes(prev =>
+      voted === 'upvote' ? (prev ? prev - 2 : prev - 1) : -1
+    )
+
     setVoted('downvote')
     handleDownvoteQuery.mutate({
       userId: accountId
@@ -110,7 +115,7 @@ function VotesCounter({
     {
       onSuccess: () => {
         dispatch(deductBalance(0.01))
-        queryClient.invalidateQueries('getExplorePosts')
+        queryClient.invalidateQueries('getTrendingPosts')
       },
       onError: () => {
         toast.error('Error downvoting!')
