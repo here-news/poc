@@ -44,6 +44,10 @@ function MinifiedPost({
   )
 
   useEffect(() => {
+    setVotes(totalVotes)
+  }, [totalVotes])
+
+  useEffect(() => {
     if (accountId) {
       if (upvotes && upvotes.includes(accountId)) setIsUpvoted(true)
       else setIsUpvoted(false)

@@ -87,6 +87,7 @@ function CreatePost() {
         setText('')
         setFiles(null)
         queryClient.invalidateQueries('getExplorePosts')
+        queryClient.invalidateQueries('getTrendingPosts')
         setPosted(true)
         setTimeout(() => {
           setPosted(false)

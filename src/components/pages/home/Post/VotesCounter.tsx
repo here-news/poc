@@ -41,6 +41,10 @@ function VotesCounter({
     null
   )
 
+  useEffect(() => {
+    setVotes(totalVotes)
+  }, [totalVotes])
+
   const accountId = useMemo(
     () => selectedAccount && selectedAccount._id,
     [selectedAccount]
