@@ -94,7 +94,7 @@ function VotesCounter({
     {
       onSuccess: () => {
         dispatch(deductBalance(0.01))
-        queryClient.invalidateQueries('getExplorePosts')
+        queryClient.invalidateQueries('getTrendingPosts')
       },
       onError: () => {
         toast.error('Error upvoting!')

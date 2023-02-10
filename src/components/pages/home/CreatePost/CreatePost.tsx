@@ -101,12 +101,9 @@ function CreatePost() {
   const handlePost = async () => {
     if (posted) return
     if (!selectedAccount) return toast.error('Please log in!')
-
-    if (
-      !title ||
-      (!text && !files && !(text && text === '<p><br /></p>'))
-    )
-      return toast.error('Please enter some details!')
+    if (!title) return toast.error('Please enter title!')
+    if (!text && !files && !(text && text === '<p><br /></p>'))
+      return toast.error('Please either enter some text or images!')
 
     const formData = new FormData()
 

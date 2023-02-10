@@ -29,8 +29,8 @@ function Trending() {
   const toggleShowImagesVisible = () =>
     setShowImagesVisible(prev => !prev)
 
-  const query = useQuery('getExplorePosts', () => {
-    return axios.get(`${ENV.API_URL}/getExplorePosts`)
+  const query = useQuery('getTrendingPosts', () => {
+    return axios.get(`${ENV.API_URL}/getTrendingPosts`)
   })
 
   const postList: IPost[] = useMemo(() => {

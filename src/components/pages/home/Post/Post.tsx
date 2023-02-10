@@ -151,13 +151,14 @@ function Post({
               ref={contentRef}
               style={{ maxHeight: height, overflow: 'hidden' }}
             />
-            <div className='flex-1 flex justify-end my-5'>
+            <div
+              className={`flex-1 justify-end my-5 ${
+                height === '100px' ? 'flex' : 'hidden'
+              }`}
+            >
               <button
                 className='text-blue-600 underline text-sm'
                 onClick={handleClick}
-                style={{
-                  display: height === '100px' ? 'block' : 'none'
-                }}
               >
                 Show More
               </button>

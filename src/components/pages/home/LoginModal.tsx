@@ -47,8 +47,8 @@ function LoginModal({
   const handleCloseModal = () => {
     setUsername('')
     setPassword('')
-    dispatch(toggleIsLoginModalVisible(false))
-    toggleIsLoginVisible()
+    isGlobalModalVisible && dispatch(toggleIsLoginModalVisible(false))
+    isLoginVisible && toggleIsLoginVisible()
   }
 
   const registerUser = useMutation(
