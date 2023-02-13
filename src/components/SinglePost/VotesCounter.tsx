@@ -41,10 +41,6 @@ function VotesCounter({
     null
   )
 
-  useEffect(() => {
-    setVotes(totalVotes)
-  }, [totalVotes])
-
   const accountId = useMemo(
     () => selectedAccount && selectedAccount._id,
     [selectedAccount]
@@ -52,9 +48,8 @@ function VotesCounter({
 
   useEffect(() => {
     if (accountId) {
-      if (upvotes && upvotes.includes(accountId)) setVoted('upvote')
-      else if (downvotes && downvotes.includes(accountId))
-        setVoted('downvote')
+      if (upvotes.includes(accountId)) setVoted('upvote')
+      else if (downvotes.includes(accountId)) setVoted('downvote')
       else setVoted(null)
     } else {
       setVoted(null)
@@ -70,7 +65,7 @@ function VotesCounter({
 
     setIsVoteChanged(true)
     setVotes(prev =>
-      voted === 'downvote' ? (prev ? prev + 2 : prev + 1) : 1
+      voted === 'downvote' ? (prev ? prev + 2 : prev + 1) : prev + 1
     )
     setVoted('upvote')
     handleUpvoteQuery.mutate({
@@ -87,7 +82,7 @@ function VotesCounter({
 
     setIsVoteChanged(true)
     setVotes(prev =>
-      voted === 'upvote' ? (prev ? prev - 2 : prev - 1) : -1
+      voted === 'upvote' ? (prev ? prev - 2 : prev - 1) : prev - 1
     )
 
     setVoted('downvote')
@@ -104,7 +99,7 @@ function VotesCounter({
     {
       onSuccess: () => {
         dispatch(deductBalance(0.01))
-        queryClient.invalidateQueries('getTrendingPosts')
+        queryClient.invalidateQueries('getExplorePosts')
       },
       onError: () => {
         toast.error('Error upvoting!')
@@ -119,7 +114,7 @@ function VotesCounter({
     {
       onSuccess: () => {
         dispatch(deductBalance(0.01))
-        queryClient.invalidateQueries('getTrendingPosts')
+        queryClient.invalidateQueries('getExplorePosts')
       },
       onError: () => {
         toast.error('Error downvoting!')
@@ -148,7 +143,7 @@ function VotesCounter({
               : 'text-green-600'
             : 'text-black'
         }`}
-        value={votes || 0}
+        value={votes}
         hasComma={false}
         size={16}
       />

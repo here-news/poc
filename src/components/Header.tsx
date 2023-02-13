@@ -1,19 +1,22 @@
 import Image from 'next/image'
-import React, {useEffect, useRef, useState} from 'react'
-import {useAppDispatch, useAppSelector} from 'store/hooks'
+import React, { useEffect, useRef, useState } from 'react'
+import { useAppDispatch, useAppSelector } from 'store/hooks'
 import LoginModal from './pages/home/LoginModal'
 import RegisterModal from './pages/home/RegisterModal'
 import Avatar from 'assets/avatar.png'
-import {logout, setSelectedAccount} from 'store/slices/auth.slice'
-import {IUser} from 'types/interfaces'
-import {MdAttachMoney} from 'react-icons/md'
+import { logout, setSelectedAccount } from 'store/slices/auth.slice'
+import { IUser } from 'types/interfaces'
+import { MdAttachMoney } from 'react-icons/md'
 import AnimatedNumber from 'react-awesome-animated-number'
 import 'react-awesome-animated-number/dist/index.css'
+import Link from 'next/link'
 
 function Header() {
   const dispatch = useAppDispatch()
   const accountMenuRef = useRef<HTMLDivElement | null>(null)
-  const {accounts, selectedAccount} = useAppSelector(state => state.auth)
+  const { accounts, selectedAccount } = useAppSelector(
+    state => state.auth
+  )
 
   const [isRegisterVisible, setIsRegisterVisible] = useState(false)
   const [isLoginVisible, setIsLoginVisible] = useState(false)
@@ -70,11 +73,13 @@ function Header() {
         <div
           className='grid h-full max-w-[40rem]'
           style={{
-            flex: '1 1 0%',
+            flex: '1 1 0%'
           }}
         >
-          <div className='flex justify-between items-center pb-2'>
-            <h2 className='cursor-pointer text-xl pl-4'>News@HERE</h2>
+          <div className='flex justify-between items-center pb-2 px-2'>
+            <Link href='/'>
+              <h2 className='cursor-pointer text-xl'>Posts</h2>
+            </Link>
 
             <div className='flex flex-row gap-2 items-center'>
               {selectedAccount ? (
@@ -124,7 +129,8 @@ function Header() {
                           Switch to
                         </p>
                         {accounts?.map(account => {
-                          if (account._id === selectedAccount._id) return null
+                          if (account._id === selectedAccount._id)
+                            return null
 
                           return (
                             <div

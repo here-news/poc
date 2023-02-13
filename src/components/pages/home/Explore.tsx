@@ -47,6 +47,7 @@ function Explore() {
               totalVotes={post.totalVotes}
               upvotes={post.upvotes}
               downvotes={post.downvotes}
+              totalComments={post.totalComments}
             />
           </div>
         ))}

@@ -7,9 +7,10 @@ import axios from 'axios'
 import { ENV } from 'lib/env'
 import {
   setAccounts,
-  setSelectedAccount
+  setSelectedAccount,
+  toggleIsRegisterModalVisible
 } from 'store/slices/auth.slice'
-import { useAppDispatch } from 'store/hooks'
+import { useAppDispatch, useAppSelector } from 'store/hooks'
 
 interface RegisterModalProps {
   isRegisterVisible: boolean
@@ -26,6 +27,10 @@ function RegisterModal({
   toggleIsRegisterVisible
 }: RegisterModalProps) {
   const dispatch = useAppDispatch()
+  const isGlobalModalVisible = useAppSelector(
+    state => state.auth && state.auth.isRegisterModalVisible
+  )
+
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
 
@@ -40,7 +45,9 @@ function RegisterModal({
   const handleCloseModal = () => {
     setUsername('')
     setPassword('')
-    toggleIsRegisterVisible()
+    isGlobalModalVisible &&
+      dispatch(toggleIsRegisterModalVisible(false))
+    isRegisterVisible && toggleIsRegisterVisible()
   }
 
   const registerUser = useMutation(
@@ -72,7 +79,7 @@ function RegisterModal({
 
   return (
     <Modal
-      isVisible={isRegisterVisible}
+      isVisible={isRegisterVisible || isGlobalModalVisible}
       toggleVisible={handleCloseModal}
       hasCloseButton
     >

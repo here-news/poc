@@ -6,12 +6,14 @@ type AuthState = {
   accounts: IUser[] | null
   selectedAccount: IUser | null
   isLoginModalVisible: boolean
+  isRegisterModalVisible: boolean
 }
 
 const initialState: AuthState = {
   accounts: null,
   selectedAccount: null,
-  isLoginModalVisible: false
+  isLoginModalVisible: false,
+  isRegisterModalVisible: false
 }
 
 export const authSlice = createSlice({
@@ -47,6 +49,12 @@ export const authSlice = createSlice({
     ) => {
       state.isLoginModalVisible = action.payload
     },
+    toggleIsRegisterModalVisible: (
+      state,
+      action: PayloadAction<boolean>
+    ) => {
+      state.isRegisterModalVisible = action.payload
+    },
     logout: state => {
       state.accounts = null
       state.selectedAccount = null
@@ -60,6 +68,7 @@ export const {
   setSelectedAccount,
   deductBalance,
   toggleIsLoginModalVisible,
+  toggleIsRegisterModalVisible,
   logout
 } = authSlice.actions
 
