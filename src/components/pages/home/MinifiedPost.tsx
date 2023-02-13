@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
+import { useRouter } from 'next/router'
 import formatDistance from 'date-fns/formatDistance'
 import AnimatedNumber from 'react-awesome-animated-number'
 import { BsLightning, BsLightningFill } from 'react-icons/bs'
@@ -27,14 +28,20 @@ function MinifiedPost({
   userId,
   title,
   totalVotes,
-  upvotes
+  downvotes,
+  upvotes,
+  totalComments
 }: MinifiedPostProps) {
+  const router = useRouter()
   const queryClient = useQueryClient()
   const dispatch = useAppDispatch()
   const selectedAccount = useAppSelector(
     state => state.auth.selectedAccount
   )
 
+  const [voted, setVoted] = useState<'upvote' | 'downvote' | null>(
+    null
+  )
   const [votes, setVotes] = useState(totalVotes)
   const [isUpvoted, setIsUpvoted] = useState(false)
 
@@ -42,6 +49,16 @@ function MinifiedPost({
     () => selectedAccount && selectedAccount._id,
     [selectedAccount]
   )
+
+  useEffect(() => {
+    if (accountId) {
+      if (upvotes.includes(accountId)) setVoted('upvote')
+      else if (downvotes.includes(accountId)) setVoted('downvote')
+      else setVoted(null)
+    } else {
+      setVoted(null)
+    }
+  }, [accountId, upvotes, downvotes])
 
   useEffect(() => {
     setVotes(totalVotes)
@@ -63,7 +80,9 @@ function MinifiedPost({
     }
     if (isUpvoted || !accountId) return
 
-    setVotes(prev => prev + 1)
+    setVotes(prev =>
+      voted === 'downvote' ? (prev ? prev + 2 : prev + 1) : prev + 1
+    )
     setIsUpvoted(true)
     handleUpvoteQuery.mutate({
       userId: accountId
@@ -86,40 +105,56 @@ function MinifiedPost({
   )
 
   return (
-    <div className='flex flex-row items-center gap-4 relative border-[0.0625rem] border-slate-400 bg-white p-4 w-full'>
-      <p>{index}</p>
-      <div className='cursor-pointer' onClick={handleUpvote}>
-        {isUpvoted ? (
-          <BsLightningFill className='w-7 h-7 text-yellow-500' />
-        ) : (
-          <BsLightning className='w-7 h-7' />
-        )}
-      </div>
-      <div className='flex flex-col'>
-        <div className='text-sm font-bold'>
-          <p>{title ? title : 'No title'}</p>
+    <div
+      onClick={() => router.push(`/post/${_id}`)}
+      className='cursor-pointer'
+    >
+      <div className='flex flex-row items-center gap-4 relative border-[0.0625rem] border-slate-400 bg-white p-4 w-full'>
+        <p>{index}</p>
+        <div
+          className='cursor-pointer'
+          onClick={e => {
+            e.stopPropagation()
+            handleUpvote()
+          }}
+        >
+          {isUpvoted ? (
+            <BsLightningFill className='w-7 h-7 text-yellow-500' />
+          ) : (
+            <BsLightning className='w-7 h-7' />
+          )}
         </div>
-        <div className='flex flex-row gap-1 text-slate-600 text-xs items-center'>
-          <p>
-            <AnimatedNumber
-              className='select-none text-slate-600'
-              value={votes || 0}
-              hasComma={false}
-              size={12}
-            />
-            <span className='px-1'>\</span>
-            <span>3 comments</span>
-            <span className='px-1'>\</span>
-            <span className='text-blue-600'>
-              @{userId.displayName}
-            </span>
-            <span className='px-1'>\</span>
-            <span>
-              {formatDistance(new Date(createdAt), new Date(), {
-                addSuffix: true
-              })}
-            </span>
-          </p>
+        <div className='flex flex-col'>
+          <div className='text-sm font-bold'>
+            <p>{title ? title : 'No title'}</p>
+          </div>
+          <div className='flex flex-row gap-1 text-slate-600 text-xs items-center'>
+            <p>
+              <AnimatedNumber
+                className='select-none text-slate-600'
+                value={votes || 0}
+                hasComma={false}
+                size={12}
+              />
+              <span className='px-1'>\</span>
+              <span>
+                {totalComments}{' '}
+                {totalComments && totalComments > 1
+                  ? 'comments'
+                  : 'comment'}
+              </span>
+              <span className='px-1'>\</span>
+              <span className='text-blue-600'>
+                @{userId.displayName}
+              </span>
+              <span className='px-1'>\</span>
+              <span>
+                {formatDistance(new Date(createdAt), new Date(), {
+                  addSuffix: true
+                })}
+              </span>
+            </p>
+          </div>
         </div>
       </div>
     </div>

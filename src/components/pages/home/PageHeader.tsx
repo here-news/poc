@@ -21,7 +21,7 @@ function PageHeader({
   changeActivePage
 }: PageHeaderProps) {
   return (
-    <div className='mb-12 h-12'>
+    <div className='mb-2 h-12'>
       <header className='flex z-[2] items-center justify-center p-0 fixed left-0 right-0 top-0 h-12 my-12'>
         <div
           className='grid h-full max-w-[40rem]'

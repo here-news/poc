@@ -9,7 +9,7 @@ import { IPost } from 'types/interfaces'
 import { ENV } from 'lib/env'
 
 import ShowImagesModal from './ShowImagesModal'
-import Post from './Post/Post'
+import SinglePost from 'components/SinglePost/SinglePost'
 
 function Trending() {
   const selectedAccount = useAppSelector(
@@ -67,7 +67,7 @@ function Trending() {
                   i === 0 && !selectedAccount ? 'mt-0' : 'mt-4'
                 }`}
               >
-                <Post
+                <SinglePost
                   _id={post._id}
                   userId={post.userId}
                   createdAt={post.createdAt}
@@ -78,6 +78,7 @@ function Trending() {
                   upvotes={post.upvotes}
                   totalVotes={post.totalVotes}
                   handleSelectedImages={handleSelectedImages}
+                  canPushToPost={true}
                 />
               </div>
             ))}

@@ -10,11 +10,15 @@ import { IPost } from 'types/interfaces'
 
 import VotesCounter from './VotesCounter'
 import Images from './Images'
+import { useRouter } from 'next/router'
 
-interface PostProps extends IPost {
+interface SinglePostProps extends IPost {
+  noBorder?: boolean
+  canPushToPost?: boolean
   handleSelectedImages: (images: string[], index?: number) => void
 }
-function Post({
+
+function SinglePost({
   _id,
   userId,
   createdAt,
@@ -24,8 +28,11 @@ function Post({
   upvotes,
   downvotes,
   totalVotes,
-  handleSelectedImages
-}: PostProps) {
+  handleSelectedImages,
+  noBorder,
+  canPushToPost
+}: SinglePostProps) {
+  const router = useRouter()
   const { accounts } = useAppSelector(state => state.auth)
   const moreOptionsMenuRef = useRef<HTMLDivElement | null>(null)
   const [height, setHeight] = useState('100px')
@@ -69,10 +76,18 @@ function Post({
     setHeight(contentRef.current.scrollHeight + 'px')
   }
 
+  const moveToPage = () => {
+    canPushToPost && router.push(`/post/${_id}`)
+  }
+
   return (
-    <div className='relative border-[0.0625rem] border-slate-400 bg-white p-4 w-full'>
+    <div
+      className={`relative bg-white p-4 w-full ${
+        !noBorder ? 'border-[0.0625rem] border-slate-400' : ''
+      }`}
+    >
       <div className='flex flex-row justify-between items-center'>
-        <div className='flex items-center'>
+        <div className='flex items-center flex-1'>
           <VotesCounter
             postId={_id}
             downvotes={downvotes}
@@ -87,7 +102,12 @@ function Post({
               className='rounded-full'
             />
           </div>
-          <div className='flex flex-col ml-2'>
+          <div
+            className={`flex flex-col flex-1 ml-2 ${
+              canPushToPost ? 'cursor-pointer' : ''
+            }`}
+            onClick={moveToPage}
+          >
             <h4 className='text-md'>{userId.displayName}</h4>
             <p className='text-xs text-slate-500'>
               {formatDistance(new Date(createdAt), new Date(), {
@@ -135,7 +155,10 @@ function Post({
               </div>
             ))} */}
       </div>
-      <div>
+      <div
+        className={canPushToPost ? 'cursor-pointer' : ''}
+        onClick={moveToPage}
+      >
         {text && (
           <div
             className={`flex flex-col mt-2 ${
@@ -151,21 +174,25 @@ function Post({
               ref={contentRef}
               style={{ maxHeight: height, overflow: 'hidden' }}
             />
-            <div
-              className={`flex-1 justify-end my-5 ${
-                height === '100px' ? 'flex' : 'hidden'
-              }`}
-            >
-              <button
-                className='text-blue-600 underline text-sm'
-                onClick={handleClick}
-              >
-                Show More
-              </button>
-            </div>
+            {height === '100px' && (
+              <div className='flex-1 flex justify-end my-5'>
+                <button
+                  className='text-blue-600 underline text-sm'
+                  onClick={e => {
+                    e.stopPropagation()
+                    handleClick()
+                  }}
+                  style={{
+                    display: height === '100px' ? 'block' : 'none'
+                  }}
+                >
+                  Show More
+                </button>
+              </div>
+            )}
           </div>
         )}
-        <div className='flex-1'>
+        <div className='flex-1' onClick={e => e.stopPropagation()}>
           <Images
             images={images}
             handleSelectedImages={handleSelectedImages}
@@ -176,4 +203,4 @@ function Post({
   )
 }
 
-export default Post
+export default SinglePost

@@ -17,4 +17,15 @@ export interface IPost {
   upvotes: string[]
   downvotes: string[]
   totalVotes: number
+  totalComments?: number
+}
+
+export interface IComment {
+  _id: string
+  user: IUser
+  post: IPost
+  text: string
+  createdAt: Date
+  replyTo?: IComment
+  replies?: IComment[]
 }
