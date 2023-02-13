@@ -1,19 +1,16 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, {useEffect, useMemo, useState} from 'react'
 import axios from 'axios'
-import { useRouter } from 'next/router'
+import {useRouter} from 'next/router'
 import formatDistance from 'date-fns/formatDistance'
 import AnimatedNumber from 'react-awesome-animated-number'
-import { BsLightning, BsLightningFill } from 'react-icons/bs'
-import { useMutation, useQueryClient } from 'react-query'
-import { toast } from 'react-toastify'
+import {BsLightning, BsLightningFill} from 'react-icons/bs'
+import {useMutation, useQueryClient} from 'react-query'
+import {toast} from 'react-toastify'
 
-import { ENV } from 'lib/env'
-import { useAppDispatch, useAppSelector } from 'store/hooks'
-import {
-  deductBalance,
-  toggleIsLoginModalVisible
-} from 'store/slices/auth.slice'
-import { IPost } from 'types/interfaces'
+import {ENV} from 'lib/env'
+import {useAppDispatch, useAppSelector} from 'store/hooks'
+import {deductBalance, toggleIsLoginModalVisible} from 'store/slices/auth.slice'
+import {IPost} from 'types/interfaces'
 
 import 'react-awesome-animated-number/dist/index.css'
 
@@ -30,18 +27,14 @@ function MinifiedPost({
   totalVotes,
   downvotes,
   upvotes,
-  totalComments
+  totalComments,
 }: MinifiedPostProps) {
   const router = useRouter()
   const queryClient = useQueryClient()
   const dispatch = useAppDispatch()
-  const selectedAccount = useAppSelector(
-    state => state.auth.selectedAccount
-  )
+  const selectedAccount = useAppSelector(state => state.auth.selectedAccount)
 
-  const [voted, setVoted] = useState<'upvote' | 'downvote' | null>(
-    null
-  )
+  const [voted, setVoted] = useState<'upvote' | 'downvote' | null>(null)
   const [votes, setVotes] = useState(totalVotes)
   const [isUpvoted, setIsUpvoted] = useState(false)
 
@@ -52,8 +45,10 @@ function MinifiedPost({
 
   useEffect(() => {
     if (accountId) {
-      if (upvotes.includes(accountId)) setVoted('upvote')
-      else if (downvotes.includes(accountId)) setVoted('downvote')
+      if (upvotes && upvotes.length && upvotes.includes(accountId))
+        setVoted('upvote')
+      else if (downvotes && downvotes.length && downvotes.includes(accountId))
+        setVoted('downvote')
       else setVoted(null)
     } else {
       setVoted(null)
@@ -85,12 +80,12 @@ function MinifiedPost({
     )
     setIsUpvoted(true)
     handleUpvoteQuery.mutate({
-      userId: accountId
+      userId: accountId,
     })
   }
 
   const handleUpvoteQuery = useMutation(
-    (data: { userId: string }) => {
+    (data: {userId: string}) => {
       return axios.post(`${ENV.API_URL}/upvotePost/${_id}`, data)
     },
     {
@@ -100,15 +95,12 @@ function MinifiedPost({
       },
       onError: () => {
         toast.error('Error upvoting!')
-      }
+      },
     }
   )
 
   return (
-    <div
-      onClick={() => router.push(`/post/${_id}`)}
-      className='cursor-pointer'
-    >
+    <div onClick={() => router.push(`/post/${_id}`)} className='cursor-pointer'>
       <div className='flex flex-row items-center gap-4 relative border-[0.0625rem] border-slate-400 bg-white p-4 w-full'>
         <p>{index}</p>
         <div
@@ -139,18 +131,14 @@ function MinifiedPost({
               <span className='px-1'>\</span>
               <span>
                 {totalComments}{' '}
-                {totalComments && totalComments > 1
-                  ? 'comments'
-                  : 'comment'}
+                {totalComments && totalComments > 1 ? 'comments' : 'comment'}
               </span>
               <span className='px-1'>\</span>
-              <span className='text-blue-600'>
-                @{userId.displayName}
-              </span>
+              <span className='text-blue-600'>@{userId.displayName}</span>
               <span className='px-1'>\</span>
               <span>
                 {formatDistance(new Date(createdAt), new Date(), {
-                  addSuffix: true
+                  addSuffix: true,
                 })}
               </span>
             </p>
