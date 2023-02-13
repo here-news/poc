@@ -1,3 +1,3 @@
 export const ENV = {
-  API_URL: 'http://localhost:4000/api'
+  API_URL: 'https://poc.here.news/api'
 }
