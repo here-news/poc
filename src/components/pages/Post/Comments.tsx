@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useLayoutEffect, useMemo } from 'react'
 import { useQuery } from 'react-query'
 import axios from 'axios'
 
@@ -22,6 +22,16 @@ function Comments({ postId, totalComments }: CommentsProps) {
   const selectedAccount = useAppSelector(
     state => state.auth.selectedAccount
   )
+
+  useLayoutEffect(() => {
+    const hash = window.location.hash
+    if (hash === '#conversation') {
+      const element = document.getElementById('conversation')
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' })
+      }
+    }
+  }, [])
 
   const getCommentsQuery = useQuery(
     'getCommentsFromPost',
@@ -55,7 +65,7 @@ function Comments({ postId, totalComments }: CommentsProps) {
   }
 
   return (
-    <div className='mt-8 mb-20'>
+    <div className='mt-8 mb-20' id='conversation'>
       <h3 className='text-2xl font-semibold text-slate-700'>
         Conversation{' '}
         {totalComments && totalComments > 0 ? (

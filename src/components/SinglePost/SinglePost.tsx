@@ -1,20 +1,19 @@
 import React, { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
-import { MdMoreHoriz, MdDelete } from 'react-icons/md'
-import { IoMdPersonAdd, IoMdFlag } from 'react-icons/io'
+import { useRouter } from 'next/router'
 import formatDistance from 'date-fns/formatDistance'
 
-import { useAppSelector } from 'store/hooks'
 import Avatar from 'assets/avatar.png'
 import { IPost } from 'types/interfaces'
 
 import VotesCounter from './VotesCounter'
 import Images from './Images'
-import { useRouter } from 'next/router'
+import Buttons from './Buttons'
 
 interface SinglePostProps extends IPost {
   noBorder?: boolean
   canPushToPost?: boolean
+  totalComments: number
   handleSelectedImages: (images: string[], index?: number) => void
 }
 
@@ -30,37 +29,12 @@ function SinglePost({
   totalVotes,
   handleSelectedImages,
   noBorder,
-  canPushToPost
+  canPushToPost,
+  totalComments
 }: SinglePostProps) {
   const router = useRouter()
-  const { accounts } = useAppSelector(state => state.auth)
-  const moreOptionsMenuRef = useRef<HTMLDivElement | null>(null)
   const [height, setHeight] = useState('100px')
   const contentRef = useRef<HTMLDivElement | null>(null)
-
-  const [isMoreOptions, setIsMoreOptions] = useState(false)
-  const toggleMoreOptions = () => setIsMoreOptions(prev => !prev)
-
-  useEffect(() => {
-    if (!isMoreOptions) {
-      document.removeEventListener('mousedown', handleClickOutside)
-      return
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [isMoreOptions])
-
-  function handleClickOutside(e: MouseEvent) {
-    if (!e) return
-    const target = e.target as Node
-
-    if (moreOptionsMenuRef?.current?.contains(target)) return
-    setIsMoreOptions(false)
-  }
 
   useEffect(() => {
     if (
@@ -82,18 +56,25 @@ function SinglePost({
 
   return (
     <div
-      className={`relative bg-white p-4 w-full ${
+      className={`relative bg-white w-full ${
         !noBorder ? 'border-[0.0625rem] border-slate-400' : ''
+      } ${
+        canPushToPost
+          ? 'cursor-pointer transition-colors duration-300 hover:bg-slate-100'
+          : ''
       }`}
+      onClick={moveToPage}
     >
-      <div className='flex flex-row justify-between items-center'>
+      <div className='flex flex-row justify-between items-center mx-4'>
         <div className='flex items-center flex-1'>
-          <VotesCounter
-            postId={_id}
-            downvotes={downvotes}
-            upvotes={upvotes}
-            totalVotes={totalVotes}
-          />
+          <div onClick={e => e.stopPropagation()}>
+            <VotesCounter
+              postId={_id}
+              downvotes={downvotes}
+              upvotes={upvotes}
+              totalVotes={totalVotes}
+            />
+          </div>
           <div className='relative w-8 h-8 ml-2'>
             <Image
               src={Avatar}
@@ -102,12 +83,7 @@ function SinglePost({
               className='rounded-full'
             />
           </div>
-          <div
-            className={`flex flex-col flex-1 ml-2 ${
-              canPushToPost ? 'cursor-pointer' : ''
-            }`}
-            onClick={moveToPage}
-          >
+          <div className={`flex flex-col flex-1 ml-2`}>
             <h4 className='text-md'>{userId.displayName}</h4>
             <p className='text-xs text-slate-500'>
               {formatDistance(new Date(createdAt), new Date(), {
@@ -116,53 +92,16 @@ function SinglePost({
             </p>
           </div>
         </div>
-
-        {/* {!accounts ||
-          (accounts &&
-            !accounts
-              .map(account => account._id)
-              .includes(userId._id) && (
-              <div className='relative' ref={moreOptionsMenuRef}>
-                <div
-                  className='cursor-pointer'
-                  onClick={() => toggleMoreOptions()}
-                >
-                  <MdMoreHoriz className='text-2xl' />
-                </div>
-
-                {isMoreOptions && (
-                  <div className='z-[1] bg-white shadow-md min-w-[180px] absolute top-[1.375rem] right-0 rounded-lg py-2 px-2'>
-                    <div className='flex items-center'>
-                      <IoMdPersonAdd className='text-lg' />
-                      <p className='text-sm px-2 py-3 cursor-pointer'>
-                        Follow {userId.displayName}
-                      </p>
-                    </div>
-                    <div className='flex items-center'>
-                      <MdDelete className='text-lg' />
-                      <p className='text-sm px-2 py-3 cursor-pointer'>
-                        Delete post
-                      </p>
-                    </div>
-                    <div className='flex items-center'>
-                      <IoMdFlag className='text-lg' />
-                      <p className='text-sm px-2 py-3 cursor-pointer'>
-                        Flag contect
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))} */}
       </div>
-      <div
-        className={canPushToPost ? 'cursor-pointer' : ''}
-        onClick={moveToPage}
-      >
+      <div>
         {text && (
           <div
-            className={`flex flex-col mt-2 ${
-              !images || (images && images.length <= 0) ? 'mb-4' : ''
+            className={`flex flex-col mt-2 mx-4 ${
+              !images || (images && images.length <= 0)
+                ? 'mb-4'
+                : height !== '100px'
+                ? 'mb-4'
+                : ''
             }`}
           >
             <h2 className='text-lg font-bold mb-4'>{title}</h2>
@@ -198,6 +137,7 @@ function SinglePost({
             handleSelectedImages={handleSelectedImages}
           />
         </div>
+        <Buttons totalComments={totalComments} postId={_id} />
       </div>
     </div>
   )

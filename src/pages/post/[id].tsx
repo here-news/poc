@@ -48,6 +48,9 @@ function Post({ postData }: PostProps) {
           userId={postData.userId}
           images={postData.images}
           text={postData.text}
+          totalComments={
+            postData.totalComments ? postData.totalComments : 0
+          }
         />
         <Comments
           postId={postData._id}

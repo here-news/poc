@@ -79,6 +79,9 @@ function Trending() {
                   totalVotes={post.totalVotes}
                   handleSelectedImages={handleSelectedImages}
                   canPushToPost={true}
+                  totalComments={
+                    post.totalComments ? post.totalComments : 0
+                  }
                 />
               </div>
             ))}
