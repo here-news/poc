@@ -9,6 +9,7 @@ import { IPost } from 'types/interfaces'
 import VotesCounter from './VotesCounter'
 import Images from './Images'
 import Buttons from './Buttons'
+import LinkDetails from './LinkDetails'
 
 interface SinglePostProps extends IPost {
   noBorder?: boolean
@@ -30,7 +31,8 @@ function SinglePost({
   handleSelectedImages,
   noBorder,
   canPushToPost,
-  totalComments
+  totalComments,
+  preview
 }: SinglePostProps) {
   const router = useRouter()
   const [height, setHeight] = useState('100px')
@@ -94,6 +96,16 @@ function SinglePost({
         </div>
       </div>
       <div>
+        {preview && (
+          <LinkDetails
+            url={preview.url}
+            description={preview.description}
+            favicons={preview.favicons}
+            images={preview.images}
+            siteName={preview.siteName}
+            title={preview.title}
+          />
+        )}
         {text && (
           <div
             className={`flex flex-col mt-2 mx-4 ${
