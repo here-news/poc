@@ -1,21 +1,18 @@
-import React, { useEffect, useMemo, useState } from 'react'
-import { useAppDispatch, useAppSelector } from 'store/hooks'
+import React, {useEffect, useMemo, useState} from 'react'
+import {useAppDispatch, useAppSelector} from 'store/hooks'
 import {
   BsCaretDown,
   BsCaretUp,
   BsCaretDownFill,
-  BsCaretUpFill
+  BsCaretUpFill,
 } from 'react-icons/bs'
 import AnimatedNumber from 'react-awesome-animated-number'
 import 'react-awesome-animated-number/dist/index.css'
-import { useMutation, useQueryClient } from 'react-query'
+import {useMutation, useQueryClient} from 'react-query'
 import axios from 'axios'
-import { ENV } from 'lib/env'
-import { toast } from 'react-toastify'
-import {
-  deductBalance,
-  toggleIsLoginModalVisible
-} from 'store/slices/auth.slice'
+import {ENV} from 'lib/env'
+import {toast} from 'react-toastify'
+import {deductBalance, toggleIsLoginModalVisible} from 'store/slices/auth.slice'
 
 interface VotesCounterProps {
   postId: string
@@ -28,22 +25,14 @@ function VotesCounter({
   postId,
   upvotes,
   downvotes,
-  totalVotes
+  totalVotes,
 }: VotesCounterProps) {
   const queryClient = useQueryClient()
   const dispatch = useAppDispatch()
-  const selectedAccount = useAppSelector(
-    state => state.auth.selectedAccount
-  )
+  const selectedAccount = useAppSelector(state => state.auth.selectedAccount)
   const [isVoteChanged, setIsVoteChanged] = useState(false)
   const [votes, setVotes] = useState(totalVotes)
-  const [voted, setVoted] = useState<'upvote' | 'downvote' | null>(
-    null
-  )
-
-  useEffect(() => {
-    setVotes(totalVotes)
-  }, [totalVotes])
+  const [voted, setVoted] = useState<'upvote' | 'downvote' | null>(null)
 
   const accountId = useMemo(
     () => selectedAccount && selectedAccount._id,
@@ -52,8 +41,9 @@ function VotesCounter({
 
   useEffect(() => {
     if (accountId) {
-      if (upvotes && upvotes.includes(accountId)) setVoted('upvote')
-      else if (downvotes && downvotes.includes(accountId))
+      if (upvotes && upvotes.length && upvotes.includes(accountId))
+        setVoted('upvote')
+      else if (downvotes && downvotes.length && downvotes.includes(accountId))
         setVoted('downvote')
       else setVoted(null)
     } else {
@@ -70,11 +60,11 @@ function VotesCounter({
 
     setIsVoteChanged(true)
     setVotes(prev =>
-      voted === 'downvote' ? (prev ? prev + 2 : prev + 1) : 1
+      voted === 'downvote' ? (prev ? prev + 2 : prev + 1) : prev + 1
     )
     setVoted('upvote')
     handleUpvoteQuery.mutate({
-      userId: accountId
+      userId: accountId,
     })
     setTimeout(() => setIsVoteChanged(false), 2000)
   }
@@ -87,43 +77,43 @@ function VotesCounter({
 
     setIsVoteChanged(true)
     setVotes(prev =>
-      voted === 'upvote' ? (prev ? prev - 2 : prev - 1) : -1
+      voted === 'upvote' ? (prev ? prev - 2 : prev - 1) : prev - 1
     )
 
     setVoted('downvote')
     handleDownvoteQuery.mutate({
-      userId: accountId
+      userId: accountId,
     })
     setTimeout(() => setIsVoteChanged(false), 2000)
   }
 
   const handleUpvoteQuery = useMutation(
-    (data: { userId: string }) => {
+    (data: {userId: string}) => {
       return axios.post(`${ENV.API_URL}/upvotePost/${postId}`, data)
     },
     {
       onSuccess: () => {
         dispatch(deductBalance(0.01))
-        queryClient.invalidateQueries('getTrendingPosts')
+        queryClient.invalidateQueries('getExplorePosts')
       },
       onError: () => {
         toast.error('Error upvoting!')
-      }
+      },
     }
   )
 
   const handleDownvoteQuery = useMutation(
-    (data: { userId: string }) => {
+    (data: {userId: string}) => {
       return axios.post(`${ENV.API_URL}/downvotePost/${postId}`, data)
     },
     {
       onSuccess: () => {
         dispatch(deductBalance(0.01))
-        queryClient.invalidateQueries('getTrendingPosts')
+        queryClient.invalidateQueries('getExplorePosts')
       },
       onError: () => {
         toast.error('Error downvoting!')
-      }
+      },
     }
   )
 
@@ -148,7 +138,7 @@ function VotesCounter({
               : 'text-green-600'
             : 'text-black'
         }`}
-        value={votes || 0}
+        value={votes}
         hasComma={false}
         size={16}
       />

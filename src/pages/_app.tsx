@@ -7,6 +7,7 @@ import { store, persistor } from 'store'
 import { PersistGate } from 'redux-persist/integration/react'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
+import Header from 'components/Header'
 
 const queryClient = new QueryClient()
 
@@ -15,7 +16,10 @@ export default function App({ Component, pageProps }: AppProps) {
     <Provider store={store}>
       <PersistGate loading={null} persistor={persistor}>
         <QueryClientProvider client={queryClient}>
-          <Component {...pageProps} />
+          <Header />
+          <div className='mt-[3.5rem]'>
+            <Component {...pageProps} />
+          </div>
           <ToastContainer />
           <ReactQueryDevtools initialIsOpen={false} />
         </QueryClientProvider>

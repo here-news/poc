@@ -20,12 +20,11 @@ function Home() {
       <Head>
         <title>POC - Here News</title>
       </Head>
-      <Header />
       <PageHeader
         activePage={activePage}
         changeActivePage={changeActivePage}
       />
-      <div className='mt-[3.5rem] flex flex-col items-center'>
+      <div className='flex flex-col items-center'>
         <div className='w-full max-w-[40rem] mt-2 px-2 md:px-0'>
           <CreatePost />
         </div>
