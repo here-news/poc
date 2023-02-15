@@ -140,12 +140,14 @@ function SingleComment({
         />
         {!isReply && (
           <React.Fragment>
-            <div className='mt-3'>
+            <div className='pt-1 pb-3 inline-block'>
               <div
                 className='cursor-pointer'
                 onClick={toggleReplyShown}
               >
-                <p className='text-xs text-slate-600'>Reply</p>
+                <p className='text-xs text-blue-600 underline'>
+                  Reply
+                </p>
               </div>
             </div>
             {isReplyShown && (
@@ -164,7 +166,7 @@ function SingleComment({
           replies.length > 2 &&
           !hasAllRepliesShown && (
             <p
-              className='mt-4 text-sm underline text-blue-600 cursor-pointer'
+              className='mt-2 text-sm underline text-blue-600 cursor-pointer'
               onClick={toggleAllRepliesShow}
             >
               Show Previous Thread
