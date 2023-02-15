@@ -82,6 +82,7 @@ function Trending() {
                   totalComments={
                     post.totalComments ? post.totalComments : 0
                   }
+                  preview={post.preview}
                 />
               </div>
             ))}

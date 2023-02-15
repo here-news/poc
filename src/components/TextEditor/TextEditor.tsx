@@ -1,186 +1,125 @@
-import dynamic from 'next/dynamic'
 import React, {
-  KeyboardEvent,
+  forwardRef,
   useCallback,
   useEffect,
   useRef,
   useState
 } from 'react'
-import 'react-quill/dist/quill.snow.css'
-import { ReactQuillProps } from 'react-quill'
-import { Quill } from 'quill'
+import 'quill/dist/quill.snow.css'
+import LinkDetails from './LinkDetails'
+import { ILinkDetails } from 'types/interfaces'
 
-interface RQProps extends ReactQuillProps {
-  forwardedRef: React.RefObject<any>
+interface TextEditorProps {
+  containerClassName?: string
+  placeholder?: string
+  handlePreviewData: (data?: ILinkDetails) => void
+  canResetPreview: boolean
+  toggleResetPreview: () => void
+  toggleDisablePost: (state: boolean) => void
 }
 
-const ReactQuill = dynamic(
-  async () => {
-    const { default: RQ } = await import('react-quill')
-    const Component = ({ forwardedRef, ...props }: RQProps) => (
-      <RQ ref={forwardedRef} {...props} />
+const TextEditor = forwardRef(
+  (
+    {
+      containerClassName,
+      placeholder,
+      handlePreviewData,
+      canResetPreview,
+      toggleResetPreview,
+      toggleDisablePost
+    }: TextEditorProps,
+    ref: any
+  ) => {
+    const quillRef = useRef<any>(null)
+    const quillRefLoading = useRef<boolean>(false)
+    const pasteTimer = useRef(false)
+
+    const [showLinkPreview, setShowLinkPreview] = useState(false)
+    const [link, setLink] = useState('')
+
+    const resetLinkPreview = () => setLink('')
+    const toggleLinkPreview = (previewState: boolean) =>
+      setShowLinkPreview(previewState)
+
+    useEffect(() => {
+      if (canResetPreview) {
+        resetLinkPreview()
+        toggleLinkPreview(false)
+        toggleResetPreview()
+      }
+    }, [canResetPreview, toggleResetPreview])
+
+    const getPreviewOnLinkFound = useCallback(
+      (urlLink: string) => {
+        if (showLinkPreview) return
+        setLink(urlLink)
+        pasteTimer.current = true
+        setShowLinkPreview(true)
+      },
+      [showLinkPreview]
     )
-    Component.displayName = 'ReactQuill'
-    return Component
-  },
-  {
-    ssr: false
+
+    useEffect(() => {
+      const element = document.getElementById('editor')
+      if (!element || ref.current || quillRefLoading.current) return
+
+      quillRefLoading.current = true
+      import('quill').then(module => {
+        import('./PlainClipboard').then(pc => {
+          const PlainClipboard = pc.default
+
+          module.default.register(
+            'modules/clipboard',
+            PlainClipboard,
+            true
+          )
+
+          const quill = new module.default(element, {
+            placeholder: placeholder ? placeholder : '',
+            modules: {
+              toolbar: {
+                link: function (value: string) {
+                  if (value) {
+                    var href = prompt('Enter the URL')
+                    this.quill.format('link', href)
+                  } else {
+                    this.quill.format('link', false)
+                  }
+                }
+              },
+              clipboard: {
+                module: PlainClipboard,
+                getPreviewOnLinkFound: getPreviewOnLinkFound
+              }
+            },
+
+            theme: 'snow'
+          })
+
+          ref.current = quill
+        })
+      })
+    }, [placeholder, getPreviewOnLinkFound, ref])
+
+    return (
+      <div
+        className={`${containerClassName ? containerClassName : ''}`}
+        id='quill-container'
+      >
+        <div id='editor' />
+        <LinkDetails
+          link={link}
+          isVisible={showLinkPreview}
+          toggleVisible={toggleLinkPreview}
+          resetLinkPreview={resetLinkPreview}
+          handlePreviewData={handlePreviewData}
+          toggleDisablePost={toggleDisablePost}
+        />
+      </div>
+    )
   }
 )
 
-interface TextEditorProps {
-  html: string
-  handleChange: (value: string) => void
-  containerClassName?: string
-  style?: React.CSSProperties
-  placeholder?: string
-}
-
-function TextEditor({
-  html,
-  handleChange,
-  containerClassName,
-  style,
-  placeholder
-}: TextEditorProps) {
-  const quillRef = useRef<any>(null)
-  const quillRefLoading = useRef<boolean>(false)
-  const pasteTimer = useRef()
-
-  // const [quill, setQuill] = useState<any>(null)
-
-  useEffect(() => {
-    const element = document.getElementById('editor')
-    console.log('first lement is >>', element)
-    if (!element || quillRef.current || quillRefLoading.current)
-      return
-
-    quillRefLoading.current = true
-    import('quill').then(module => {
-      // setQuill(module.default)
-      import('./PlainClipboard').then(pc => {
-        const PlainClipboard = pc.default
-        module.default.register(
-          'modules/clipboard',
-          PlainClipboard,
-          true
-        )
-
-        var toolbarOptions = [
-          ['bold', 'italic', 'underline', 'strike'], // toggled buttons
-          ['blockquote', 'code-block'],
-
-          [{ header: 1 }, { header: 2 }], // custom button values
-          [{ list: 'ordered' }, { list: 'bullet' }],
-          [{ script: 'sub' }, { script: 'super' }], // superscript/subscript
-          [{ indent: '-1' }, { indent: '+1' }], // outdent/indent
-          [{ direction: 'rtl' }], // text direction
-
-          [{ size: ['small', false, 'large', 'huge'] }], // custom dropdown
-          [{ header: [1, 2, 3, 4, 5, 6, false] }],
-
-          [{ color: [] }, { background: [] }], // dropdown with defaults from theme
-          [{ font: [] }],
-          [{ align: [] }],
-
-          ['clean'] // remove formatting button
-        ]
-
-        const quill = new module.default(element, {
-          placeholder: placeholder ? placeholder : '',
-          modules: {
-            toolbar: toolbarOptions
-          },
-
-          theme: 'snow'
-        })
-        quillRef.current = quill
-      })
-    })
-  }, [placeholder])
-
-  console.log('quill is >>', quillRef.current)
-
-  // const [modules, setModules] = useState<{
-  //   clipboard: { matchVisual: boolean; module: any }
-  // } | null>(null)
-
-  // useEffect(() => {
-  //   import('./PlainClipboard').then(module => {
-  //     const PlainClipboard = module.default
-  //     setModules({
-  //       clipboard: {
-  //         matchVisual: false,
-  //         module: PlainClipboard
-  //       }
-  //     })
-  //   })
-  // }, [])
-
-  const handleQuillChange = (value: string) => {
-    handleChange(value)
-  }
-
-  // function handlePaste(event: ClipboardEvent) {
-  //   // handle the paste event here
-  //   console.log('Paste event triggered')
-  //   console.log(
-  //     'clipboard datat is >>',
-  //     event.clipboardData?.getData('text/plain')
-  //   )
-  // }
-  // const addPasteEvent = useCallback(() => {
-  //   setTimeout(() => {
-  //     const item = document.querySelector(
-  //       '#text_editor  div.ql-editor'
-  //     ) as HTMLDivElement
-  //     if (item) item.addEventListener('paste', handlePaste)
-  //     else addPasteEvent()
-  //   }, 1000)
-  // }, [])
-
-  // useEffect(() => {
-  //   const item = document.querySelector(
-  //     '#text_editor  div.ql-editor'
-  //   ) as HTMLDivElement
-  //   console.log('FIRST outer item is >>', item)
-  //   if (item) item.addEventListener('paste', handlePaste)
-  //   else addPasteEvent()
-  //   return () => {
-  //     if (item) item.removeEventListener('paste', handlePaste)
-  //   }
-  // }, [addPasteEvent])
-
-  const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'v' && e.metaKey) {
-      // e.preventDefault()
-    }
-  }
-
-  // if (!modules) {
-  //   return <div>Loading modules...</div>
-  // }
-
-  return (
-    <div className={containerClassName}>
-      <div id='editor' />
-      {/* {console.log('modules are >>', modules)} */}
-      {/* <ReactQuill
-        forwardedRef={quillRef}
-        theme='snow'
-        value={html}
-        onChange={handleQuillChange}
-        placeholder={placeholder ? placeholder : ''}
-        style={{
-          background: 'white',
-          ...style
-        }}
-        modules={modules}
-        id='text_editor'
-        // onKeyDown={handleKeyDown}
-      /> */}
-    </div>
-  )
-}
+TextEditor.displayName = 'TextEditor'
 
 export default TextEditor

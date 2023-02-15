@@ -51,6 +51,8 @@ function Post({ postData }: PostProps) {
           totalComments={
             postData.totalComments ? postData.totalComments : 0
           }
+          preview={postData.preview}
+
         />
         <Comments
           postId={postData._id}

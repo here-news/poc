@@ -18,6 +18,14 @@ export interface IPost {
   downvotes: string[]
   totalVotes: number
   totalComments?: number
+  preview?: {
+    url: string
+    favicons?: string[]
+    siteName?: string
+    images?: string[]
+    title?: string
+    description?: string
+  }
 }
 
 export interface IComment {
@@ -28,4 +36,13 @@ export interface IComment {
   createdAt: Date
   replyTo?: IComment
   replies?: IComment[]
+}
+
+export interface ILinkDetails {
+  url: string
+  favicons?: string[]
+  siteName?: string
+  images?: string[]
+  title?: string
+  description?: string
 }
