@@ -1,4 +1,9 @@
-import React, { useRef, useState } from 'react'
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useState
+} from 'react'
 import axios from 'axios'
 import { ENV } from 'lib/env'
 import { useMutation, useQueryClient } from 'react-query'
@@ -6,13 +11,25 @@ import { toast } from 'react-toastify'
 import { IoMdImages } from 'react-icons/io'
 import Quill from 'quill'
 
-import { ILinkDetails } from 'types/interfaces'
+import { ILinkDetails, IPost } from 'types/interfaces'
 import { useAppSelector } from 'store/hooks'
 import TextEditor from 'components/TextEditor/TextEditor'
 import Input from 'components/Input'
 import UploadedImages from './UploadedImages'
 
-function CreatePost() {
+interface EditPostProps extends IPost {
+  isModalVisible: boolean
+  onSuccessCallback: () => void
+}
+function EditPost({
+  _id,
+  title,
+  images,
+  preview,
+  text,
+  isModalVisible,
+  onSuccessCallback
+}: EditPostProps) {
   const queryClient = useQueryClient()
   const { accounts, selectedAccount } = useAppSelector(
     state => state.auth
@@ -20,8 +37,21 @@ function CreatePost() {
 
   const [isDisablePost, setIsDisablePost] = useState(false)
   const [canResetPreview, setCanResetPreview] = useState(false)
-  const [title, setTitle] = useState('')
+  const [titleState, setTitleState] = useState('')
   const [files, setFiles] = useState<FileList | null>(null)
+  const [prevFiles, setPrevFiles] = useState<string[] | null>(null)
+  const [prevPreview, setPrevPreview] = useState<
+    | {
+        url: string
+        favicons?: string[] | undefined
+        siteName?: string | undefined
+        images?: string[] | undefined
+        title?: string | undefined
+        description?: string | undefined
+      }
+    | undefined
+    | null
+  >(null)
   const [previewData, setPreviewData] = useState<ILinkDetails | null>(
     null
   )
@@ -30,12 +60,24 @@ function CreatePost() {
   const quillRef = useRef<Quill | null>(null)
   const imageRef = useRef<HTMLInputElement | null>(null)
 
-  const handlePreviewData = (data?: ILinkDetails) => {
+  useEffect(() => {
+    if (isModalVisible) {
+      if (title) setTitleState(title)
+      if (images) setPrevFiles(images)
+      if (preview) setPrevPreview(preview)
+    } else {
+      setCanResetPreview(true)
+      setPrevFiles(null)
+      setPrevPreview(null)
+    }
+  }, [isModalVisible, images, title, preview])
+
+  const handlePreviewData = useCallback((data?: ILinkDetails) => {
     if (data) setPreviewData(data)
     else setPreviewData(null)
-  }
+  }, [])
 
-  const handleTitle = (value: string) => setTitle(value)
+  const handleTitle = (value: string) => setTitleState(value)
   const toggleResetPreview = () => setCanResetPreview(prev => !prev)
   const toggleDisablePost = (state: boolean) =>
     setIsDisablePost(state)
@@ -49,9 +91,10 @@ function CreatePost() {
   ): void => {
     if (!e.target.files) return
 
-    let lengthOfFiles = files
-      ? files.length + e.target.files.length
-      : e.target.files
+    let lengthOfFiles = e.target.files.length
+
+    if (prevFiles) lengthOfFiles += prevFiles.length
+    if (files) lengthOfFiles += files.length
 
     if (lengthOfFiles > 10) {
       toast.error('You can only upload 10 images')
@@ -75,35 +118,45 @@ function CreatePost() {
   }
 
   const clearImages = () => {
+    setPrevFiles(null)
     setFiles(null)
   }
 
-  const removeFile = (index: number) => {
-    if (!files) return
+  const removeFile = (
+    index: number,
+    type: 'uploaded' | 'notUploaded'
+  ) => {
+    if (!files && !prevFiles) return
 
-    const dt = new DataTransfer()
+    if (type === 'uploaded' && prevFiles) {
+      let tempFiles = prevFiles ? [...prevFiles] : []
+      tempFiles.splice(index, 1)
+      setPrevFiles(tempFiles)
+    } else if (type === 'notUploaded' && files) {
+      const dt = new DataTransfer()
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i]
-      if (index !== i) dt.items.add(file)
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+        if (index !== i) dt.items.add(file)
+      }
+
+      setFiles(dt.files && dt.files.length > 0 ? dt.files : null)
     }
-
-    setFiles(dt.files && dt.files.length > 0 ? dt.files : null)
   }
 
-  const createPost = useMutation(
+  const editPost = useMutation(
     (data: FormData) => {
-      return axios.post(`${ENV.API_URL}/createPost`, data)
+      return axios.post(`${ENV.API_URL}/editPost/${_id}`, data)
     },
     {
       onSuccess: () => {
+        onSuccessCallback && onSuccessCallback()
         if (quillRef.current) {
           quillRef.current.setText('')
         }
         setPreviewData(null)
         toggleResetPreview()
-
-        setTitle('')
+        setTitleState('')
         setFiles(null)
         quillRef.current
         queryClient.invalidateQueries('getExplorePosts')
@@ -124,9 +177,10 @@ function CreatePost() {
 
     if (posted) return
     if (!selectedAccount) return toast.error('Please log in!')
-    if (!title) return toast.error('Please enter title!')
+    if (!titleState) return toast.error('Please enter title!')
     if (
       !files &&
+      !prevFiles &&
       (!text ||
         (text &&
           (text.trim() === '<p><br /></p>' ||
@@ -136,12 +190,16 @@ function CreatePost() {
 
     const formData = new FormData()
 
-    formData.append('title', title)
+    formData.append('title', titleState)
 
     if (files && files.length) {
       for (let i = 0; i < files.length; i++) {
         formData.append('images', files[i])
       }
+    }
+
+    if (prevFiles && prevFiles.length) {
+      formData.append('prevImages', prevFiles.join(','))
     }
     if (text) {
       const sanitize = await import('sanitize-html')
@@ -177,13 +235,12 @@ function CreatePost() {
       )
     }
 
-    formData.append('userId', selectedAccount._id)
-    createPost.mutate(formData)
+    editPost.mutate(formData)
   }
 
   if (!accounts || !selectedAccount) return <React.Fragment />
   return (
-    <div className='w-full max-w-[40rem] bg-white p-4'>
+    <div className='w-full max-w-[40rem] bg-white py-4'>
       <div className='flex flex-row items-center justify-between mb-2'>
         <input
           type='file'
@@ -208,10 +265,19 @@ function CreatePost() {
                 Images
               </p>
             </div>
-            {files && files.length && (
+
+            {(files && files.length) ||
+            (prevFiles && prevFiles.length) ? (
               <React.Fragment>
                 <p className='text-md text-slate-400'>
-                  {files.length} Selected
+                  {files
+                    ? prevFiles
+                      ? files.length + prevFiles.length
+                      : files.length
+                    : prevFiles
+                    ? prevFiles.length
+                    : 0}{' '}
+                  Selected
                 </p>
                 <p
                   className='cursor-pointer text-md text-blue-500 underline'
@@ -220,23 +286,25 @@ function CreatePost() {
                   Clear
                 </p>
               </React.Fragment>
+            ) : (
+              ''
             )}
           </div>
         </div>
         <div
           className={`cursor-pointer transition duration-500 ease-in-out ${
-            createPost.isLoading || isDisablePost
+            editPost.isLoading || isDisablePost
               ? 'bg-slate-600'
               : posted
               ? 'bg-green-600'
               : 'bg-blue-600'
           } px-4 py-2 rounded-md text-white flex justify-center items-center`}
           onClick={() =>
-            !createPost.isLoading && !isDisablePost && handlePost()
+            !editPost.isLoading && !isDisablePost && handlePost()
           }
         >
           <p className='text-sm'>
-            {createPost.isLoading
+            {editPost.isLoading
               ? 'Posting...'
               : posted
               ? 'Posted!'
@@ -245,13 +313,20 @@ function CreatePost() {
         </div>
       </div>
       <div className='flex flex-row gap-2 flex-wrap mb-2'>
-        {files && files.length && (
-          <UploadedImages files={files} removeFile={removeFile} />
+        {(files && files.length) ||
+        (prevFiles && prevFiles.length) ? (
+          <UploadedImages
+            files={files}
+            prevFiles={prevFiles ? prevFiles : null}
+            removeFile={removeFile}
+          />
+        ) : (
+          <React.Fragment />
         )}
       </div>
       <Input
         onChange={handleTitle}
-        value={title}
+        value={titleState}
         placeholder='Enter title'
         type='text'
         className='mb-2'
@@ -261,6 +336,7 @@ function CreatePost() {
         }}
       />
       <TextEditor
+        isEdit={true}
         ref={quillRef}
         containerClassName='w-full'
         placeholder="What's on your mind?"
@@ -268,10 +344,12 @@ function CreatePost() {
         canResetPreview={canResetPreview}
         toggleResetPreview={toggleResetPreview}
         toggleDisablePost={toggleDisablePost}
-        customEditorId='create-edtior'
+        customEditorId='edit-quill-editor'
+        prevPreview={preview}
+        prevText={text}
       />
     </div>
   )
 }
 
-export default CreatePost
+export default EditPost

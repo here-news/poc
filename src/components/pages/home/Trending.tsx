@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import Head from 'next/head'
 import axios from 'axios'
 import { useQuery } from 'react-query'
@@ -10,21 +10,40 @@ import { ENV } from 'lib/env'
 
 import ShowImagesModal from './ShowImagesModal'
 import SinglePost from 'components/SinglePost/SinglePost'
+import EditPostModal from './EditPostModal/EditPostModal'
 
 function Trending() {
   const selectedAccount = useAppSelector(
     state => state.auth.selectedAccount
   )
+
+  const [selectedPost, setSelectedPost] = useState<IPost | null>(null)
+  const [isEditPostModalVisible, setIsEditPostModalVisible] =
+    useState(false)
   const [showImagesVisible, setShowImagesVisible] = useState(false)
   const [selectedImages, setSelectedImages] = useState<string[]>([])
   const [initialImageIndex, setInitialImageIndex] =
     useState<number>(0)
+
+  useEffect(() => {
+    if (!isEditPostModalVisible) {
+      setSelectedPost(null)
+    }
+  }, [isEditPostModalVisible])
+
+  const handleSelectedPost = (post?: IPost) => {
+    if (!post) return setSelectedPost(null)
+    setSelectedPost(post)
+  }
 
   const handleSelectedImages = (images: string[], index?: number) => {
     setSelectedImages(images)
     setInitialImageIndex(index ? index : 0)
     toggleShowImagesVisible()
   }
+
+  const toggleEditPostModal = () =>
+    setIsEditPostModalVisible(prev => !prev)
 
   const toggleShowImagesVisible = () =>
     setShowImagesVisible(prev => !prev)
@@ -78,6 +97,8 @@ function Trending() {
                   upvotes={post.upvotes}
                   totalVotes={post.totalVotes}
                   handleSelectedImages={handleSelectedImages}
+                  toggleEditPostModal={toggleEditPostModal}
+                  handleSelectedPost={handleSelectedPost}
                   canPushToPost={true}
                   totalComments={
                     post.totalComments ? post.totalComments : 0
@@ -86,6 +107,11 @@ function Trending() {
                 />
               </div>
             ))}
+          <EditPostModal
+            isVisible={isEditPostModalVisible}
+            toggleVisible={toggleEditPostModal}
+            post={selectedPost}
+          />
           <ShowImagesModal
             showImagesVisible={showImagesVisible}
             toggleShowImagesVisible={toggleShowImagesVisible}

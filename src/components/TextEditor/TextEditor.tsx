@@ -10,36 +10,52 @@ import LinkDetails from './LinkDetails'
 import { ILinkDetails } from 'types/interfaces'
 
 interface TextEditorProps {
+  isEdit?: boolean
   containerClassName?: string
   placeholder?: string
   handlePreviewData: (data?: ILinkDetails) => void
   canResetPreview: boolean
   toggleResetPreview: () => void
   toggleDisablePost: (state: boolean) => void
+  customEditorId: string
+  prevPreview?: {
+    url: string
+    favicons?: string[] | undefined
+    siteName?: string | undefined
+    images?: string[] | undefined
+    title?: string | undefined
+    description?: string | undefined
+  }
+  prevText?: string
 }
 
 const TextEditor = forwardRef(
   (
     {
+      isEdit,
       containerClassName,
       placeholder,
       handlePreviewData,
       canResetPreview,
       toggleResetPreview,
-      toggleDisablePost
+      toggleDisablePost,
+      customEditorId,
+      prevPreview,
+      prevText
     }: TextEditorProps,
     ref: any
   ) => {
-    const quillRef = useRef<any>(null)
     const quillRefLoading = useRef<boolean>(false)
     const pasteTimer = useRef(false)
 
+    const [isQuillReady, setIsQuillReady] = useState(false)
     const [showLinkPreview, setShowLinkPreview] = useState(false)
     const [link, setLink] = useState('')
 
     const resetLinkPreview = () => setLink('')
-    const toggleLinkPreview = (previewState: boolean) =>
+    const toggleLinkPreview = (previewState: boolean) => {
       setShowLinkPreview(previewState)
+    }
 
     useEffect(() => {
       if (canResetPreview) {
@@ -60,7 +76,9 @@ const TextEditor = forwardRef(
     )
 
     useEffect(() => {
-      const element = document.getElementById('editor')
+      const element = document.getElementById(
+        customEditorId ? customEditorId : 'editor'
+      )
       if (!element || ref.current || quillRefLoading.current) return
 
       quillRefLoading.current = true
@@ -97,17 +115,35 @@ const TextEditor = forwardRef(
           })
 
           ref.current = quill
+          setIsQuillReady(true)
         })
       })
-    }, [placeholder, getPreviewOnLinkFound, ref])
+    }, [placeholder, getPreviewOnLinkFound, ref, customEditorId])
+
+    useEffect(() => {
+      if (isQuillReady && isEdit) {
+        ref.current.root.className =
+          ref.current.root.className + ' max-h-[40vh]'
+        if (prevText) {
+          ref.current.root.innerHTML = prevText
+        }
+      }
+    }, [isQuillReady, prevText, isEdit, ref])
+
+    useEffect(() => {
+      if (prevPreview && prevPreview.url) {
+        toggleLinkPreview(true)
+      }
+    }, [prevPreview])
 
     return (
       <div
         className={`${containerClassName ? containerClassName : ''}`}
         id='quill-container'
       >
-        <div id='editor' />
+        <div id={customEditorId ? customEditorId : 'editor'} />
         <LinkDetails
+          prevPreview={prevPreview}
           link={link}
           isVisible={showLinkPreview}
           toggleVisible={toggleLinkPreview}
