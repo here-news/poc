@@ -2,20 +2,29 @@ import React, { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/router'
 import formatDistance from 'date-fns/formatDistance'
+import { BiEdit } from 'react-icons/bi'
+import { MdDelete, MdMoreHoriz } from 'react-icons/md'
+import { useMutation, useQueryClient } from 'react-query'
+import axios from 'axios'
+import { toast } from 'react-toastify'
 
 import Avatar from 'assets/avatar.png'
 import { IPost } from 'types/interfaces'
+import { useAppSelector } from 'store/hooks'
 
 import VotesCounter from './VotesCounter'
 import Images from './Images'
 import Buttons from './Buttons'
 import LinkDetails from './LinkDetails'
+import { ENV } from 'lib/env'
 
 interface SinglePostProps extends IPost {
   noBorder?: boolean
   canPushToPost?: boolean
   totalComments: number
   handleSelectedImages: (images: string[], index?: number) => void
+  toggleEditPostModal: () => void
+  handleSelectedPost: (post: IPost) => void
 }
 
 function SinglePost({
@@ -29,14 +38,44 @@ function SinglePost({
   downvotes,
   totalVotes,
   handleSelectedImages,
+  handleSelectedPost,
+  toggleEditPostModal,
   noBorder,
   canPushToPost,
   totalComments,
   preview
 }: SinglePostProps) {
+  const queryClient = useQueryClient()
   const router = useRouter()
-  const [height, setHeight] = useState('100px')
+  const { selectedAccount } = useAppSelector(state => state.auth)
+
+  const moreOptionsMenuRef = useRef<HTMLDivElement | null>(null)
   const contentRef = useRef<HTMLDivElement | null>(null)
+
+  const [height, setHeight] = useState('100px')
+  const [isMoreOptions, setIsMoreOptions] = useState(false)
+  const toggleMoreOptions = () => setIsMoreOptions(prev => !prev)
+
+  useEffect(() => {
+    if (!isMoreOptions) {
+      document.removeEventListener('mousedown', handleClickOutside)
+      return
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isMoreOptions])
+
+  function handleClickOutside(e: MouseEvent) {
+    if (!e) return
+    const target = e.target as Node
+
+    if (moreOptionsMenuRef?.current?.contains(target)) return
+    setIsMoreOptions(false)
+  }
 
   useEffect(() => {
     if (
@@ -54,6 +93,48 @@ function SinglePost({
 
   const moveToPage = () => {
     canPushToPost && router.push(`/post/${_id}`)
+  }
+
+  const deletePostQuery = useMutation(
+    () => {
+      return axios.delete(`${ENV.API_URL}/deletePost/${_id}`)
+    },
+    {
+      onSuccess: () => {
+        toast.success('Successfully deleted post!')
+        if (canPushToPost) {
+          queryClient.invalidateQueries('getExplorePosts')
+          queryClient.invalidateQueries('getTrendingPosts')
+        } else {
+          router.push('/')
+        }
+      },
+      onError: () => {
+        toast.error('There was some error deleting post!')
+      }
+    }
+  )
+
+  const editPost = () => {
+    handleSelectedPost({
+      _id,
+      createdAt,
+      downvotes,
+      title,
+      totalVotes,
+      upvotes,
+      userId,
+      images,
+      preview,
+      text,
+      totalComments
+    })
+
+    toggleEditPostModal()
+  }
+
+  const deletePost = () => {
+    deletePostQuery.mutate()
   }
 
   return (
@@ -85,7 +166,7 @@ function SinglePost({
               className='rounded-full'
             />
           </div>
-          <div className={`flex flex-col flex-1 ml-2`}>
+          <div className='flex flex-col flex-1 ml-2'>
             <h4 className='text-md'>{userId.displayName}</h4>
             <p className='text-xs text-slate-500'>
               {formatDistance(new Date(createdAt), new Date(), {
@@ -93,6 +174,46 @@ function SinglePost({
               })}
             </p>
           </div>
+        </div>
+        <div>
+          {selectedAccount && selectedAccount._id === userId._id && (
+            <div
+              className='relative'
+              ref={moreOptionsMenuRef}
+              onClick={e => e.stopPropagation()}
+            >
+              <div
+                className='cursor-pointer'
+                onClick={() => {
+                  toggleMoreOptions()
+                }}
+              >
+                <MdMoreHoriz className='text-2xl' />
+              </div>
+              {isMoreOptions && (
+                <div className='z-[1] bg-white shadow-md min-w-[180px] absolute top-[1.375rem] right-0 rounded-lg py-2'>
+                  <div
+                    className='px-2 flex items-center hover:bg-slate-100 active:bg-slate-200'
+                    onClick={editPost}
+                  >
+                    <BiEdit className='text-lg' />
+                    <p className='text-sm px-2 py-3 cursor-pointer'>
+                      Edit post
+                    </p>
+                  </div>
+                  <div
+                    className='px-2 flex items-center text-red-600 hover:bg-slate-100 active:bg-slate-200'
+                    onClick={deletePost}
+                  >
+                    <MdDelete className='text-lg' />
+                    <p className='text-sm px-2 py-3 cursor-pointer'>
+                      Delete post
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
       <div>

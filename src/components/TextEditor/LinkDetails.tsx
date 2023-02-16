@@ -6,6 +6,16 @@ import { ILinkDetails } from 'types/interfaces'
 import getLinkDetails from './getLinkDetails'
 
 interface LinkDetailsProps {
+  prevPreview?:
+    | {
+        url: string
+        favicons?: string[] | undefined
+        siteName?: string | undefined
+        images?: string[] | undefined
+        title?: string | undefined
+        description?: string | undefined
+      }
+    | undefined
   isVisible: boolean
   toggleVisible: (previewState: boolean) => void
   link: string
@@ -20,10 +30,12 @@ function LinkDetails({
   toggleVisible,
   resetLinkPreview,
   handlePreviewData,
-  toggleDisablePost
+  toggleDisablePost,
+  prevPreview
 }: LinkDetailsProps) {
   const [details, setDetails] = useState<ILinkDetails | null>(null)
   const [prevLink, setPrevLink] = useState('')
+  const [initialSetPrev, setInitialSetPrev] = useState(false)
 
   const removeLink = useCallback(() => {
     resetLinkPreview()
@@ -43,21 +55,27 @@ function LinkDetails({
         removeLink()
         return
       }
-
       setDetails(linkDetails)
       handlePreviewData(linkDetails)
     }
 
-    if (!isVisible || !link || prevLink) return
-    toggleDisablePost(true)
-    getAllLinkDetails()
+    if (prevPreview && !initialSetPrev) {
+      setDetails(prevPreview)
+      handlePreviewData(prevPreview)
+      setInitialSetPrev(true)
+    } else if (isVisible && link && !prevLink) {
+      toggleDisablePost(true)
+      getAllLinkDetails()
+    }
   }, [
-    link,
-    isVisible,
-    prevLink,
+    initialSetPrev,
+    prevPreview,
     handlePreviewData,
-    toggleDisablePost,
-    removeLink
+    isVisible,
+    link,
+    prevLink,
+    removeLink,
+    toggleDisablePost
   ])
 
   if (!isVisible) return <React.Fragment />
@@ -73,7 +91,7 @@ function LinkDetails({
         <MdClose className='text-white' />
       </div>
       <a
-        href={`${link}`}
+        href={`${link || (details && details.url)}`}
         rel='noopener noreferrer'
         target='_blank'
         className='relative'
@@ -102,7 +120,9 @@ function LinkDetails({
                 <p className='text-xs text-slate-700'>
                   {details.siteName
                     ? details.siteName
-                    : new URL(link).hostname
+                    : new URL(
+                        link || (details && details.url)
+                      ).hostname
                         .split('.')
                         .slice(-2)
                         .join('.')}
@@ -142,7 +162,7 @@ function LinkDetails({
                 } text-blue-600 underline text-sm`}
               >
                 Read the full article at
-                {new URL(link).hostname
+                {new URL(link || (details && details.url)).hostname
                   .split('.')
                   .slice(-2)
                   .join('.')}{' '}

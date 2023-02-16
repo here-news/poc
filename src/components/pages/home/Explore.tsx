@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
 import Head from 'next/head'
 import { useQuery } from 'react-query'
@@ -8,11 +8,30 @@ import { ENV } from 'lib/env'
 import { IPost } from 'types/interfaces'
 
 import MinifiedPost from './MinifiedPost'
+import EditPostModal from './EditPostModal/EditPostModal'
 
 function Explore() {
   const selectedAccount = useAppSelector(
     state => state.auth.selectedAccount
   )
+  const [selectedPost, setSelectedPost] = useState<IPost | null>(null)
+  const [isEditPostModalVisible, setIsEditPostModalVisible] =
+    useState(false)
+
+  useEffect(() => {
+    if (!isEditPostModalVisible) {
+      setSelectedPost(null)
+    }
+  }, [isEditPostModalVisible])
+
+  const handleSelectedPost = (post?: IPost) => {
+    if (!post) return setSelectedPost(null)
+    setSelectedPost(post)
+  }
+
+  const toggleEditPostModal = () =>
+    setIsEditPostModalVisible(prev => !prev)
+
   const query = useQuery('getExplorePosts', () => {
     return axios.get(`${ENV.API_URL}/getExplorePosts`)
   })
@@ -48,9 +67,19 @@ function Explore() {
               upvotes={post.upvotes}
               downvotes={post.downvotes}
               totalComments={post.totalComments}
+              images={post.images}
+              preview={post.preview}
+              text={post.text}
+              toggleEditPostModal={toggleEditPostModal}
+              handleSelectedPost={handleSelectedPost}
             />
           </div>
         ))}
+      <EditPostModal
+        isVisible={isEditPostModalVisible}
+        toggleVisible={toggleEditPostModal}
+        post={selectedPost}
+      />
     </div>
   )
 }
