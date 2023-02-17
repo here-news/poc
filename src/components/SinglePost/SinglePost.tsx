@@ -242,9 +242,12 @@ function SinglePost({
                 __html: text,
               }}
               ref={contentRef}
-              style={{maxHeight: height, overflow: 'hidden'}}
+              style={{
+                maxHeight: !noBorder ? height : '100%',
+                overflow: !noBorder ? 'hidden' : '',
+              }}
             />
-            {height === '100px' && (
+            {height === '100px' && !noBorder && (
               <div className='flex-1 flex justify-end my-5'>
                 <button
                   className='text-blue-600 underline text-sm'
