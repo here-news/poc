@@ -1,30 +1,26 @@
-import React, { useRef, useState } from 'react'
+import React, {useRef, useState} from 'react'
 import axios from 'axios'
-import { ENV } from 'lib/env'
-import { useMutation, useQueryClient } from 'react-query'
-import { toast } from 'react-toastify'
-import { IoMdImages } from 'react-icons/io'
+import {ENV} from 'lib/env'
+import {useMutation, useQueryClient} from 'react-query'
+import {toast} from 'react-toastify'
+import {IoMdImages} from 'react-icons/io'
 import Quill from 'quill'
 
-import { ILinkDetails } from 'types/interfaces'
-import { useAppSelector } from 'store/hooks'
+import {ILinkDetails} from 'types/interfaces'
+import {useAppSelector} from 'store/hooks'
 import TextEditor from 'components/TextEditor/TextEditor'
 import Input from 'components/Input'
 import UploadedImages from './UploadedImages'
 
 function CreatePost() {
   const queryClient = useQueryClient()
-  const { accounts, selectedAccount } = useAppSelector(
-    state => state.auth
-  )
+  const {accounts, selectedAccount} = useAppSelector(state => state.auth)
 
   const [isDisablePost, setIsDisablePost] = useState(false)
   const [canResetPreview, setCanResetPreview] = useState(false)
   const [title, setTitle] = useState('')
   const [files, setFiles] = useState<FileList | null>(null)
-  const [previewData, setPreviewData] = useState<ILinkDetails | null>(
-    null
-  )
+  const [previewData, setPreviewData] = useState<ILinkDetails | null>(null)
   const [posted, setPosted] = useState(false)
 
   const quillRef = useRef<Quill | null>(null)
@@ -37,16 +33,13 @@ function CreatePost() {
 
   const handleTitle = (value: string) => setTitle(value)
   const toggleResetPreview = () => setCanResetPreview(prev => !prev)
-  const toggleDisablePost = (state: boolean) =>
-    setIsDisablePost(state)
+  const toggleDisablePost = (state: boolean) => setIsDisablePost(state)
 
   const handleUploadImages = () => {
     imageRef.current && imageRef.current.click()
   }
 
-  const handleFileSelected = (
-    e: React.ChangeEvent<HTMLInputElement>
-  ): void => {
+  const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>): void => {
     if (!e.target.files) return
 
     let lengthOfFiles = files
@@ -115,7 +108,7 @@ function CreatePost() {
       },
       onError: () => {
         toast.error('There was some error create post!')
-      }
+      },
     }
   )
 
@@ -129,8 +122,7 @@ function CreatePost() {
       !files &&
       (!text ||
         (text &&
-          (text.trim() === '<p><br /></p>' ||
-            text.trim() === '<p><br></p>')))
+          (text.trim() === '<p><br /></p>' || text.trim() === '<p><br></p>')))
     )
       return toast.error('Please either enter some text or images!')
 
@@ -156,6 +148,10 @@ function CreatePost() {
         previewData.description ? previewData.description : ''
       )
       formData.append(
+        'preview_youtubeId',
+        previewData.youtubeId ? previewData.youtubeId : ''
+      )
+      formData.append(
         'preview_favicons',
         previewData.favicons ? previewData.favicons.join(',') : ''
       )
@@ -171,10 +167,7 @@ function CreatePost() {
         'preview_title',
         previewData.title ? previewData.title : ''
       )
-      formData.append(
-        'preview_url',
-        previewData.url ? previewData.url : ''
-      )
+      formData.append('preview_url', previewData.url ? previewData.url : '')
     }
 
     formData.append('userId', selectedAccount._id)
@@ -190,7 +183,7 @@ function CreatePost() {
           ref={imageRef}
           multiple={true}
           style={{
-            display: 'none'
+            display: 'none',
           }}
           accept='image/png, image/gif, image/jpeg, image/webp'
           onChange={handleFileSelected}
@@ -236,11 +229,7 @@ function CreatePost() {
           }
         >
           <p className='text-sm'>
-            {createPost.isLoading
-              ? 'Posting...'
-              : posted
-              ? 'Posted!'
-              : 'Post'}
+            {createPost.isLoading ? 'Posting...' : posted ? 'Posted!' : 'Post'}
           </p>
         </div>
       </div>
@@ -257,7 +246,7 @@ function CreatePost() {
         className='mb-2'
         inputClassName='rounded-none placeholder:text-[#666]'
         inputProps={{
-          maxLength: 120
+          maxLength: 120,
         }}
       />
       <TextEditor
@@ -269,6 +258,7 @@ function CreatePost() {
         toggleResetPreview={toggleResetPreview}
         toggleDisablePost={toggleDisablePost}
         customEditorId='create-edtior'
+        previewData={previewData}
       />
     </div>
   )

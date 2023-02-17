@@ -1,8 +1,8 @@
 import Image from 'next/image'
-import React, { useCallback, useEffect, useState } from 'react'
-import { BiLoaderAlt } from 'react-icons/bi'
-import { MdClose } from 'react-icons/md'
-import { ILinkDetails } from 'types/interfaces'
+import React, {useCallback, useEffect, useState} from 'react'
+import {BiLoaderAlt} from 'react-icons/bi'
+import {MdClose} from 'react-icons/md'
+import {ILinkDetails} from 'types/interfaces'
 import getLinkDetails from './getLinkDetails'
 
 interface LinkDetailsProps {
@@ -14,9 +14,11 @@ interface LinkDetailsProps {
         images?: string[] | undefined
         title?: string | undefined
         description?: string | undefined
+        youtubeId?: string | undefined
       }
     | undefined
   isVisible: boolean
+  previewData: ILinkDetails | null
   toggleVisible: (previewState: boolean) => void
   link: string
   resetLinkPreview: () => void
@@ -31,7 +33,8 @@ function LinkDetails({
   resetLinkPreview,
   handlePreviewData,
   toggleDisablePost,
-  prevPreview
+  previewData,
+  prevPreview,
 }: LinkDetailsProps) {
   const [details, setDetails] = useState<ILinkDetails | null>(null)
   const [prevLink, setPrevLink] = useState('')
@@ -42,7 +45,9 @@ function LinkDetails({
     toggleVisible(false)
     setDetails(null)
     setPrevLink('')
-    handlePreviewData()
+    previewData?.youtubeId
+      ? handlePreviewData({youtubeId: previewData?.youtubeId} as ILinkDetails)
+      : handlePreviewData()
   }, [handlePreviewData, resetLinkPreview, toggleVisible])
 
   useEffect(() => {
@@ -56,7 +61,7 @@ function LinkDetails({
         return
       }
       setDetails(linkDetails)
-      handlePreviewData(linkDetails)
+      handlePreviewData({...previewData, ...linkDetails})
     }
 
     if (prevPreview && !initialSetPrev) {
@@ -75,7 +80,7 @@ function LinkDetails({
     link,
     prevLink,
     removeLink,
-    toggleDisablePost
+    toggleDisablePost,
   ])
 
   if (!isVisible) return <React.Fragment />
@@ -108,11 +113,7 @@ function LinkDetails({
               <div className='flex flex-row items-center'>
                 <div className='relative mr-2 w-4 h-4'>
                   {details.favicons && details.favicons.length > 0 ? (
-                    <Image
-                      src={details.favicons[0]}
-                      alt='link embed'
-                      fill
-                    />
+                    <Image src={details.favicons[0]} alt='link embed' fill />
                   ) : (
                     ''
                   )}
@@ -120,9 +121,7 @@ function LinkDetails({
                 <p className='text-xs text-slate-700'>
                   {details.siteName
                     ? details.siteName
-                    : new URL(
-                        link || (details && details.url)
-                      ).hostname
+                    : new URL(link || (details && details.url)).hostname
                         .split('.')
                         .slice(-2)
                         .join('.')}
