@@ -1,22 +1,22 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, {useEffect, useRef, useState} from 'react'
 import Image from 'next/image'
-import { useRouter } from 'next/router'
+import {useRouter} from 'next/router'
 import formatDistance from 'date-fns/formatDistance'
-import { BiEdit } from 'react-icons/bi'
-import { MdDelete, MdMoreHoriz } from 'react-icons/md'
-import { useMutation, useQueryClient } from 'react-query'
+import {BiEdit} from 'react-icons/bi'
+import {MdDelete, MdMoreHoriz} from 'react-icons/md'
+import {useMutation, useQueryClient} from 'react-query'
 import axios from 'axios'
-import { toast } from 'react-toastify'
+import {toast} from 'react-toastify'
 
 import Avatar from 'assets/avatar.png'
-import { IPost } from 'types/interfaces'
-import { useAppSelector } from 'store/hooks'
+import {IPost} from 'types/interfaces'
+import {useAppSelector} from 'store/hooks'
 
 import VotesCounter from './VotesCounter'
 import Images from './Images'
 import Buttons from './Buttons'
 import LinkDetails from './LinkDetails'
-import { ENV } from 'lib/env'
+import {ENV} from 'lib/env'
 
 interface SinglePostProps extends IPost {
   noBorder?: boolean
@@ -43,11 +43,11 @@ function SinglePost({
   noBorder,
   canPushToPost,
   totalComments,
-  preview
+  preview,
 }: SinglePostProps) {
   const queryClient = useQueryClient()
   const router = useRouter()
-  const { selectedAccount } = useAppSelector(state => state.auth)
+  const {selectedAccount} = useAppSelector(state => state.auth)
 
   const moreOptionsMenuRef = useRef<HTMLDivElement | null>(null)
   const contentRef = useRef<HTMLDivElement | null>(null)
@@ -78,10 +78,7 @@ function SinglePost({
   }
 
   useEffect(() => {
-    if (
-      contentRef.current &&
-      contentRef.current.scrollHeight <= 100
-    ) {
+    if (contentRef.current && contentRef.current.scrollHeight <= 100) {
       setHeight(contentRef.current.scrollHeight + 'px')
     }
   }, [contentRef, text])
@@ -111,7 +108,7 @@ function SinglePost({
       },
       onError: () => {
         toast.error('There was some error deleting post!')
-      }
+      },
     }
   )
 
@@ -127,7 +124,7 @@ function SinglePost({
       images,
       preview,
       text,
-      totalComments
+      totalComments,
     })
 
     toggleEditPostModal()
@@ -170,7 +167,7 @@ function SinglePost({
             <h4 className='text-md'>{userId.displayName}</h4>
             <p className='text-xs text-slate-500'>
               {formatDistance(new Date(createdAt), new Date(), {
-                addSuffix: true
+                addSuffix: true,
               })}
             </p>
           </div>
@@ -225,6 +222,7 @@ function SinglePost({
             images={preview.images}
             siteName={preview.siteName}
             title={preview.title}
+            youtubeId={preview.youtubeId}
           />
         )}
         {text && (
@@ -241,10 +239,10 @@ function SinglePost({
             <div
               className='break-all'
               dangerouslySetInnerHTML={{
-                __html: text
+                __html: text,
               }}
               ref={contentRef}
-              style={{ maxHeight: height, overflow: 'hidden' }}
+              style={{maxHeight: height, overflow: 'hidden'}}
             />
             {height === '100px' && (
               <div className='flex-1 flex justify-end my-5'>
@@ -255,7 +253,7 @@ function SinglePost({
                     handleClick()
                   }}
                   style={{
-                    display: height === '100px' ? 'block' : 'none'
+                    display: height === '100px' ? 'block' : 'none',
                   }}
                 >
                   Show More
@@ -265,10 +263,7 @@ function SinglePost({
           </div>
         )}
         <div className='flex-1' onClick={e => e.stopPropagation()}>
-          <Images
-            images={images}
-            handleSelectedImages={handleSelectedImages}
-          />
+          <Images images={images} handleSelectedImages={handleSelectedImages} />
         </div>
         <Buttons totalComments={totalComments} postId={_id} />
       </div>

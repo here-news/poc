@@ -1,13 +1,18 @@
 import Quill from 'quill'
+import {youtubeParser} from 'utils'
 const Clipboard = Quill.import('modules/clipboard')
 const Delta = Quill.import('delta')
 class PlainClipboard extends Clipboard {
   constructor(
     quill: Quill,
-    options: { getPreviewOnLinkFound: (link: string) => void }
+    options: {
+      getPreviewOnLinkFound: (link: string) => void
+      getVideoPreview: (link: string) => void
+    }
   ) {
     super(quill, options)
     this.getPreviewOnLinkFound = options.getPreviewOnLinkFound
+    this.getVideoPreview = options.getVideoPreview
   }
 
   async onPaste(e: any) {
@@ -27,13 +32,18 @@ class PlainClipboard extends Clipboard {
     this.quill.setSelection(index, length, 'silent')
     this.quill.scrollIntoView()
 
-    const regex = /(https?:\/\/[^\s]+)/g
-    const result = text.split(regex)
+    const youtubeId = youtubeParser(text)
+    if (youtubeId) {
+      this.getVideoPreview(youtubeId)
+    } else {
+      const regex = /(https?:\/\/[^\s]+)/g
+      const result = text.split(regex)
 
-    for (let i = 0; i < result.length; i++) {
-      if (regex.test(result[i])) {
-        this.getPreviewOnLinkFound(result[i])
-        break
+      for (let i = 0; i < result.length; i++) {
+        if (regex.test(result[i])) {
+          this.getPreviewOnLinkFound(result[i])
+          break
+        }
       }
     }
   }

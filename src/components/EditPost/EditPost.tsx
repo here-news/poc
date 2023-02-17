@@ -1,18 +1,13 @@
-import React, {
-  useCallback,
-  useEffect,
-  useRef,
-  useState
-} from 'react'
+import React, {useCallback, useEffect, useRef, useState} from 'react'
 import axios from 'axios'
-import { ENV } from 'lib/env'
-import { useMutation, useQueryClient } from 'react-query'
-import { toast } from 'react-toastify'
-import { IoMdImages } from 'react-icons/io'
+import {ENV} from 'lib/env'
+import {useMutation, useQueryClient} from 'react-query'
+import {toast} from 'react-toastify'
+import {IoMdImages} from 'react-icons/io'
 import Quill from 'quill'
 
-import { ILinkDetails, IPost } from 'types/interfaces'
-import { useAppSelector } from 'store/hooks'
+import {ILinkDetails, IPost} from 'types/interfaces'
+import {useAppSelector} from 'store/hooks'
 import TextEditor from 'components/TextEditor/TextEditor'
 import Input from 'components/Input'
 import UploadedImages from './UploadedImages'
@@ -28,12 +23,10 @@ function EditPost({
   preview,
   text,
   isModalVisible,
-  onSuccessCallback
+  onSuccessCallback,
 }: EditPostProps) {
   const queryClient = useQueryClient()
-  const { accounts, selectedAccount } = useAppSelector(
-    state => state.auth
-  )
+  const {accounts, selectedAccount} = useAppSelector(state => state.auth)
 
   const [isDisablePost, setIsDisablePost] = useState(false)
   const [canResetPreview, setCanResetPreview] = useState(false)
@@ -52,9 +45,7 @@ function EditPost({
     | undefined
     | null
   >(null)
-  const [previewData, setPreviewData] = useState<ILinkDetails | null>(
-    null
-  )
+  const [previewData, setPreviewData] = useState<ILinkDetails | null>(null)
   const [posted, setPosted] = useState(false)
 
   const quillRef = useRef<Quill | null>(null)
@@ -79,16 +70,13 @@ function EditPost({
 
   const handleTitle = (value: string) => setTitleState(value)
   const toggleResetPreview = () => setCanResetPreview(prev => !prev)
-  const toggleDisablePost = (state: boolean) =>
-    setIsDisablePost(state)
+  const toggleDisablePost = (state: boolean) => setIsDisablePost(state)
 
   const handleUploadImages = () => {
     imageRef.current && imageRef.current.click()
   }
 
-  const handleFileSelected = (
-    e: React.ChangeEvent<HTMLInputElement>
-  ): void => {
+  const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>): void => {
     if (!e.target.files) return
 
     let lengthOfFiles = e.target.files.length
@@ -122,10 +110,7 @@ function EditPost({
     setFiles(null)
   }
 
-  const removeFile = (
-    index: number,
-    type: 'uploaded' | 'notUploaded'
-  ) => {
+  const removeFile = (index: number, type: 'uploaded' | 'notUploaded') => {
     if (!files && !prevFiles) return
 
     if (type === 'uploaded' && prevFiles) {
@@ -168,7 +153,7 @@ function EditPost({
       },
       onError: () => {
         toast.error('There was some error create post!')
-      }
+      },
     }
   )
 
@@ -183,8 +168,7 @@ function EditPost({
       !prevFiles &&
       (!text ||
         (text &&
-          (text.trim() === '<p><br /></p>' ||
-            text.trim() === '<p><br></p>')))
+          (text.trim() === '<p><br /></p>' || text.trim() === '<p><br></p>')))
     )
       return toast.error('Please either enter some text or images!')
 
@@ -214,6 +198,10 @@ function EditPost({
         previewData.description ? previewData.description : ''
       )
       formData.append(
+        'preview_youtubeId',
+        previewData.youtubeId ? previewData.youtubeId : ''
+      )
+      formData.append(
         'preview_favicons',
         previewData.favicons ? previewData.favicons.join(',') : ''
       )
@@ -229,10 +217,7 @@ function EditPost({
         'preview_title',
         previewData.title ? previewData.title : ''
       )
-      formData.append(
-        'preview_url',
-        previewData.url ? previewData.url : ''
-      )
+      formData.append('preview_url', previewData.url ? previewData.url : '')
     }
 
     editPost.mutate(formData)
@@ -247,7 +232,7 @@ function EditPost({
           ref={imageRef}
           multiple={true}
           style={{
-            display: 'none'
+            display: 'none',
           }}
           accept='image/png, image/gif, image/jpeg, image/webp'
           onChange={handleFileSelected}
@@ -266,8 +251,7 @@ function EditPost({
               </p>
             </div>
 
-            {(files && files.length) ||
-            (prevFiles && prevFiles.length) ? (
+            {(files && files.length) || (prevFiles && prevFiles.length) ? (
               <React.Fragment>
                 <p className='text-md text-slate-400'>
                   {files
@@ -299,22 +283,15 @@ function EditPost({
               ? 'bg-green-600'
               : 'bg-blue-600'
           } px-4 py-2 rounded-md text-white flex justify-center items-center`}
-          onClick={() =>
-            !editPost.isLoading && !isDisablePost && handlePost()
-          }
+          onClick={() => !editPost.isLoading && !isDisablePost && handlePost()}
         >
           <p className='text-sm'>
-            {editPost.isLoading
-              ? 'Posting...'
-              : posted
-              ? 'Posted!'
-              : 'Post'}
+            {editPost.isLoading ? 'Posting...' : posted ? 'Posted!' : 'Post'}
           </p>
         </div>
       </div>
       <div className='flex flex-row gap-2 flex-wrap mb-2'>
-        {(files && files.length) ||
-        (prevFiles && prevFiles.length) ? (
+        {(files && files.length) || (prevFiles && prevFiles.length) ? (
           <UploadedImages
             files={files}
             prevFiles={prevFiles ? prevFiles : null}
@@ -332,7 +309,7 @@ function EditPost({
         className='mb-2'
         inputClassName='rounded-none placeholder:text-[#666]'
         inputProps={{
-          maxLength: 120
+          maxLength: 120,
         }}
       />
       <TextEditor
@@ -347,6 +324,7 @@ function EditPost({
         customEditorId='edit-quill-editor'
         prevPreview={preview}
         prevText={text}
+        previewData={previewData}
       />
     </div>
   )

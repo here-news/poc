@@ -25,6 +25,7 @@ export interface IPost {
     images?: string[]
     title?: string
     description?: string
+    youtubeId?: string
   }
 }
 
@@ -45,4 +46,5 @@ export interface ILinkDetails {
   images?: string[]
   title?: string
   description?: string
+  youtubeId?: string
 }

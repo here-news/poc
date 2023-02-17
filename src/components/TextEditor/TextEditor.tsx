@@ -3,11 +3,12 @@ import React, {
   useCallback,
   useEffect,
   useRef,
-  useState
+  useState,
 } from 'react'
 import 'quill/dist/quill.snow.css'
 import LinkDetails from './LinkDetails'
-import { ILinkDetails } from 'types/interfaces'
+import {ILinkDetails} from 'types/interfaces'
+import YoutubePreview from './YoutubePreview'
 
 interface TextEditorProps {
   isEdit?: boolean
@@ -25,8 +26,10 @@ interface TextEditorProps {
     images?: string[] | undefined
     title?: string | undefined
     description?: string | undefined
+    youtubeId?: string | undefined
   }
   prevText?: string
+  previewData: ILinkDetails | null
 }
 
 const TextEditor = forwardRef(
@@ -41,7 +44,8 @@ const TextEditor = forwardRef(
       toggleDisablePost,
       customEditorId,
       prevPreview,
-      prevText
+      prevText,
+      previewData,
     }: TextEditorProps,
     ref: any
   ) => {
@@ -51,6 +55,7 @@ const TextEditor = forwardRef(
     const [isQuillReady, setIsQuillReady] = useState(false)
     const [showLinkPreview, setShowLinkPreview] = useState(false)
     const [link, setLink] = useState('')
+    const [youtubeVideo, setYoutubeVideo] = useState('')
 
     const resetLinkPreview = () => setLink('')
     const toggleLinkPreview = (previewState: boolean) => {
@@ -60,6 +65,7 @@ const TextEditor = forwardRef(
     useEffect(() => {
       if (canResetPreview) {
         resetLinkPreview()
+        setYoutubeVideo('')
         toggleLinkPreview(false)
         toggleResetPreview()
       }
@@ -86,11 +92,7 @@ const TextEditor = forwardRef(
         import('./PlainClipboard').then(pc => {
           const PlainClipboard = pc.default
 
-          module.default.register(
-            'modules/clipboard',
-            PlainClipboard,
-            true
-          )
+          module.default.register('modules/clipboard', PlainClipboard, true)
 
           const quill = new module.default(element, {
             placeholder: placeholder ? placeholder : '',
@@ -103,15 +105,16 @@ const TextEditor = forwardRef(
                   } else {
                     this.quill.format('link', false)
                   }
-                }
+                },
               },
               clipboard: {
                 module: PlainClipboard,
-                getPreviewOnLinkFound: getPreviewOnLinkFound
-              }
+                getPreviewOnLinkFound: getPreviewOnLinkFound,
+                getVideoPreview: getVideoPreview,
+              },
             },
 
-            theme: 'snow'
+            theme: 'snow',
           })
 
           ref.current = quill
@@ -131,19 +134,50 @@ const TextEditor = forwardRef(
     }, [isQuillReady, prevText, isEdit, ref])
 
     useEffect(() => {
-      if (prevPreview && prevPreview.url) {
-        toggleLinkPreview(true)
+      if (prevPreview) {
+        prevPreview.youtubeId && setYoutubeVideo(prevPreview.youtubeId)
+        prevPreview.url && toggleLinkPreview(true)
       }
     }, [prevPreview])
 
+    useEffect(() => {
+      if (youtubeVideo && youtubeVideo !== '') {
+        handlePreviewData({
+          ...previewData,
+          youtubeId: youtubeVideo,
+        } as ILinkDetails)
+      }
+    }, [youtubeVideo])
+
+    const getVideoPreview = useCallback(
+      (youtubeId: any) => {
+        if (youtubeVideo && youtubeVideo != '') return
+        setYoutubeVideo(youtubeId)
+      },
+      [youtubeVideo]
+    )
+
+    const removeVideo = () => {
+      setYoutubeVideo('')
+      handlePreviewData({...previewData, youtubeId: ''} as ILinkDetails)
+    }
+    console.log('prevPreviewprevPreview', prevPreview)
+    console.log('previewDatapreviewDatapreviewData', previewData)
     return (
       <div
         className={`${containerClassName ? containerClassName : ''}`}
         id='quill-container'
       >
         <div id={customEditorId ? customEditorId : 'editor'} />
+        {youtubeVideo && youtubeVideo !== '' && (
+          <YoutubePreview
+            removeVideo={removeVideo}
+            youtubeVideo={youtubeVideo}
+          />
+        )}
         <LinkDetails
           prevPreview={prevPreview}
+          previewData={previewData}
           link={link}
           isVisible={showLinkPreview}
           toggleVisible={toggleLinkPreview}
