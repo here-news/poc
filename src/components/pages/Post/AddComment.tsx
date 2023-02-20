@@ -1,13 +1,12 @@
 import React, { useRef, useState } from 'react'
 import styles from './Comments.module.css'
-import Avatar from 'assets/avatar.png'
-import Image from 'next/image'
 import { useAppDispatch, useAppSelector } from 'store/hooks'
 import { useMutation, useQueryClient } from 'react-query'
 import axios from 'axios'
 import { ENV } from 'lib/env'
 import { toast } from 'react-toastify'
 import { deductBalance } from 'store/slices/auth.slice'
+import Avatar from 'components/Avatar'
 
 interface AddCommentProps {
   isReply?: boolean
@@ -84,18 +83,14 @@ const AddComment = ({
   return (
     <React.Fragment>
       <div className='w-full mt-3 flex flex-row items-start'>
-        <div
-          className={`relative ${
+        <Avatar
+          imageUrl={selectedAccount && selectedAccount.avatar}
+          containerClassNames={`mr-4 ${
             isReply ? 'w-6 h-6' : 'w-10 h-9'
-          } mr-4`}
-        >
-          <Image
-            src={Avatar}
-            fill
-            alt='user avatar'
-            className='rounded-full'
-          />
-        </div>
+          }`}
+          bg='dark'
+        />
+
         <div
           ref={commentRef}
           className={`${

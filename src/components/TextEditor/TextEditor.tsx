@@ -3,11 +3,11 @@ import React, {
   useCallback,
   useEffect,
   useRef,
-  useState,
+  useState
 } from 'react'
 import 'quill/dist/quill.snow.css'
 import LinkDetails from './LinkDetails'
-import {ILinkDetails} from 'types/interfaces'
+import { ILinkDetails } from 'types/interfaces'
 import YoutubePreview from './YoutubePreview'
 
 interface TextEditorProps {
@@ -45,7 +45,7 @@ const TextEditor = forwardRef(
       customEditorId,
       prevPreview,
       prevText,
-      previewData,
+      previewData
     }: TextEditorProps,
     ref: any
   ) => {
@@ -61,6 +61,14 @@ const TextEditor = forwardRef(
     const toggleLinkPreview = (previewState: boolean) => {
       setShowLinkPreview(previewState)
     }
+
+    const getVideoPreview = useCallback(
+      (youtubeId: any) => {
+        if (youtubeVideo && youtubeVideo != '') return
+        setYoutubeVideo(youtubeId)
+      },
+      [youtubeVideo]
+    )
 
     useEffect(() => {
       if (canResetPreview) {
@@ -92,7 +100,11 @@ const TextEditor = forwardRef(
         import('./PlainClipboard').then(pc => {
           const PlainClipboard = pc.default
 
-          module.default.register('modules/clipboard', PlainClipboard, true)
+          module.default.register(
+            'modules/clipboard',
+            PlainClipboard,
+            true
+          )
 
           const quill = new module.default(element, {
             placeholder: placeholder ? placeholder : '',
@@ -105,23 +117,29 @@ const TextEditor = forwardRef(
                   } else {
                     this.quill.format('link', false)
                   }
-                },
+                }
               },
               clipboard: {
                 module: PlainClipboard,
                 getPreviewOnLinkFound: getPreviewOnLinkFound,
-                getVideoPreview: getVideoPreview,
-              },
+                getVideoPreview: getVideoPreview
+              }
             },
-
-            theme: 'snow',
+            formats: ['link-embed'],
+            theme: 'snow'
           })
 
           ref.current = quill
           setIsQuillReady(true)
         })
       })
-    }, [placeholder, getPreviewOnLinkFound, ref, customEditorId])
+    }, [
+      placeholder,
+      getPreviewOnLinkFound,
+      getVideoPreview,
+      ref,
+      customEditorId
+    ])
 
     useEffect(() => {
       if (isQuillReady && isEdit) {
@@ -135,7 +153,8 @@ const TextEditor = forwardRef(
 
     useEffect(() => {
       if (prevPreview) {
-        prevPreview.youtubeId && setYoutubeVideo(prevPreview.youtubeId)
+        prevPreview.youtubeId &&
+          setYoutubeVideo(prevPreview.youtubeId)
         prevPreview.url && toggleLinkPreview(true)
       }
     }, [prevPreview])
@@ -144,25 +163,18 @@ const TextEditor = forwardRef(
       if (youtubeVideo && youtubeVideo !== '') {
         handlePreviewData({
           ...previewData,
-          youtubeId: youtubeVideo,
+          youtubeId: youtubeVideo
         } as ILinkDetails)
       }
-    }, [youtubeVideo])
-
-    const getVideoPreview = useCallback(
-      (youtubeId: any) => {
-        if (youtubeVideo && youtubeVideo != '') return
-        setYoutubeVideo(youtubeId)
-      },
-      [youtubeVideo]
-    )
+    }, [handlePreviewData, previewData, youtubeVideo])
 
     const removeVideo = () => {
       setYoutubeVideo('')
-      handlePreviewData({...previewData, youtubeId: ''} as ILinkDetails)
+      handlePreviewData({
+        ...previewData,
+        youtubeId: ''
+      } as ILinkDetails)
     }
-    console.log('prevPreviewprevPreview', prevPreview)
-    console.log('previewDatapreviewDatapreviewData', previewData)
     return (
       <div
         className={`${containerClassName ? containerClassName : ''}`}

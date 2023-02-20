@@ -3,13 +3,13 @@ import React, {useEffect, useRef, useState} from 'react'
 import {useAppDispatch, useAppSelector} from 'store/hooks'
 import LoginModal from './pages/home/LoginModal'
 import RegisterModal from './pages/home/RegisterModal'
-import Avatar from 'assets/avatar.png'
 import {logout, setSelectedAccount} from 'store/slices/auth.slice'
 import {IUser} from 'types/interfaces'
 import {MdAttachMoney} from 'react-icons/md'
 import AnimatedNumber from 'react-awesome-animated-number'
 import 'react-awesome-animated-number/dist/index.css'
 import Link from 'next/link'
+import Avatar from './Avatar'
 
 function Header() {
   const dispatch = useAppDispatch()
@@ -75,9 +75,11 @@ function Header() {
           }}
         >
           <div className='flex justify-between items-center pb-2'>
-            <h2 className='cursor-pointer text-xl pl-4'>
-              <Link href='/'>News@HERE</Link>
-            </h2>
+            <div className='flex items-center'>
+              <h2 className='cursor-pointer text-xl pl-4'>
+                <Link href='/'>News@HERE</Link>
+              </h2>
+            </div>
 
             <div className='flex flex-row gap-2 items-center'>
               {selectedAccount ? (
@@ -98,14 +100,11 @@ function Header() {
                       className='flex flex-row items-center border-[1px] bg-white border-slate-400 px-1 py-1 rounded-full cursor-pointer hover:bg-slate-400 hover:text-white'
                       onClick={toggleOpenAccount}
                     >
-                      <div className='relative w-[18px] h-[18px]'>
-                        <Image
-                          src={Avatar}
-                          alt='avatar'
-                          fill
-                          className='rounded-full'
-                        />
-                      </div>
+                      <Avatar
+                        imageUrl={selectedAccount.avatar}
+                        containerClassNames='w-[18px] h-[18px]'
+                        bg='dark'
+                      />
                       <p className='text-xs ml-2 font-semibold select-none'>
                         {selectedAccount.displayName}
                         <span

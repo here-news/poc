@@ -1,8 +1,8 @@
 import Image from 'next/image'
-import React, {useCallback, useEffect, useState} from 'react'
-import {BiLoaderAlt} from 'react-icons/bi'
-import {MdClose} from 'react-icons/md'
-import {ILinkDetails} from 'types/interfaces'
+import React, { useCallback, useEffect, useState } from 'react'
+import { BiLoaderAlt } from 'react-icons/bi'
+import { MdClose } from 'react-icons/md'
+import { ILinkDetails } from 'types/interfaces'
 import getLinkDetails from './getLinkDetails'
 
 interface LinkDetailsProps {
@@ -34,7 +34,7 @@ function LinkDetails({
   handlePreviewData,
   toggleDisablePost,
   previewData,
-  prevPreview,
+  prevPreview
 }: LinkDetailsProps) {
   const [details, setDetails] = useState<ILinkDetails | null>(null)
   const [prevLink, setPrevLink] = useState('')
@@ -46,9 +46,16 @@ function LinkDetails({
     setDetails(null)
     setPrevLink('')
     previewData?.youtubeId
-      ? handlePreviewData({youtubeId: previewData?.youtubeId} as ILinkDetails)
+      ? handlePreviewData({
+          youtubeId: previewData?.youtubeId
+        } as ILinkDetails)
       : handlePreviewData()
-  }, [handlePreviewData, resetLinkPreview, toggleVisible])
+  }, [
+    handlePreviewData,
+    resetLinkPreview,
+    toggleVisible,
+    previewData?.youtubeId
+  ])
 
   useEffect(() => {
     async function getAllLinkDetails() {
@@ -61,7 +68,7 @@ function LinkDetails({
         return
       }
       setDetails(linkDetails)
-      handlePreviewData({...previewData, ...linkDetails})
+      handlePreviewData({ ...previewData, ...linkDetails })
     }
 
     if (prevPreview && !initialSetPrev) {
@@ -81,6 +88,7 @@ function LinkDetails({
     prevLink,
     removeLink,
     toggleDisablePost,
+    previewData
   ])
 
   if (!isVisible) return <React.Fragment />
@@ -101,7 +109,7 @@ function LinkDetails({
         target='_blank'
         className='relative'
       >
-        <div className='relative mt-4 flex flex-col border-[0.0625rem] border-slate-400 rounded-lg px-5 py-4 transition-colors duration-300 hover:bg-gray-200 cursor-pointer'>
+        <div className='relative mt-4 flex flex-col border-[0.0625rem] border-slate-400 rounded-lg px-3 py-3 transition-colors duration-300 hover:bg-gray-200 cursor-pointer'>
           {!details ? (
             <div className='flex items-center justify-center'>
               <span className='animate-spin rotate mr-2'>
@@ -111,9 +119,13 @@ function LinkDetails({
           ) : (
             <React.Fragment>
               <div className='flex flex-row items-center'>
-                <div className='relative mr-2 w-4 h-4'>
+                <div className='relative mr-2 w-3 h-3'>
                   {details.favicons && details.favicons.length > 0 ? (
-                    <Image src={details.favicons[0]} alt='link embed' fill />
+                    <Image
+                      src={details.favicons[0]}
+                      alt='link embed'
+                      fill
+                    />
                   ) : (
                     ''
                   )}
@@ -121,14 +133,16 @@ function LinkDetails({
                 <p className='text-xs text-slate-700'>
                   {details.siteName
                     ? details.siteName
-                    : new URL(link || (details && details.url)).hostname
+                    : new URL(
+                        link || (details && details.url)
+                      ).hostname
                         .split('.')
                         .slice(-2)
                         .join('.')}
                 </p>
               </div>
               {details.images && details.images.length > 0 ? (
-                <div className='relative w-full h-44 mt-1 mb-4'>
+                <div className='relative w-full h-32 mt-1 mb-2'>
                   <Image
                     fill
                     src={details.images[0]}
@@ -140,7 +154,7 @@ function LinkDetails({
                 ''
               )}
               {details.title ? (
-                <h2 className='text-lg text-slate-800 font-bold'>
+                <h2 className='text-md text-slate-800 font-bold'>
                   {details.title}
                 </h2>
               ) : (
@@ -148,7 +162,7 @@ function LinkDetails({
               )}
 
               {details.description ? (
-                <p className='mt-2 text-md text-slate-800'>
+                <p className='mt-[0.125rem] text-xs text-slate-800'>
                   {details.description}
                 </p>
               ) : (
@@ -157,8 +171,8 @@ function LinkDetails({
 
               <p
                 className={`${
-                  details.description ? 'mt-6' : 'mt-3'
-                } text-blue-600 underline text-sm`}
+                  details.description ? 'mt-2' : 'mt-1'
+                } text-blue-600 underline text-xs`}
               >
                 Read the full article at
                 {new URL(link || (details && details.url)).hostname

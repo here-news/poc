@@ -1,7 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { IComment, IPost, IUser } from 'types/interfaces'
-import Avatar from 'assets/avatar.png'
-import Image from 'next/image'
+import { IComment } from 'types/interfaces'
 import formatDistance from 'date-fns/formatDistance'
 import { MdDelete, MdMoreHoriz } from 'react-icons/md'
 import { useAppSelector } from 'store/hooks'
@@ -10,6 +8,7 @@ import { ENV } from 'lib/env'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import AddComment from './AddComment'
+import Avatar from 'components/Avatar'
 
 interface SingleCommentProps extends IComment {
   commentId: string
@@ -87,14 +86,12 @@ function SingleComment({
 
   return (
     <div className='flex flex-row gap-2 items-start w-full'>
-      <div className='relative w-8 h-8'>
-        <Image
-          fill
-          src={Avatar}
-          alt='comment user image'
-          className='rounded-full'
-        />
-      </div>
+      <Avatar
+        imageUrl={user && user.avatar}
+        containerClassNames='w-8 h-8'
+        bg='dark'
+      />
+
       <div className='ml-2 flex-1'>
         <div className='flex flex-row justify-between'>
           <div className='flex flex-col'>

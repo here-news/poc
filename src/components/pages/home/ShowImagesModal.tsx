@@ -76,12 +76,16 @@ function ShowImagesModal({
               </p>
             </div>
           </div>
-          <Image
-            src={images[selectedIndex]}
-            fill
-            className='object-contain'
-            alt='show image'
-          />
+          {images && selectedIndex && images[selectedIndex] ? (
+            <Image
+              src={images[selectedIndex]}
+              fill
+              className='object-contain'
+              alt='show image'
+            />
+          ) : (
+            <React.Fragment />
+          )}
         </div>
         <div className='w-12 bg-[rgba(0,0,0,0.4)] flex items-center justify-center'>
           <div

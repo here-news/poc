@@ -1,9 +1,8 @@
-import React, {useEffect, useState} from 'react'
-import {useRouter} from 'next/router'
+import React, { useEffect, useState } from 'react'
 import axios from 'axios'
-import {ENV} from 'lib/env'
-import {GetServerSideProps} from 'next'
-import {IPost} from 'types/interfaces'
+import { ENV } from 'lib/env'
+import { GetServerSideProps } from 'next'
+import { IPost } from 'types/interfaces'
 import Head from 'next/head'
 
 import SinglePost from 'components/SinglePost/SinglePost'
@@ -15,12 +14,14 @@ interface PostProps {
   postData: IPost | null
 }
 
-function Post({postData}: PostProps) {
+function Post({ postData }: PostProps) {
   const [selectedPost, setSelectedPost] = useState<IPost | null>(null)
-  const [isEditPostModalVisible, setIsEditPostModalVisible] = useState(false)
+  const [isEditPostModalVisible, setIsEditPostModalVisible] =
+    useState(false)
   const [showImagesVisible, setShowImagesVisible] = useState(false)
   const [selectedImages, setSelectedImages] = useState<string[]>([])
-  const [initialImageIndex, setInitialImageIndex] = useState<number>(0)
+  const [initialImageIndex, setInitialImageIndex] =
+    useState<number>(0)
 
   useEffect(() => {
     if (!isEditPostModalVisible) {
@@ -39,11 +40,14 @@ function Post({postData}: PostProps) {
     toggleShowImagesVisible()
   }
 
-  const toggleEditPostModal = () => setIsEditPostModalVisible(prev => !prev)
+  const toggleEditPostModal = () =>
+    setIsEditPostModalVisible(prev => !prev)
 
-  const toggleShowImagesVisible = () => setShowImagesVisible(prev => !prev)
+  const toggleShowImagesVisible = () =>
+    setShowImagesVisible(prev => !prev)
 
   if (!postData) return <React.Fragment />
+
   return (
     <div className='flex flex-col items-center'>
       <Head>
@@ -62,10 +66,13 @@ function Post({postData}: PostProps) {
           userId={postData.userId}
           images={postData.images}
           text={postData.text}
-          totalComments={postData.totalComments ? postData.totalComments : 0}
+          totalComments={
+            postData.totalComments ? postData.totalComments : 0
+          }
           preview={postData.preview}
           toggleEditPostModal={toggleEditPostModal}
           handleSelectedPost={handleSelectedPost}
+          showVoting
         />
         <Comments
           postId={postData._id}
@@ -88,27 +95,45 @@ function Post({postData}: PostProps) {
   )
 }
 
-export const getServerSideProps: GetServerSideProps<PostProps> = async ({
-  params,
-}) => {
+export const getServerSideProps: GetServerSideProps<
+  PostProps
+> = async ({ req, params, resolvedUrl }) => {
   if (!params) {
     return {
-      notFound: true,
+      notFound: true
     }
   }
 
-  const {id} = params
+  const { id } = params
 
   try {
-    const postData = await axios.get(`${ENV.API_URL}/getSinglePost/${id}`)
+    const postData = await axios.get(
+      `${ENV.API_URL}/getSinglePost/${id}`
+    )
+
+    //creating meta tags
+    const data = postData.data.data
+    const htmlToFormattedText = require('html-to-formatted-text')
+    const description = htmlToFormattedText(postData.data.data.text)
+    const imageUrl =
+      data.images && data.images.length > 0 ? data.images[0] : ''
+    const metaTags = data
+      ? {
+          'og:title': `${data.title} - Here News`,
+          'og:description': `${description}`,
+          'og:image': imageUrl,
+          'og:url': `${req.headers.host}${resolvedUrl}`
+        }
+      : {}
     return {
       props: {
         postData: postData.data.data,
-      },
+        metaTags
+      }
     }
   } catch (error) {
     return {
-      notFound: true,
+      notFound: true
     }
   }
 }

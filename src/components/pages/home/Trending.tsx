@@ -3,6 +3,7 @@ import Head from 'next/head'
 import axios from 'axios'
 import { useQuery } from 'react-query'
 import { BiLoaderAlt } from 'react-icons/bi'
+import Masonry from 'react-masonry-css'
 
 import { useAppSelector } from 'store/hooks'
 import { IPost } from 'types/interfaces'
@@ -11,6 +12,13 @@ import { ENV } from 'lib/env'
 import ShowImagesModal from './ShowImagesModal'
 import SinglePost from 'components/SinglePost/SinglePost'
 import EditPostModal from './EditPostModal/EditPostModal'
+
+const breakpointColumnsObj = {
+  default: 4,
+  1150: 3,
+  850: 2,
+  580: 1
+}
 
 function Trending() {
   const selectedAccount = useAppSelector(
@@ -58,7 +66,7 @@ function Trending() {
 
   return (
     <div
-      className={`relative w-full max-w-[40rem] px-2 md:px-0 mb-8 ${
+      className={`relative w-full px-2 md:px-0 mb-8 ${
         selectedAccount ? 'mt-2' : ''
       }`}
     >
@@ -78,46 +86,55 @@ function Trending() {
         </div>
       ) : (
         <React.Fragment>
-          {postList &&
-            postList.map((post, i) => (
-              <div
-                key={post._id}
-                className={`w-full ${
-                  i === 0 && !selectedAccount ? 'mt-0' : 'mt-4'
-                }`}
-              >
-                <SinglePost
-                  _id={post._id}
-                  userId={post.userId}
-                  createdAt={post.createdAt}
-                  title={post.title}
-                  images={post.images}
-                  text={post.text}
-                  downvotes={post.downvotes}
-                  upvotes={post.upvotes}
-                  totalVotes={post.totalVotes}
-                  handleSelectedImages={handleSelectedImages}
-                  toggleEditPostModal={toggleEditPostModal}
-                  handleSelectedPost={handleSelectedPost}
-                  canPushToPost={true}
-                  totalComments={
-                    post.totalComments ? post.totalComments : 0
-                  }
-                  preview={post.preview}
-                />
-              </div>
-            ))}
-          <EditPostModal
-            isVisible={isEditPostModalVisible}
-            toggleVisible={toggleEditPostModal}
-            post={selectedPost}
-          />
-          <ShowImagesModal
-            showImagesVisible={showImagesVisible}
-            toggleShowImagesVisible={toggleShowImagesVisible}
-            images={selectedImages}
-            initialIndex={initialImageIndex}
-          />
+          <div className='px-4'>
+            <Masonry
+              breakpointCols={breakpointColumnsObj}
+              className='trending'
+              columnClassName='trending_column'
+            >
+              {postList &&
+                postList.map((post, i) => (
+                  <div
+                    key={post._id}
+                    className={`w-full ${
+                      i === 0 && !selectedAccount ? 'mt-0' : 'mt-4'
+                    }`}
+                  >
+                    <SinglePost
+                      _id={post._id}
+                      userId={post.userId}
+                      createdAt={post.createdAt}
+                      title={post.title}
+                      images={post.images}
+                      text={post.text}
+                      downvotes={post.downvotes}
+                      upvotes={post.upvotes}
+                      totalVotes={post.totalVotes}
+                      handleSelectedImages={handleSelectedImages}
+                      toggleEditPostModal={toggleEditPostModal}
+                      handleSelectedPost={handleSelectedPost}
+                      canPushToPost={true}
+                      totalComments={
+                        post.totalComments ? post.totalComments : 0
+                      }
+                      preview={post.preview}
+                      showMore
+                    />
+                  </div>
+                ))}
+            </Masonry>
+            <EditPostModal
+              isVisible={isEditPostModalVisible}
+              toggleVisible={toggleEditPostModal}
+              post={selectedPost}
+            />
+            <ShowImagesModal
+              showImagesVisible={showImagesVisible}
+              toggleShowImagesVisible={toggleShowImagesVisible}
+              images={selectedImages}
+              initialIndex={initialImageIndex}
+            />
+          </div>
         </React.Fragment>
       )}
     </div>
