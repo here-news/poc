@@ -5,6 +5,7 @@ export interface IUser {
   balance: number
   reputation: number
   parent: IUser | string
+  avatar?: string
 }
 
 export interface IPost {

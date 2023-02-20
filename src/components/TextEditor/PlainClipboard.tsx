@@ -1,7 +1,29 @@
 import Quill from 'quill'
-import {youtubeParser} from 'utils'
+import { youtubeParser } from 'utils'
 const Clipboard = Quill.import('modules/clipboard')
 const Delta = Quill.import('delta')
+
+const BlockEmbed = Quill.import('blots/block/embed')
+
+class LinkEmbed extends BlockEmbed {
+  static create(value: any) {
+    const node = super.create(value)
+    node.setAttribute('href', value.href)
+    node.setAttribute('rel', 'noopener noreferrer')
+    node.setAttribute('target', '_blank')
+    node.setAttribute(
+      'style',
+      'text-decoration-line: underline; color:rgb(37, 99, 235); white-space: normal;'
+    )
+    node.innerHTML = value.innerHTML
+    return node
+  }
+}
+
+LinkEmbed.blotName = 'link-embed'
+LinkEmbed.tagName = 'a'
+Quill.register(LinkEmbed)
+
 class PlainClipboard extends Clipboard {
   constructor(
     quill: Quill,
@@ -20,28 +42,33 @@ class PlainClipboard extends Clipboard {
     const range = this.quill.getSelection()
     const text = e.clipboardData.getData('text/plain')
 
-    const index = text.length + range.index
-    const length = 0
+    const regex = /(https?:\/\/[^\s]+)/g
+    const result = text.split(regex)
+    const resultToAdd = result.reverse()
 
-    const delta = new Delta()
-      .retain(range.index)
-      .delete(range.length)
-      .insert(text)
+    for (let i = 0; i < result.length; i++) {
+      if (regex.test(result[i])) {
+        const tag = document.createElement('a')
+        tag.href = result[i]
+        tag.innerHTML = result[i]
+        await this.quill.insertEmbed(range.index, 'link-embed', tag)
+      } else {
+        const delta = new Delta()
+          .retain(range.index)
+          .delete(range.length)
+          .insert(result[i])
 
-    this.quill.updateContents(delta, 'silent')
-    this.quill.setSelection(index, length, 'silent')
-    this.quill.scrollIntoView()
+        await this.quill.updateContents(delta, 'silent')
+      }
+    }
 
     const youtubeId = youtubeParser(text)
     if (youtubeId) {
       this.getVideoPreview(youtubeId)
     } else {
-      const regex = /(https?:\/\/[^\s]+)/g
-      const result = text.split(regex)
-
-      for (let i = 0; i < result.length; i++) {
-        if (regex.test(result[i])) {
-          this.getPreviewOnLinkFound(result[i])
+      for (let i = 0; i < resultToAdd.length; i++) {
+        if (regex.test(resultToAdd[i])) {
+          this.getPreviewOnLinkFound(resultToAdd[i])
           break
         }
       }

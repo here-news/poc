@@ -1,27 +1,30 @@
-import React, {useEffect, useRef, useState} from 'react'
-import Image from 'next/image'
-import {useRouter} from 'next/router'
+import React, { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/router'
 import formatDistance from 'date-fns/formatDistance'
-import {BiEdit} from 'react-icons/bi'
-import {MdDelete, MdMoreHoriz} from 'react-icons/md'
-import {useMutation, useQueryClient} from 'react-query'
+import { BiEdit } from 'react-icons/bi'
+import { MdDelete, MdMoreHoriz } from 'react-icons/md'
+import { useMutation, useQueryClient } from 'react-query'
 import axios from 'axios'
-import {toast} from 'react-toastify'
+import { toast } from 'react-toastify'
 
-import Avatar from 'assets/avatar.png'
-import {IPost} from 'types/interfaces'
-import {useAppSelector} from 'store/hooks'
+import { IPost } from 'types/interfaces'
+import { useAppSelector } from 'store/hooks'
+import { ENV } from 'lib/env'
 
 import VotesCounter from './VotesCounter'
 import Images from './Images'
 import Buttons from './Buttons'
 import LinkDetails from './LinkDetails'
-import {ENV} from 'lib/env'
+import Avatar from 'components/Avatar'
+
+import styles from './SinglePost.module.css'
 
 interface SinglePostProps extends IPost {
   noBorder?: boolean
   canPushToPost?: boolean
   totalComments: number
+  showMore?: boolean
+  showVoting?: boolean
   handleSelectedImages: (images: string[], index?: number) => void
   toggleEditPostModal: () => void
   handleSelectedPost: (post: IPost) => void
@@ -44,10 +47,12 @@ function SinglePost({
   canPushToPost,
   totalComments,
   preview,
+  showMore,
+  showVoting
 }: SinglePostProps) {
   const queryClient = useQueryClient()
   const router = useRouter()
-  const {selectedAccount} = useAppSelector(state => state.auth)
+  const { selectedAccount } = useAppSelector(state => state.auth)
 
   const moreOptionsMenuRef = useRef<HTMLDivElement | null>(null)
   const contentRef = useRef<HTMLDivElement | null>(null)
@@ -78,7 +83,10 @@ function SinglePost({
   }
 
   useEffect(() => {
-    if (contentRef.current && contentRef.current.scrollHeight <= 100) {
+    if (
+      contentRef.current &&
+      contentRef.current.scrollHeight <= 100
+    ) {
       setHeight(contentRef.current.scrollHeight + 'px')
     }
   }, [contentRef, text])
@@ -108,7 +116,7 @@ function SinglePost({
       },
       onError: () => {
         toast.error('There was some error deleting post!')
-      },
+      }
     }
   )
 
@@ -124,7 +132,7 @@ function SinglePost({
       images,
       preview,
       text,
-      totalComments,
+      totalComments
     })
 
     toggleEditPostModal()
@@ -146,28 +154,33 @@ function SinglePost({
       onClick={moveToPage}
     >
       <div className='flex flex-row justify-between items-center mx-4'>
-        <div className='flex items-center flex-1'>
-          <div onClick={e => e.stopPropagation()}>
-            <VotesCounter
-              postId={_id}
-              downvotes={downvotes}
-              upvotes={upvotes}
-              totalVotes={totalVotes}
-            />
-          </div>
-          <div className='relative w-8 h-8 ml-2'>
-            <Image
-              src={Avatar}
-              fill
-              alt='post image'
-              className='rounded-full'
-            />
-          </div>
-          <div className='flex flex-col flex-1 ml-2'>
+        <div className='flex items-center flex-1 min-h-10'>
+          {showVoting && (
+            <div onClick={e => e.stopPropagation()}>
+              <VotesCounter
+                postId={_id}
+                downvotes={downvotes}
+                upvotes={upvotes}
+                totalVotes={totalVotes}
+              />
+            </div>
+          )}
+          <Avatar
+            imageUrl={userId.avatar}
+            containerClassNames={`w-8 h-8 ${
+              showVoting ? 'ml-2' : 'mt-2'
+            }`}
+            bg='dark'
+          />
+          <div
+            className={`flex flex-col flex-1 ${
+              showVoting ? 'ml-2' : 'ml-2 mt-2'
+            }`}
+          >
             <h4 className='text-md'>{userId.displayName}</h4>
             <p className='text-xs text-slate-500'>
               {formatDistance(new Date(createdAt), new Date(), {
-                addSuffix: true,
+                addSuffix: true
               })}
             </p>
           </div>
@@ -237,36 +250,44 @@ function SinglePost({
           >
             <h2 className='text-lg font-bold mb-4'>{title}</h2>
             <div
-              className='break-all'
+              className={`break-all ${styles.description}`}
               dangerouslySetInnerHTML={{
-                __html: text,
+                __html: text
               }}
               ref={contentRef}
-              style={{
-                maxHeight: !noBorder ? height : '100%',
-                overflow: !noBorder ? 'hidden' : '',
-              }}
+              style={
+                showMore
+                  ? { maxHeight: height, overflow: 'hidden' }
+                  : {}
+              }
             />
-            {height === '100px' && !noBorder && (
-              <div className='flex-1 flex justify-end my-5'>
-                <button
-                  className='text-blue-600 underline text-sm'
-                  onClick={e => {
-                    e.stopPropagation()
-                    handleClick()
-                  }}
-                  style={{
-                    display: height === '100px' ? 'block' : 'none',
-                  }}
-                >
-                  Show More
-                </button>
-              </div>
+            {showMore && (
+              <>
+                {height === '100px' && (
+                  <div className='flex-1 flex justify-end my-5'>
+                    <button
+                      className='text-blue-600 underline text-sm'
+                      onClick={e => {
+                        e.stopPropagation()
+                        handleClick()
+                      }}
+                      style={{
+                        display: height === '100px' ? 'block' : 'none'
+                      }}
+                    >
+                      Show More
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
         <div className='flex-1' onClick={e => e.stopPropagation()}>
-          <Images images={images} handleSelectedImages={handleSelectedImages} />
+          <Images
+            images={images}
+            handleSelectedImages={handleSelectedImages}
+          />
         </div>
         <Buttons totalComments={totalComments} postId={_id} />
       </div>

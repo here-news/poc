@@ -5,3 +5,38 @@
 body {
   background-color: #efeff2;
 }
+@keyframes marquee {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.animate-marquee {
+  display: inline-block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-align: center;
+  animation: marquee 15s linear infinite;
+}
+
+.trending {
+  display: -webkit-box; /* Not needed if autoprefixing */
+  display: -ms-flexbox; /* Not needed if autoprefixing */
+  display: flex;
+  margin-left: -20px; /* gutter size offset */
+  width: auto;
+}
+.trending_column {
+  padding-left: 20px; /* gutter size */
+  background-clip: padding-box;
+}
+
+/* Style your items */
+.trending_column > div {
+  /* change div to reference your elements you put in <Masonry> */
+  background: grey;
+  margin-bottom: 10px;
+}

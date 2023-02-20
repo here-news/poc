@@ -1,13 +1,15 @@
 import React from 'react'
-import {MdClose} from 'react-icons/md'
-import YouTube from 'react-youtube'
+import { MdClose } from 'react-icons/md'
 
 interface YoutubePreviewProps {
   removeVideo: () => void
   youtubeVideo: string
 }
 
-const YoutubePreview = ({removeVideo, youtubeVideo}: YoutubePreviewProps) => {
+const YoutubePreview = ({
+  removeVideo,
+  youtubeVideo
+}: YoutubePreviewProps) => {
   return (
     <div className='relative'>
       <div
@@ -19,14 +21,15 @@ const YoutubePreview = ({removeVideo, youtubeVideo}: YoutubePreviewProps) => {
       >
         <MdClose className='text-white' />
       </div>
-      <YouTube
-        videoId={youtubeVideo}
-        className='w-full mt-4'
-        iframeClassName='w-full'
-        onReady={event => {
-          event.target.pauseVideo()
-        }}
-      />
+      <div className='w-full mt-4'>
+        <iframe
+          className='h-60 w-full'
+          src={`https://www.youtube.com/embed/${youtubeVideo}`}
+          title='YouTube video player'
+          allow='accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture'
+          allowFullScreen
+        />
+      </div>
     </div>
   )
 }

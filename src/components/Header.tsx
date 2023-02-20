@@ -1,20 +1,22 @@
 import Image from 'next/image'
-import React, {useEffect, useRef, useState} from 'react'
-import {useAppDispatch, useAppSelector} from 'store/hooks'
+import React, { useEffect, useRef, useState } from 'react'
+import { useAppDispatch, useAppSelector } from 'store/hooks'
 import LoginModal from './pages/home/LoginModal'
 import RegisterModal from './pages/home/RegisterModal'
-import Avatar from 'assets/avatar.png'
-import {logout, setSelectedAccount} from 'store/slices/auth.slice'
-import {IUser} from 'types/interfaces'
-import {MdAttachMoney} from 'react-icons/md'
+import { logout, setSelectedAccount } from 'store/slices/auth.slice'
+import { IUser } from 'types/interfaces'
+import { MdAttachMoney } from 'react-icons/md'
 import AnimatedNumber from 'react-awesome-animated-number'
 import 'react-awesome-animated-number/dist/index.css'
 import Link from 'next/link'
+import Avatar from './Avatar'
 
 function Header() {
   const dispatch = useAppDispatch()
   const accountMenuRef = useRef<HTMLDivElement | null>(null)
-  const {accounts, selectedAccount} = useAppSelector(state => state.auth)
+  const { accounts, selectedAccount } = useAppSelector(
+    state => state.auth
+  )
 
   const [isRegisterVisible, setIsRegisterVisible] = useState(false)
   const [isLoginVisible, setIsLoginVisible] = useState(false)
@@ -71,7 +73,7 @@ function Header() {
         <div
           className='grid h-full max-w-[40rem]'
           style={{
-            flex: '1 1 0%',
+            flex: '1 1 0%'
           }}
         >
           <div className='flex justify-between items-center pb-2'>
@@ -98,14 +100,11 @@ function Header() {
                       className='flex flex-row items-center border-[1px] bg-white border-slate-400 px-1 py-1 rounded-full cursor-pointer hover:bg-slate-400 hover:text-white'
                       onClick={toggleOpenAccount}
                     >
-                      <div className='relative w-[18px] h-[18px]'>
-                        <Image
-                          src={Avatar}
-                          alt='avatar'
-                          fill
-                          className='rounded-full'
-                        />
-                      </div>
+                      <Avatar
+                        imageUrl={selectedAccount.avatar}
+                        containerClassNames='w-[18px] h-[18px]'
+                        bg='dark'
+                      />
                       <p className='text-xs ml-2 font-semibold select-none'>
                         {selectedAccount.displayName}
                         <span
@@ -127,7 +126,8 @@ function Header() {
                           Switch to
                         </p>
                         {accounts?.map(account => {
-                          if (account._id === selectedAccount._id) return null
+                          if (account._id === selectedAccount._id)
+                            return null
 
                           return (
                             <div
