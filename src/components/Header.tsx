@@ -79,10 +79,6 @@ function Header() {
               <h2 className='cursor-pointer text-xl pl-4'>
                 <Link href='/'>News@HERE</Link>
               </h2>
-
-              <h4 className='cursor-pointer text-sm ml-12 text-gray-900'>
-                <Link href='/explore'>Explore</Link>
-              </h4>
             </div>
 
             <div className='flex flex-row gap-2 items-center'>
