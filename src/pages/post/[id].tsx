@@ -73,6 +73,7 @@ function Post({ postData }: PostProps) {
           toggleEditPostModal={toggleEditPostModal}
           handleSelectedPost={handleSelectedPost}
           showVoting
+          showDetails
         />
         <Comments
           postId={postData._id}

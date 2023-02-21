@@ -4,7 +4,7 @@ export interface IUser {
   displayName: string
   balance: number
   reputation: number
-  parent: IUser | string
+  parent?: IUser | string
   avatar?: string
 }
 

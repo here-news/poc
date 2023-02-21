@@ -1,7 +1,13 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useState
+} from 'react'
 import axios from 'axios'
 import Head from 'next/head'
-import { useQuery } from 'react-query'
+import { useInfiniteQuery } from 'react-query'
+import { BiLoaderAlt } from 'react-icons/bi'
 
 import { useAppSelector } from 'store/hooks'
 import { ENV } from 'lib/env'
@@ -11,6 +17,9 @@ import MinifiedPost from './MinifiedPost'
 import EditPostModal from './EditPostModal/EditPostModal'
 
 function Explore() {
+  const limit = 30
+
+  const observerElem = useRef(null)
   const selectedAccount = useAppSelector(
     state => state.auth.selectedAccount
   )
@@ -32,13 +41,51 @@ function Explore() {
   const toggleEditPostModal = () =>
     setIsEditPostModalVisible(prev => !prev)
 
-  const query = useQuery('getExplorePosts', () => {
-    return axios.get(`${ENV.API_URL}/getExplorePosts`)
-  })
+  const fetchExplorePosts = async (page: number) => {
+    const response = await axios.get(
+      `${ENV.API_URL}/getExplorePosts?per_page=${limit}&page=${page}`
+    )
+    return {
+      result: response.data.data
+    }
+  }
 
-  const postList: IPost[] = useMemo(() => {
-    return query.data && query.data.data && query.data.data.data
-  }, [query.data])
+  const {
+    data,
+    isSuccess,
+    hasNextPage,
+    fetchNextPage,
+    isFetchingNextPage
+  } = useInfiniteQuery(
+    'getTrendingPosts',
+    ({ pageParam = 1 }) => fetchExplorePosts(pageParam),
+    {
+      getNextPageParam: (lastPage, allPages) => {
+        const nextPage: number = allPages.length + 1
+        return lastPage.result.length !== 0 ? nextPage : undefined
+      }
+    }
+  )
+
+  const handleObserver = useCallback(
+    (entries: IntersectionObserverEntry[]) => {
+      const [target] = entries
+      if (target.isIntersecting && hasNextPage) {
+        fetchNextPage()
+      }
+    },
+    [fetchNextPage, hasNextPage]
+  )
+
+  useEffect(() => {
+    if (!observerElem.current) return
+    const element: HTMLDivElement = observerElem.current
+    const option = { threshold: 0 }
+
+    const observer = new IntersectionObserver(handleObserver, option)
+    observer.observe(element)
+    return () => observer.unobserve(element)
+  }, [fetchNextPage, hasNextPage, handleObserver])
 
   return (
     <div
@@ -49,32 +96,55 @@ function Explore() {
       <Head>
         <title>Explore - Here News</title>
       </Head>
-      {postList &&
-        postList.map((post, i) => (
-          <div
-            key={post._id}
-            className={`w-full ${
-              i === 0 && !selectedAccount ? 'mt-0' : 'mt-4'
-            }`}
-          >
-            <MinifiedPost
-              index={i + 1}
-              _id={post._id}
-              userId={post.userId}
-              createdAt={post.createdAt}
-              title={post.title}
-              totalVotes={post.totalVotes}
-              upvotes={post.upvotes}
-              downvotes={post.downvotes}
-              totalComments={post.totalComments}
-              images={post.images}
-              preview={post.preview}
-              text={post.text}
-              toggleEditPostModal={toggleEditPostModal}
-              handleSelectedPost={handleSelectedPost}
-            />
+      {isSuccess &&
+        data &&
+        data.pages &&
+        data.pages.map(
+          (page, pageIndex) =>
+            page &&
+            page.result &&
+            page.result.map((post: IPost, i: number) => {
+              let newIndex = pageIndex * limit + i
+              return (
+                <div key={post._id} className='w-full mb-4'>
+                  <MinifiedPost
+                    index={newIndex + 1}
+                    _id={post._id}
+                    userId={post.userId}
+                    createdAt={post.createdAt}
+                    title={post.title}
+                    totalVotes={post.totalVotes}
+                    upvotes={post.upvotes}
+                    downvotes={post.downvotes}
+                    totalComments={post.totalComments}
+                    images={post.images}
+                    preview={post.preview}
+                    text={post.text}
+                    toggleEditPostModal={toggleEditPostModal}
+                    handleSelectedPost={handleSelectedPost}
+                  />
+                </div>
+              )
+            })
+        )}
+      {hasNextPage && (
+        <div className='my-4 w-full z-[1] loader' ref={observerElem}>
+          <div className='flex items-center justify-center z-[1]'>
+            <p className='text-white text-sm bg-black px-3 py-2 rounded-lg font-semibold flex flex-row items-center'>
+              {!isFetchingNextPage ? (
+                'Load more news...'
+              ) : (
+                <React.Fragment>
+                  <span className='animate-spin rotate mr-2'>
+                    <BiLoaderAlt color='white' />
+                  </span>
+                  Loading news...
+                </React.Fragment>
+              )}
+            </p>
           </div>
-        ))}
+        </div>
+      )}
       <EditPostModal
         isVisible={isEditPostModalVisible}
         toggleVisible={toggleEditPostModal}
