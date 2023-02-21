@@ -23,6 +23,7 @@ interface SinglePostProps extends IPost {
   noBorder?: boolean
   canPushToPost?: boolean
   totalComments: number
+  showDetails?: boolean
   showMore?: boolean
   showVoting?: boolean
   handleSelectedImages: (images: string[], index?: number) => void
@@ -48,7 +49,8 @@ function SinglePost({
   totalComments,
   preview,
   showMore,
-  showVoting
+  showVoting,
+  showDetails
 }: SinglePostProps) {
   const queryClient = useQueryClient()
   const router = useRouter()
@@ -90,11 +92,6 @@ function SinglePost({
       setHeight(contentRef.current.scrollHeight + 'px')
     }
   }, [contentRef, text])
-
-  function handleClick() {
-    if (!contentRef.current) return
-    setHeight(contentRef.current.scrollHeight + 'px')
-  }
 
   const moveToPage = () => {
     canPushToPost && router.push(`/post/${_id}`)
@@ -153,94 +150,86 @@ function SinglePost({
       }`}
       onClick={moveToPage}
     >
-      <div className='flex flex-row justify-between items-center mx-4'>
-        <div className='flex items-center flex-1 min-h-10'>
-          {showVoting && (
-            <div onClick={e => e.stopPropagation()}>
-              <VotesCounter
-                postId={_id}
-                downvotes={downvotes}
-                upvotes={upvotes}
-                totalVotes={totalVotes}
-              />
-            </div>
-          )}
-          <Avatar
-            imageUrl={userId.avatar}
-            containerClassNames={`w-8 h-8 ${
-              showVoting ? 'ml-2' : 'mt-2'
-            }`}
-            bg='dark'
-          />
-          <div
-            className={`flex flex-col flex-1 ${
-              showVoting ? 'ml-2' : 'ml-2 mt-2'
-            }`}
-          >
-            <h4 className='text-md'>{userId.displayName}</h4>
-            <p className='text-xs text-slate-500'>
-              {formatDistance(new Date(createdAt), new Date(), {
-                addSuffix: true
-              })}
-            </p>
-          </div>
-        </div>
-        <div>
-          {selectedAccount && selectedAccount._id === userId._id && (
-            <div
-              className='relative'
-              ref={moreOptionsMenuRef}
-              onClick={e => e.stopPropagation()}
-            >
-              <div
-                className='cursor-pointer'
-                onClick={() => {
-                  toggleMoreOptions()
-                }}
-              >
-                <MdMoreHoriz className='text-2xl' />
+      {showDetails && (
+        <div className='flex flex-row justify-between items-center mx-4'>
+          <div className='flex items-center flex-1 min-h-10'>
+            {showVoting && (
+              <div onClick={e => e.stopPropagation()}>
+                <VotesCounter
+                  postId={_id}
+                  downvotes={downvotes}
+                  upvotes={upvotes}
+                  totalVotes={totalVotes}
+                />
               </div>
-              {isMoreOptions && (
-                <div className='z-[1] bg-white shadow-md min-w-[180px] absolute top-[1.375rem] right-0 rounded-lg py-2'>
+            )}
+            <Avatar
+              imageUrl={userId.avatar}
+              containerClassNames={`w-8 h-8 ${
+                showVoting ? 'ml-2' : 'mt-2'
+              }`}
+              bg='dark'
+            />
+            <div
+              className={`flex flex-col flex-1 ${
+                showVoting ? 'ml-2' : 'ml-2 mt-2'
+              }`}
+            >
+              <h4 className='text-md'>{userId.displayName}</h4>
+              <p className='text-xs text-slate-500'>
+                {formatDistance(new Date(createdAt), new Date(), {
+                  addSuffix: true
+                })}
+              </p>
+            </div>
+          </div>
+          <div>
+            {selectedAccount &&
+              selectedAccount._id === userId._id && (
+                <div
+                  className='relative'
+                  ref={moreOptionsMenuRef}
+                  onClick={e => e.stopPropagation()}
+                >
                   <div
-                    className='px-2 flex items-center hover:bg-slate-100 active:bg-slate-200'
-                    onClick={editPost}
+                    className='cursor-pointer'
+                    onClick={() => {
+                      toggleMoreOptions()
+                    }}
                   >
-                    <BiEdit className='text-lg' />
-                    <p className='text-sm px-2 py-3 cursor-pointer'>
-                      Edit post
-                    </p>
+                    <MdMoreHoriz className='text-2xl' />
                   </div>
-                  <div
-                    className='px-2 flex items-center text-red-600 hover:bg-slate-100 active:bg-slate-200'
-                    onClick={deletePost}
-                  >
-                    <MdDelete className='text-lg' />
-                    <p className='text-sm px-2 py-3 cursor-pointer'>
-                      Delete post
-                    </p>
-                  </div>
+                  {isMoreOptions && (
+                    <div className='z-[1] bg-white shadow-md min-w-[180px] absolute top-[1.375rem] right-0 rounded-lg py-2'>
+                      <div
+                        className='px-2 flex items-center hover:bg-slate-100 active:bg-slate-200'
+                        onClick={editPost}
+                      >
+                        <BiEdit className='text-lg' />
+                        <p className='text-sm px-2 py-3 cursor-pointer'>
+                          Edit post
+                        </p>
+                      </div>
+                      <div
+                        className='px-2 flex items-center text-red-600 hover:bg-slate-100 active:bg-slate-200'
+                        onClick={deletePost}
+                      >
+                        <MdDelete className='text-lg' />
+                        <p className='text-sm px-2 py-3 cursor-pointer'>
+                          Delete post
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
-          )}
+          </div>
         </div>
-      </div>
+      )}
       <div>
-        {preview && (
-          <LinkDetails
-            url={preview.url}
-            description={preview.description}
-            favicons={preview.favicons}
-            images={preview.images}
-            siteName={preview.siteName}
-            title={preview.title}
-            youtubeId={preview.youtubeId}
-          />
-        )}
         {text && (
           <div
-            className={`flex flex-col mt-2 mx-4 ${
+            className={`flex flex-col mt-4 mx-4 ${
               !images || (images && images.length <= 0)
                 ? 'mb-4'
                 : height !== '100px'
@@ -248,9 +237,11 @@ function SinglePost({
                 : ''
             }`}
           >
-            <h2 className='text-lg font-bold mb-4'>{title}</h2>
+            <h2 className='text-lg font-bold mb-4 break-all'>
+              {title}
+            </h2>
             <div
-              className={`break-all ${styles.description}`}
+              className={`break-all ${styles.description} pb-4`}
               dangerouslySetInnerHTML={{
                 __html: text
               }}
@@ -261,26 +252,19 @@ function SinglePost({
                   : {}
               }
             />
-            {showMore && (
-              <>
-                {height === '100px' && (
-                  <div className='flex-1 flex justify-end my-5'>
-                    <button
-                      className='text-blue-600 underline text-sm'
-                      onClick={e => {
-                        e.stopPropagation()
-                        handleClick()
-                      }}
-                      style={{
-                        display: height === '100px' ? 'block' : 'none'
-                      }}
-                    >
-                      Show More
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
+          </div>
+        )}
+        {preview && (
+          <div className='mt-2 mb-4'>
+            <LinkDetails
+              url={preview.url}
+              description={preview.description}
+              favicons={preview.favicons}
+              images={preview.images}
+              siteName={preview.siteName}
+              title={preview.title}
+              youtubeId={preview.youtubeId}
+            />
           </div>
         )}
         <div className='flex-1' onClick={e => e.stopPropagation()}>
@@ -289,6 +273,7 @@ function SinglePost({
             handleSelectedImages={handleSelectedImages}
           />
         </div>
+
         <Buttons totalComments={totalComments} postId={_id} />
       </div>
     </div>

@@ -1,0 +1,49 @@
+import { createSlice, PayloadAction } from '@reduxjs/toolkit'
+import { IUser } from 'types/interfaces'
+
+export interface INewPostData {
+  user: IUser
+  postId: string
+  title: string
+}
+
+type NotificationState = {
+  newPosts: INewPostData[] | null
+}
+
+const initialState: NotificationState = {
+  newPosts: null
+}
+
+export const notification = createSlice({
+  name: 'notification',
+  initialState,
+  reducers: {
+    setNewPosts: (state, action: PayloadAction<INewPostData>) => {
+      const newPost = action.payload
+      const tempNewPosts = state.newPosts ? state.newPosts : []
+      state.newPosts = [...tempNewPosts, newPost]
+    },
+    removeNewPost: (
+      state,
+      action: PayloadAction<{ postId: string }>
+    ) => {
+      if (!state.newPosts) return
+
+      let postId = action.payload.postId
+      const tempNewPosts = [...state.newPosts]
+
+      tempNewPosts.splice(
+        tempNewPosts.findIndex(post => post.postId === postId),
+        1
+      )
+
+      state.newPosts = [...tempNewPosts]
+    }
+  }
+})
+
+// actions
+export const { setNewPosts, removeNewPost } = notification.actions
+
+export default notification.reducer

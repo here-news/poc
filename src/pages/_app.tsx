@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import type { AppProps } from 'next/app'
 import { QueryClient, QueryClientProvider } from 'react-query'
 import { ReactQueryDevtools } from 'react-query/devtools'
@@ -11,11 +11,19 @@ import 'react-toastify/dist/ReactToastify.css'
 import Header from 'components/Header'
 import 'styles/globals.css'
 import Head from 'next/head'
+import io from 'lib/ioConfig'
 
 const queryClient = new QueryClient()
 
 export default function App({ Component, pageProps }: AppProps) {
   const { metaTags } = pageProps
+
+  useEffect(() => {
+    io.connect()
+    return () => {
+      io.disconnectSocket()
+    }
+  }, [])
 
   return (
     <React.Fragment>

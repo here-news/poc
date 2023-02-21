@@ -1,23 +1,28 @@
 import Image from 'next/image'
-import React, {useEffect, useRef, useState} from 'react'
-import {useAppDispatch, useAppSelector} from 'store/hooks'
+import React, { useEffect, useRef, useState } from 'react'
+import { useAppDispatch, useAppSelector } from 'store/hooks'
 import LoginModal from './pages/home/LoginModal'
 import RegisterModal from './pages/home/RegisterModal'
-import {logout, setSelectedAccount} from 'store/slices/auth.slice'
-import {IUser} from 'types/interfaces'
-import {MdAttachMoney} from 'react-icons/md'
+import { logout, setSelectedAccount } from 'store/slices/auth.slice'
+import { IUser } from 'types/interfaces'
+import { MdAdd, MdAttachMoney } from 'react-icons/md'
 import AnimatedNumber from 'react-awesome-animated-number'
 import 'react-awesome-animated-number/dist/index.css'
 import Link from 'next/link'
 import Avatar from './Avatar'
+import CreatePostModal from './pages/home/CreatePostModal/CreatePostModal'
 
 function Header() {
   const dispatch = useAppDispatch()
   const accountMenuRef = useRef<HTMLDivElement | null>(null)
-  const {accounts, selectedAccount} = useAppSelector(state => state.auth)
+  const { accounts, selectedAccount } = useAppSelector(
+    state => state.auth
+  )
 
   const [isRegisterVisible, setIsRegisterVisible] = useState(false)
   const [isLoginVisible, setIsLoginVisible] = useState(false)
+  const [isCreatePostVisible, setIsCreatePostVisible] =
+    useState(false)
 
   const [openAccount, setOpenAccount] = useState(false)
 
@@ -40,6 +45,10 @@ function Header() {
 
     if (accountMenuRef?.current?.contains(target)) return
     setOpenAccount(false)
+  }
+
+  const toggleCreatePostVisible = (state: boolean) => {
+    setIsCreatePostVisible(state)
   }
 
   const toggleIsRegisterVisible = () => {
@@ -71,7 +80,7 @@ function Header() {
         <div
           className='grid h-full max-w-[40rem]'
           style={{
-            flex: '1 1 0%',
+            flex: '1 1 0%'
           }}
         >
           <div className='flex justify-between items-center pb-2'>
@@ -84,7 +93,14 @@ function Header() {
             <div className='flex flex-row gap-2 items-center'>
               {selectedAccount ? (
                 <React.Fragment>
-                  <div className='ml-2 flex flex-row items-center bg-violet-600 text-white pl-1 pr-2 py-[0.3125rem] rounded-xl font-semibold h-full'>
+                  <div
+                    className='ml-2 flex flex-row items-center bg-gray-900 cursor-pointer text-white rounded-full h-full p-[3px]'
+                    onClick={() => toggleCreatePostVisible(true)}
+                  >
+                    <MdAdd className='text-xl' />
+                  </div>
+
+                  <div className='flex flex-row items-center bg-gradient-to-t from-[#6a3093] to-[#a044ff] text-white pl-1 pr-2 py-[0.3125rem] rounded-xl font-semibold h-full'>
                     <MdAttachMoney className='text-md' />
                     <p className='text-xs'>
                       <AnimatedNumber
@@ -126,7 +142,8 @@ function Header() {
                           Switch to
                         </p>
                         {accounts?.map(account => {
-                          if (account._id === selectedAccount._id) return null
+                          if (account._id === selectedAccount._id)
+                            return null
 
                           return (
                             <div
@@ -181,6 +198,10 @@ function Header() {
           </div>
         </div>
       </header>
+      <CreatePostModal
+        isVisible={isCreatePostVisible}
+        toggleVisible={toggleCreatePostVisible}
+      />
       <RegisterModal
         isRegisterVisible={isRegisterVisible}
         toggleIsRegisterVisible={toggleIsRegisterVisible}
