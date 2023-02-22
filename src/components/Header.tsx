@@ -3,7 +3,7 @@ import { useRouter } from 'next/router'
 import React, { useEffect, useRef, useState } from 'react'
 import AnimatedNumber from 'react-awesome-animated-number'
 import 'react-awesome-animated-number/dist/index.css'
-import { MdAdd, MdAttachMoney } from 'react-icons/md'
+import { MdAttachMoney } from 'react-icons/md'
 import { useAppDispatch, useAppSelector } from 'store/hooks'
 import { logout, setSelectedAccount } from 'store/slices/auth.slice'
 import { IUser } from 'types/interfaces'
@@ -68,8 +68,6 @@ function Header() {
     toggleOpenAccount()
   }
 
-  const redirectToCreatePostPage = () => router.push('/post/create')
-
   return (
     <React.Fragment>
       <header className="bg-white flex items-center justify-center p-0 fixed left-0 right-0 top-0 z-[3] h-14">
@@ -89,13 +87,6 @@ function Header() {
             <div className="flex flex-row gap-2 items-center">
               {selectedAccount ? (
                 <React.Fragment>
-                  <div
-                    className="ml-2 flex flex-row items-center bg-gray-900 cursor-pointer text-white rounded-full h-full p-[3px]"
-                    onClick={redirectToCreatePostPage}
-                  >
-                    <MdAdd className="text-xl" />
-                  </div>
-
                   <div className="flex flex-row items-center bg-gradient-to-t from-[#6a3093] to-[#a044ff] text-white pl-1 pr-2 py-[0.3125rem] rounded-xl font-semibold h-full">
                     <MdAttachMoney className="text-md" />
                     <p className="text-xs">
