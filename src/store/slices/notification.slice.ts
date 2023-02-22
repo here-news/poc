@@ -30,7 +30,7 @@ export const notification = createSlice({
     ) => {
       if (!state.newPosts) return
 
-      let postId = action.payload.postId
+      const postId = action.payload.postId
       const tempNewPosts = [...state.newPosts]
 
       tempNewPosts.splice(

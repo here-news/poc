@@ -53,7 +53,7 @@ function CreatePost({ onSuccessCallback }: CreatePostProps) {
   ): void => {
     if (!e.target.files) return
 
-    let lengthOfFiles = files
+    const lengthOfFiles = files
       ? files.length + e.target.files.length
       : e.target.files
 

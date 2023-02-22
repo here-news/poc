@@ -114,7 +114,7 @@ function EditPost({
     if (!files && !prevFiles) return
 
     if (type === 'uploaded' && prevFiles) {
-      let tempFiles = prevFiles ? [...prevFiles] : []
+      const tempFiles = prevFiles ? [...prevFiles] : []
       tempFiles.splice(index, 1)
       setPrevFiles(tempFiles)
     } else if (type === 'notUploaded' && files) {

@@ -104,7 +104,7 @@ function Explore() {
             page &&
             page.result &&
             page.result.map((post: IPost, i: number) => {
-              let newIndex = pageIndex * limit + i
+              const newIndex = pageIndex * limit + i
               return (
                 <div key={post._id} className='w-full mb-4'>
                   <MinifiedPost
