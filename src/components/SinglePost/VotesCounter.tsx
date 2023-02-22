@@ -1,18 +1,21 @@
-import React, {useEffect, useMemo, useState} from 'react'
-import {useAppDispatch, useAppSelector} from 'store/hooks'
+import React, { useEffect, useMemo, useState } from 'react'
+import { useAppDispatch, useAppSelector } from 'store/hooks'
 import {
   BsCaretDown,
   BsCaretUp,
   BsCaretDownFill,
-  BsCaretUpFill,
+  BsCaretUpFill
 } from 'react-icons/bs'
 import AnimatedNumber from 'react-awesome-animated-number'
 import 'react-awesome-animated-number/dist/index.css'
-import {useMutation, useQueryClient} from 'react-query'
+import { useMutation, useQueryClient } from 'react-query'
 import axios from 'axios'
-import {ENV} from 'lib/env'
-import {toast} from 'react-toastify'
-import {deductBalance, toggleIsLoginModalVisible} from 'store/slices/auth.slice'
+import { ENV } from 'lib/env'
+import { toast } from 'react-toastify'
+import {
+  deductBalance,
+  toggleIsLoginModalVisible
+} from 'store/slices/auth.slice'
 
 interface VotesCounterProps {
   postId: string
@@ -25,14 +28,18 @@ function VotesCounter({
   postId,
   upvotes,
   downvotes,
-  totalVotes,
+  totalVotes
 }: VotesCounterProps) {
   const queryClient = useQueryClient()
   const dispatch = useAppDispatch()
-  const selectedAccount = useAppSelector(state => state.auth.selectedAccount)
+  const selectedAccount = useAppSelector(
+    (state) => state.auth.selectedAccount
+  )
   const [isVoteChanged, setIsVoteChanged] = useState(false)
   const [votes, setVotes] = useState(totalVotes)
-  const [voted, setVoted] = useState<'upvote' | 'downvote' | null>(null)
+  const [voted, setVoted] = useState<'upvote' | 'downvote' | null>(
+    null
+  )
 
   const accountId = useMemo(
     () => selectedAccount && selectedAccount._id,
@@ -43,7 +50,11 @@ function VotesCounter({
     if (accountId) {
       if (upvotes && upvotes.length && upvotes.includes(accountId))
         setVoted('upvote')
-      else if (downvotes && downvotes.length && downvotes.includes(accountId))
+      else if (
+        downvotes &&
+        downvotes.length &&
+        downvotes.includes(accountId)
+      )
         setVoted('downvote')
       else setVoted(null)
     } else {
@@ -59,12 +70,12 @@ function VotesCounter({
     if (voted === 'upvote') return
 
     setIsVoteChanged(true)
-    setVotes(prev =>
+    setVotes((prev) =>
       voted === 'downvote' ? (prev ? prev + 2 : prev + 1) : prev + 1
     )
     setVoted('upvote')
     handleUpvoteQuery.mutate({
-      userId: accountId,
+      userId: accountId
     })
     setTimeout(() => setIsVoteChanged(false), 2000)
   }
@@ -76,19 +87,19 @@ function VotesCounter({
     if (voted === 'downvote') return
 
     setIsVoteChanged(true)
-    setVotes(prev =>
+    setVotes((prev) =>
       voted === 'upvote' ? (prev ? prev - 2 : prev - 1) : prev - 1
     )
 
     setVoted('downvote')
     handleDownvoteQuery.mutate({
-      userId: accountId,
+      userId: accountId
     })
     setTimeout(() => setIsVoteChanged(false), 2000)
   }
 
   const handleUpvoteQuery = useMutation(
-    (data: {userId: string}) => {
+    (data: { userId: string }) => {
       return axios.post(`${ENV.API_URL}/upvotePost/${postId}`, data)
     },
     {
@@ -98,12 +109,12 @@ function VotesCounter({
       },
       onError: () => {
         toast.error('Error upvoting!')
-      },
+      }
     }
   )
 
   const handleDownvoteQuery = useMutation(
-    (data: {userId: string}) => {
+    (data: { userId: string }) => {
       return axios.post(`${ENV.API_URL}/downvotePost/${postId}`, data)
     },
     {
@@ -113,21 +124,21 @@ function VotesCounter({
       },
       onError: () => {
         toast.error('Error downvoting!')
-      },
+      }
     }
   )
 
   return (
-    <div className='flex flex-col justify-center items-center'>
+    <div className="flex flex-col justify-center items-center">
       <div
         className={`cursor-pointer transition ease-in-out click:-translate-y-1 active:scale-50
     ${voted === 'upvote' ? 'text-green-600' : 'text-black'}`}
         onClick={handleUpvote}
       >
         {voted === 'upvote' ? (
-          <BsCaretUpFill className='w-6 h-6' />
+          <BsCaretUpFill className="w-6 h-6" />
         ) : (
-          <BsCaretUp className='w-6 h-6' />
+          <BsCaretUp className="w-6 h-6" />
         )}
       </div>
       <AnimatedNumber
@@ -148,9 +159,9 @@ function VotesCounter({
         onClick={handleDownvote}
       >
         {voted === 'downvote' ? (
-          <BsCaretDownFill className='w-6 h-6' />
+          <BsCaretDownFill className="w-6 h-6" />
         ) : (
-          <BsCaretDown className='w-6 h-6' />
+          <BsCaretDown className="w-6 h-6" />
         )}
       </div>
     </div>

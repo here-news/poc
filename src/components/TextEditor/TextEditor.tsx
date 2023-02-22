@@ -112,7 +112,7 @@ const TextEditor = forwardRef(
               toolbar: {
                 link: function (value: string) {
                   if (value) {
-                    var href = prompt('Enter the URL')
+                    const href = prompt('Enter the URL')
                     this.quill.format('link', href)
                   } else {
                     this.quill.format('link', false)
