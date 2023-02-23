@@ -69,7 +69,7 @@ function Ticker({ onActivePageChange }: TickerProps) {
         </div>
 
         <Link className="text-white text-sm m-auto " href="/explore">
-          Explore Posts
+          Explore
         </Link>
 
         <div
