@@ -1,13 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
+import Layout from 'components/Layouts'
+import EditPostModal from 'components/pages/home/EditPostModal/EditPostModal'
+import ShowImagesModal from 'components/pages/home/ShowImagesModal'
+import SinglePost from 'components/SinglePost/SinglePost'
 import { ENV } from 'lib/env'
 import { GetServerSideProps } from 'next'
 import { IPost } from 'types/interfaces'
-import Head from 'next/head'
-
-import SinglePost from 'components/SinglePost/SinglePost'
-import ShowImagesModal from 'components/pages/home/ShowImagesModal'
-import EditPostModal from 'components/pages/home/EditPostModal/EditPostModal'
 import Replies from 'components/pages/Post/Replies'
 import { useQuery, useQueryClient } from 'react-query'
 
@@ -83,10 +82,7 @@ function Post({ postData, postId }: PostProps) {
   if (!post) return <React.Fragment />
 
   return (
-    <div className='flex flex-col items-center'>
-      <Head>
-        <title>News Article - Here News</title>
-      </Head>
+    <Layout pageTitle='News Article - Here News' type='base'>
       <div className='relative w-full max-w-[40rem]'>
         <SinglePost
           noBorder
@@ -127,7 +123,7 @@ function Post({ postData, postId }: PostProps) {
         showImagesVisible={showImagesVisible}
         toggleShowImagesVisible={toggleShowImagesVisible}
       />
-    </div>
+    </Layout>
   )
 }
 
