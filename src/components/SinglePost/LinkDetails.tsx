@@ -1,7 +1,12 @@
+import CompactLink from 'components/TextEditor/CompactLink'
+import DetailedLink from 'components/TextEditor/DetailedLink'
 import Image from 'next/image'
 import React from 'react'
 import { ILinkDetails } from 'types/interfaces'
 
+interface LinkDetailsProps extends ILinkDetails {
+  type: 'detailed' | 'compact'
+}
 function LinkDetails({
   url,
   description,
@@ -9,8 +14,9 @@ function LinkDetails({
   images,
   siteName,
   title,
-  youtubeId
-}: ILinkDetails) {
+  youtubeId,
+  type
+}: LinkDetailsProps) {
   return (
     <React.Fragment>
       {youtubeId && youtubeId !== '' && (
@@ -48,63 +54,33 @@ function LinkDetails({
             className='relative'
           >
             <div className='relative mt-4 flex flex-col border-[0.0625rem] border-slate-400 rounded-lg px-3 py-3 transition-colors duration-300 hover:bg-gray-200 cursor-pointer'>
-              <div className='flex flex-row items-center'>
-                <div className='relative mr-2 w-3 h-3'>
-                  {favicons && favicons.length > 0 ? (
-                    <Image src={favicons[0]} alt='link embed' fill />
-                  ) : (
-                    ''
-                  )}
-                </div>
-                <p className='text-xs text-slate-700'>
-                  {siteName
-                    ? siteName
-                    : new URL(url).hostname
-                        .split('.')
-                        .slice(-2)
-                        .join('.')}
-                </p>
-              </div>
-              {images && images.length > 0 ? (
-                <div className='relative w-full h-32 mt-1 mb-2'>
-                  <Image
-                    fill
-                    src={images[0]}
-                    alt='link_preview-image'
-                    className='object-cover bg-gray-300'
-                  />
-                </div>
+              {type === 'detailed' ? (
+                <DetailedLink
+                  details={{
+                    url,
+                    description,
+                    favicons,
+                    images,
+                    siteName,
+                    title,
+                    youtubeId
+                  }}
+                  link={url}
+                />
               ) : (
-                ''
+                <CompactLink
+                  details={{
+                    url,
+                    description,
+                    favicons,
+                    images,
+                    siteName,
+                    title,
+                    youtubeId
+                  }}
+                  link={url}
+                />
               )}
-              {title ? (
-                <h2 className='text-md text-slate-800 font-bold'>
-                  {title}
-                </h2>
-              ) : (
-                ''
-              )}
-
-              {description ? (
-                <p className='mt-[0.125rem] text-xs text-slate-800'>
-                  {description}
-                </p>
-              ) : (
-                ''
-              )}
-
-              <p
-                className={`${
-                  description ? 'mt-2' : 'mt-1'
-                } text-blue-600 underline text-xs`}
-              >
-                Read the full article at
-                {new URL(url).hostname
-                  .split('.')
-                  .slice(-2)
-                  .join('.')}{' '}
-                »
-              </p>
             </div>
           </a>
         </div>

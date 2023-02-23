@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
 import { ENV } from 'lib/env'
 import { GetServerSideProps } from 'next'
@@ -7,15 +7,20 @@ import Head from 'next/head'
 
 import SinglePost from 'components/SinglePost/SinglePost'
 import ShowImagesModal from 'components/pages/home/ShowImagesModal'
-import Comments from 'components/pages/Post/Comments'
 import EditPostModal from 'components/pages/home/EditPostModal/EditPostModal'
+import Replies from 'components/pages/Post/Replies'
+import { useQuery, useQueryClient } from 'react-query'
 
 interface PostProps {
+  postId: string
   postData: IPost | null
 }
 
-function Post({ postData }: PostProps) {
+function Post({ postData, postId }: PostProps) {
+  const queryClient = useQueryClient()
+
   const [selectedPost, setSelectedPost] = useState<IPost | null>(null)
+  const [isReplyEdit, setIsReplyEdit] = useState(false)
   const [isEditPostModalVisible, setIsEditPostModalVisible] =
     useState(false)
   const [showImagesVisible, setShowImagesVisible] = useState(false)
@@ -23,13 +28,35 @@ function Post({ postData }: PostProps) {
   const [initialImageIndex, setInitialImageIndex] =
     useState<number>(0)
 
+  const getPostAgain = useQuery(
+    ['getSinglePost', postId],
+    () => {
+      return axios.get(`${ENV.API_URL}/getSinglePost/${postId}`)
+    },
+    {
+      refetchOnWindowFocus: false,
+      cacheTime: Infinity
+    }
+  )
+
+  const post: IPost | null = useMemo(() => {
+    return getPostAgain.data &&
+      getPostAgain.data.data &&
+      getPostAgain.data.data.data
+      ? getPostAgain.data.data.data
+      : postData
+  }, [postData, getPostAgain.data])
+
+  useEffect(() => {}, [])
+
   useEffect(() => {
     if (!isEditPostModalVisible) {
       setSelectedPost(null)
     }
   }, [isEditPostModalVisible])
 
-  const handleSelectedPost = (post?: IPost) => {
+  const handleSelectedPost = (post?: IPost, isReply?: boolean) => {
+    toggleIsReplyEdit(isReply ? true : false)
     if (!post) return setSelectedPost(null)
     setSelectedPost(post)
   }
@@ -40,13 +67,20 @@ function Post({ postData }: PostProps) {
     toggleShowImagesVisible()
   }
 
+  const toggleIsReplyEdit = (state: boolean) => setIsReplyEdit(state)
+
   const toggleEditPostModal = () =>
     setIsEditPostModalVisible(prev => !prev)
 
   const toggleShowImagesVisible = () =>
     setShowImagesVisible(prev => !prev)
 
-  if (!postData) return <React.Fragment />
+  const onReplySuccess = () => {
+    queryClient.invalidateQueries('getSinglePost')
+    queryClient.invalidateQueries('getReplies')
+  }
+
+  if (!post) return <React.Fragment />
 
   return (
     <div className='flex flex-col items-center'>
@@ -56,28 +90,28 @@ function Post({ postData }: PostProps) {
       <div className='relative w-full max-w-[40rem]'>
         <SinglePost
           noBorder
-          _id={postData._id}
-          createdAt={postData.createdAt}
-          downvotes={postData.downvotes}
+          {...post}
+          totalComments={post.replies ? post.replies.length : 0}
           handleSelectedImages={handleSelectedImages}
-          title={postData.title}
-          totalVotes={postData.totalVotes}
-          upvotes={postData.upvotes}
-          userId={postData.userId}
-          images={postData.images}
-          text={postData.text}
-          totalComments={
-            postData.totalComments ? postData.totalComments : 0
-          }
-          preview={postData.preview}
           toggleEditPostModal={toggleEditPostModal}
           handleSelectedPost={handleSelectedPost}
           showVoting
           showDetails
+          hasSingleReply={
+            post.replies &&
+            Array.isArray(post.replies) &&
+            post.replies.length === 1
+              ? true
+              : false
+          }
+          canReply
+          handleReplySuccessCallback={onReplySuccess}
         />
-        <Comments
-          postId={postData._id}
-          totalComments={postData.totalComments}
+        <Replies
+          postId={post._id}
+          handleSelectedImages={handleSelectedImages}
+          handleSelectedPost={handleSelectedPost}
+          toggleEditPostModal={toggleEditPostModal}
         />
       </div>
       <EditPostModal
@@ -85,6 +119,7 @@ function Post({ postData }: PostProps) {
         toggleVisible={toggleEditPostModal}
         post={selectedPost}
         isSinglePost={true}
+        isReplyEdit={isReplyEdit}
       />
       <ShowImagesModal
         images={selectedImages}
@@ -128,6 +163,7 @@ export const getServerSideProps: GetServerSideProps<
       : {}
     return {
       props: {
+        postId: id && !Array.isArray(id) ? id : '',
         postData: postData.data.data,
         metaTags
       }

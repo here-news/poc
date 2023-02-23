@@ -76,7 +76,7 @@ function ShowImagesModal({
               </p>
             </div>
           </div>
-          {images && selectedIndex && images[selectedIndex] ? (
+          {images && images[selectedIndex] ? (
             <Image
               src={images[selectedIndex]}
               fill

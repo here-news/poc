@@ -142,21 +142,13 @@ function Trending() {
                       }`}
                     >
                       <SinglePost
-                        _id={post._id}
-                        userId={post.userId}
-                        createdAt={post.createdAt}
-                        title={post.title}
-                        images={post.images}
-                        text={post.text}
-                        downvotes={post.downvotes}
-                        upvotes={post.upvotes}
-                        totalVotes={post.totalVotes}
+                        {...post}
                         handleSelectedImages={handleSelectedImages}
                         toggleEditPostModal={toggleEditPostModal}
                         handleSelectedPost={handleSelectedPost}
                         canPushToPost={true}
                         totalComments={
-                          post.totalComments ? post.totalComments : 0
+                          post.replies ? post.replies.length : 0
                         }
                         preview={post.preview}
                         showMore
