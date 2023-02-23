@@ -279,6 +279,7 @@ function CreatePost({ onSuccessCallback }: CreatePostProps) {
         toggleDisablePost={toggleDisablePost}
         customEditorId='create-edtior'
         previewData={previewData}
+        previewType='detailed'
       />
     </div>
   )

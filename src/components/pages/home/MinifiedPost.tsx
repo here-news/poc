@@ -34,7 +34,7 @@ function MinifiedPost({
   totalVotes,
   downvotes,
   upvotes,
-  totalComments,
+  replies,
   images,
   preview,
   text,
@@ -170,8 +170,7 @@ function MinifiedPost({
       userId,
       images,
       preview,
-      text,
-      totalComments
+      text
     })
 
     toggleEditPostModal()
@@ -215,8 +214,8 @@ function MinifiedPost({
               />
               <span className='px-1'>\</span>
               <span>
-                {totalComments}{' '}
-                {totalComments && totalComments > 1
+                {replies ? replies.length : 0}{' '}
+                {replies && replies.length > 1
                   ? 'comments'
                   : 'comment'}
               </span>

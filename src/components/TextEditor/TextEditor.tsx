@@ -30,6 +30,7 @@ interface TextEditorProps {
   }
   prevText?: string
   previewData: ILinkDetails | null
+  previewType: 'compact' | 'detailed'
 }
 
 const TextEditor = forwardRef(
@@ -45,7 +46,8 @@ const TextEditor = forwardRef(
       customEditorId,
       prevPreview,
       prevText,
-      previewData
+      previewData,
+      previewType
     }: TextEditorProps,
     ref: any
   ) => {
@@ -196,6 +198,7 @@ const TextEditor = forwardRef(
           resetLinkPreview={resetLinkPreview}
           handlePreviewData={handlePreviewData}
           toggleDisablePost={toggleDisablePost}
+          type={previewType}
         />
       </div>
     )
