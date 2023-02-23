@@ -1,14 +1,13 @@
-import React, { useEffect, useState } from 'react'
 import axios from 'axios'
-import { ENV } from 'lib/env'
-import { GetServerSideProps } from 'next'
-import { IPost } from 'types/interfaces'
-import Head from 'next/head'
-
-import SinglePost from 'components/SinglePost/SinglePost'
+import Layout from 'components/Layouts'
+import EditPostModal from 'components/pages/home/EditPostModal/EditPostModal'
 import ShowImagesModal from 'components/pages/home/ShowImagesModal'
 import Comments from 'components/pages/Post/Comments'
-import EditPostModal from 'components/pages/home/EditPostModal/EditPostModal'
+import SinglePost from 'components/SinglePost/SinglePost'
+import { ENV } from 'lib/env'
+import { GetServerSideProps } from 'next'
+import React, { useEffect, useState } from 'react'
+import { IPost } from 'types/interfaces'
 
 interface PostProps {
   postData: IPost | null
@@ -41,19 +40,16 @@ function Post({ postData }: PostProps) {
   }
 
   const toggleEditPostModal = () =>
-    setIsEditPostModalVisible(prev => !prev)
+    setIsEditPostModalVisible((prev) => !prev)
 
   const toggleShowImagesVisible = () =>
-    setShowImagesVisible(prev => !prev)
+    setShowImagesVisible((prev) => !prev)
 
   if (!postData) return <React.Fragment />
 
   return (
-    <div className='flex flex-col items-center'>
-      <Head>
-        <title>News Article - Here News</title>
-      </Head>
-      <div className='relative w-full max-w-[40rem]'>
+    <Layout pageTitle="News Article - Here News" type="base">
+      <div className="relative w-full max-w-[40rem]">
         <SinglePost
           noBorder
           _id={postData._id}
@@ -92,7 +88,7 @@ function Post({ postData }: PostProps) {
         showImagesVisible={showImagesVisible}
         toggleShowImagesVisible={toggleShowImagesVisible}
       />
-    </div>
+    </Layout>
   )
 }
 

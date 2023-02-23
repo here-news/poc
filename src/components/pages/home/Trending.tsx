@@ -30,7 +30,7 @@ function Trending() {
 
   const observerElem = useRef(null)
   const selectedAccount = useAppSelector(
-    state => state.auth.selectedAccount
+    (state) => state.auth.selectedAccount
   )
 
   const [selectedPost, setSelectedPost] = useState<IPost | null>(null)
@@ -59,10 +59,10 @@ function Trending() {
   }
 
   const toggleEditPostModal = () =>
-    setIsEditPostModalVisible(prev => !prev)
+    setIsEditPostModalVisible((prev) => !prev)
 
   const toggleShowImagesVisible = () =>
-    setShowImagesVisible(prev => !prev)
+    setShowImagesVisible((prev) => !prev)
 
   const fetchTrendingPosts = async (page: number) => {
     const response = await axios.get(
@@ -116,89 +116,83 @@ function Trending() {
         selectedAccount ? 'mt-2' : ''
       }`}
     >
-      <Head>
-        <title>Trending - Here News</title>
-      </Head>
-
-      <React.Fragment>
-        <div className='px-4'>
-          <Masonry
-            breakpointCols={breakpointColumnsObj}
-            className='trending'
-            columnClassName='trending_column'
+      <div className="px-4">
+        <Masonry
+          breakpointCols={breakpointColumnsObj}
+          className="trending"
+          columnClassName="trending_column"
+        >
+          {isSuccess &&
+            data &&
+            data.pages &&
+            data.pages.map(
+              (page) =>
+                page &&
+                page.result &&
+                page.result.map((post: IPost, i: number) => (
+                  <div
+                    key={post._id}
+                    className={`w-full ${
+                      i === 0 && !selectedAccount ? 'mt-0' : 'mt-4'
+                    }`}
+                  >
+                    <SinglePost
+                      _id={post._id}
+                      userId={post.userId}
+                      createdAt={post.createdAt}
+                      title={post.title}
+                      images={post.images}
+                      text={post.text}
+                      downvotes={post.downvotes}
+                      upvotes={post.upvotes}
+                      totalVotes={post.totalVotes}
+                      handleSelectedImages={handleSelectedImages}
+                      toggleEditPostModal={toggleEditPostModal}
+                      handleSelectedPost={handleSelectedPost}
+                      canPushToPost={true}
+                      totalComments={
+                        post.totalComments ? post.totalComments : 0
+                      }
+                      preview={post.preview}
+                      showMore
+                    />
+                  </div>
+                ))
+            )}
+        </Masonry>
+        {hasNextPage && (
+          <div
+            className="my-4 w-full z-[1] loader"
+            ref={observerElem}
           >
-            {isSuccess &&
-              data &&
-              data.pages &&
-              data.pages.map(
-                page =>
-                  page &&
-                  page.result &&
-                  page.result.map((post: IPost, i: number) => (
-                    <div
-                      key={post._id}
-                      className={`w-full ${
-                        i === 0 && !selectedAccount ? 'mt-0' : 'mt-4'
-                      }`}
-                    >
-                      <SinglePost
-                        _id={post._id}
-                        userId={post.userId}
-                        createdAt={post.createdAt}
-                        title={post.title}
-                        images={post.images}
-                        text={post.text}
-                        downvotes={post.downvotes}
-                        upvotes={post.upvotes}
-                        totalVotes={post.totalVotes}
-                        handleSelectedImages={handleSelectedImages}
-                        toggleEditPostModal={toggleEditPostModal}
-                        handleSelectedPost={handleSelectedPost}
-                        canPushToPost={true}
-                        totalComments={
-                          post.totalComments ? post.totalComments : 0
-                        }
-                        preview={post.preview}
-                        showMore
-                      />
-                    </div>
-                  ))
-              )}
-          </Masonry>
-          {hasNextPage && (
-            <div
-              className='my-4 w-full z-[1] loader'
-              ref={observerElem}
-            >
-              <div className='flex items-center justify-center z-[1]'>
-                <p className='text-white text-sm bg-black px-3 py-2 rounded-lg font-semibold flex flex-row items-center'>
-                  {!isFetchingNextPage ? (
-                    'Load more news...'
-                  ) : (
-                    <React.Fragment>
-                      <span className='animate-spin rotate mr-2'>
-                        <BiLoaderAlt color='white' />
-                      </span>
-                      Loading news...
-                    </React.Fragment>
-                  )}
-                </p>
-              </div>
+            <div className="flex items-center justify-center z-[1]">
+              <p className="text-white text-sm bg-black px-3 py-2 rounded-lg font-semibold flex flex-row items-center">
+                {!isFetchingNextPage ? (
+                  'Load more news...'
+                ) : (
+                  <React.Fragment>
+                    <span className="animate-spin rotate mr-2">
+                      <BiLoaderAlt color="white" />
+                    </span>
+                    Loading news...
+                  </React.Fragment>
+                )}
+              </p>
             </div>
-          )}
-          <EditPostModal
-            isVisible={isEditPostModalVisible}
-            toggleVisible={toggleEditPostModal}
-            post={selectedPost}
-          />
-          <ShowImagesModal
-            showImagesVisible={showImagesVisible}
-            toggleShowImagesVisible={toggleShowImagesVisible}
-            images={selectedImages}
-            initialIndex={initialImageIndex}
-          />
-        </div>
-      </React.Fragment>
+          </div>
+        )}
+        <EditPostModal
+          isVisible={isEditPostModalVisible}
+          toggleVisible={toggleEditPostModal}
+          post={selectedPost}
+        />
+        <ShowImagesModal
+          showImagesVisible={showImagesVisible}
+          toggleShowImagesVisible={toggleShowImagesVisible}
+          images={selectedImages}
+          initialIndex={initialImageIndex}
+        />
+      </div>
     </div>
   )
 }

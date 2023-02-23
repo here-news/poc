@@ -1,27 +1,24 @@
+import axios from 'axios'
+import { ENV } from 'lib/env'
 import React, {
   useCallback,
   useEffect,
   useRef,
   useState
 } from 'react'
-import axios from 'axios'
-import Head from 'next/head'
-import { useInfiniteQuery } from 'react-query'
 import { BiLoaderAlt } from 'react-icons/bi'
-
+import { useInfiniteQuery } from 'react-query'
 import { useAppSelector } from 'store/hooks'
-import { ENV } from 'lib/env'
 import { IPost } from 'types/interfaces'
-
-import MinifiedPost from './MinifiedPost'
 import EditPostModal from './EditPostModal/EditPostModal'
+import MinifiedPost from './MinifiedPost'
 
 function Explore() {
   const limit = 30
 
   const observerElem = useRef(null)
   const selectedAccount = useAppSelector(
-    state => state.auth.selectedAccount
+    (state) => state.auth.selectedAccount
   )
   const [selectedPost, setSelectedPost] = useState<IPost | null>(null)
   const [isEditPostModalVisible, setIsEditPostModalVisible] =
@@ -39,7 +36,7 @@ function Explore() {
   }
 
   const toggleEditPostModal = () =>
-    setIsEditPostModalVisible(prev => !prev)
+    setIsEditPostModalVisible((prev) => !prev)
 
   const fetchExplorePosts = async (page: number) => {
     const response = await axios.get(
@@ -93,9 +90,6 @@ function Explore() {
         selectedAccount ? 'mt-2' : ''
       }`}
     >
-      <Head>
-        <title>Explore - Here News</title>
-      </Head>
       {isSuccess &&
         data &&
         data.pages &&
@@ -106,7 +100,7 @@ function Explore() {
             page.result.map((post: IPost, i: number) => {
               const newIndex = pageIndex * limit + i
               return (
-                <div key={post._id} className='w-full mb-4'>
+                <div key={post._id} className="w-full mb-4">
                   <MinifiedPost
                     index={newIndex + 1}
                     _id={post._id}
@@ -128,15 +122,15 @@ function Explore() {
             })
         )}
       {hasNextPage && (
-        <div className='my-4 w-full z-[1] loader' ref={observerElem}>
-          <div className='flex items-center justify-center z-[1]'>
-            <p className='text-white text-sm bg-black px-3 py-2 rounded-lg font-semibold flex flex-row items-center'>
+        <div className="my-4 w-full z-[1] loader" ref={observerElem}>
+          <div className="flex items-center justify-center z-[1]">
+            <p className="text-white text-sm bg-black px-3 py-2 rounded-lg font-semibold flex flex-row items-center">
               {!isFetchingNextPage ? (
                 'Load more news...'
               ) : (
                 <React.Fragment>
-                  <span className='animate-spin rotate mr-2'>
-                    <BiLoaderAlt color='white' />
+                  <span className="animate-spin rotate mr-2">
+                    <BiLoaderAlt color="white" />
                   </span>
                   Loading news...
                 </React.Fragment>

@@ -1,10 +1,11 @@
-import React from 'react'
+import Layout from 'components/Layouts'
 import Explore from 'components/pages/home/Explore'
+import React from 'react'
 
 export default function explore() {
   return (
-    <div className='flex flex-col items-center'>
+    <Layout pageTitle="Explore - Here News" type="base">
       <Explore />
-    </div>
+    </Layout>
   )
 }

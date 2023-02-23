@@ -6,10 +6,10 @@ import { useAppDispatch, useAppSelector } from 'store/hooks'
 import { removeAllPosts } from 'store/slices/notification.slice'
 
 interface TickerProps {
-  changeActivePage: (page: string) => void
+  onActivePageChange: (page: string) => void
 }
 
-function Ticker({ changeActivePage }: TickerProps) {
+function Ticker({ onActivePageChange }: TickerProps) {
   const router = useRouter()
   const dispatch = useAppDispatch()
 
@@ -51,7 +51,7 @@ function Ticker({ changeActivePage }: TickerProps) {
         <div>
           {showPostsNotification && totalPostsCount > 0 && (
             <h1
-              onClick={() => changeActivePage('explore')}
+              onClick={() => onActivePageChange('explore')}
               className="cursor-pointer text-xs text-white flex items-center flex-wrap gap-x-1"
             >
               <span>
