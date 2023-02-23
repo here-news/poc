@@ -1,6 +1,0 @@
-.comments_editor:empty:before {
-  content: attr(placeholder);
-  pointer-events: none;
-  display: block; /* For Firefox */
-  color: rgb(148 163 184);
-}

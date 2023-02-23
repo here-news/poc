@@ -11,7 +11,7 @@ export interface IUser {
 export interface IPost {
   _id: string
   userId: IUser
-  title: string
+  title?: string
   text?: string
   images?: string[]
   createdAt: Date
@@ -28,6 +28,9 @@ export interface IPost {
     description?: string
     youtubeId?: string
   }
+  repliedTo?: IPost
+  replies?: IPost[]
+  totalReplies?: Number
 }
 
 export interface IComment {

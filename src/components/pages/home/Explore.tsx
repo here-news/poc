@@ -102,18 +102,8 @@ function Explore() {
               return (
                 <div key={post._id} className="w-full mb-4">
                   <MinifiedPost
+                    {...post}
                     index={newIndex + 1}
-                    _id={post._id}
-                    userId={post.userId}
-                    createdAt={post.createdAt}
-                    title={post.title}
-                    totalVotes={post.totalVotes}
-                    upvotes={post.upvotes}
-                    downvotes={post.downvotes}
-                    totalComments={post.totalComments}
-                    images={post.images}
-                    preview={post.preview}
-                    text={post.text}
                     toggleEditPostModal={toggleEditPostModal}
                     handleSelectedPost={handleSelectedPost}
                   />

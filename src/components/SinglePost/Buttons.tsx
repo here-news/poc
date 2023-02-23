@@ -10,8 +10,8 @@ interface ButtonsProps {
 function Buttons({ postId, totalComments }: ButtonsProps) {
   const router = useRouter()
 
-  const goToConversationSetion = () => {
-    router.push(`/post/${postId}#conversation`)
+  const goToPost = () => {
+    router.push(`/post/${postId}`)
   }
   return (
     <div className='flex flex-row items-center justify-between px-4'>
@@ -19,7 +19,7 @@ function Buttons({ postId, totalComments }: ButtonsProps) {
         className='flex-1 pt-6 pb-4 flex flex-row items-center text-slate-700 cursor-pointer'
         onClick={e => {
           e.stopPropagation()
-          goToConversationSetion()
+          goToPost()
         }}
       >
         <span className='text-xl'>
