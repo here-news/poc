@@ -46,9 +46,9 @@ function Ticker({ changeActivePage }: TickerProps) {
   return (
     <div className={`${'mb-2 h-6'}`}>
       <div
-        className={`fixed left-0 right-0 transition-all duration-500 z-[2] flex items-center justify-bet px-4 min-h-[1.5rem] bg-gray-900 overflow-hidden py-1`}
+        className={`w-full fixed left-0 right-0 transition-all duration-500 z-[2] grid grid-cols-3 items-center justify-between px-4 min-h-[1.5rem] bg-gray-900 overflow-hidden py-1`}
       >
-        <div className="flex-1 mr-auto">
+        <div>
           {showPostsNotification && totalPostsCount > 0 && (
             <h1
               onClick={() => changeActivePage('explore')}
@@ -67,19 +67,18 @@ function Ticker({ changeActivePage }: TickerProps) {
             </h1>
           )}
         </div>
-        <div></div>
+
+        <Link className="text-white text-sm m-auto " href="/explore">
+          Explore Posts
+        </Link>
+
         <div
-          className="flex items-center justify-center bg-yellow-400 cursor-pointer rounded-full px-2 py-[3px] text-gray-900 font-semibold ml-auto"
+          className="ml-auto flex items-center justify-center bg-yellow-400 cursor-pointer rounded-full px-2 py-[3px] text-gray-900 font-semibold"
           onClick={redirectToCreatePostPage}
         >
           <MdAdd className="text-md" />
           <span className="text-xs">Add Post</span>
         </div>
-
-        <span className="text-md text-white px-3">{' | '}</span>
-        <Link className="text-white text-sm" href="/explore">
-          Explore Posts
-        </Link>
       </div>
     </div>
   )
