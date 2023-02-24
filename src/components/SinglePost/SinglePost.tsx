@@ -31,6 +31,7 @@ interface SinglePostProps extends IPost {
   showVoting?: boolean
   hasSingleReply?: boolean
   canReply?: boolean
+  allMedia? : boolean
   handleSelectedImages: (images: string[], index?: number) => void
   toggleEditPostModal: () => void
   handleReplySuccessCallback?: () => void
@@ -60,7 +61,8 @@ function SinglePost({
   showVoting,
   showDetails,
   hasSingleReply,
-  canReply
+  canReply,
+  allMedia
 }: SinglePostProps) {
   const queryClient = useQueryClient()
   const router = useRouter()
@@ -336,7 +338,7 @@ function SinglePost({
             >
               <Images
                 images={images}
-                handleSelectedImages={handleSelectedImages}
+                handleSelectedImages={handleSelectedImages} 
               />
             </div>
 

@@ -101,6 +101,7 @@ function Post({ postData, postId }: PostProps) {
               : false
           }
           canReply
+          allMedia={true}
           handleReplySuccessCallback={onReplySuccess}
         />
         <Replies
