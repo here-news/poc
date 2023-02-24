@@ -38,9 +38,13 @@ const UploadedImages = ({ files, removeFile, uploadLoading, uploadedSizeArray,up
               />
             }
             {
-              files[i].type.search('video') >= 0 && <video style={{width : '100%', height:'100%', background:"green", borderRadius: '5px'}}>
-                <source type={files[i].type} src={URL.createObjectURL(files[i])}/>
-              </video>
+              files[i].type.search('video') >= 0 && <div className='flex align-items justify-center'
+              style={{width : '100%', height:'100%',border : '1.5px solid lightgray', borderRadius: '7px', overflow : 'hidden'}}
+              >
+                <video style={{objectFit:'cover'}}>
+                  <source type={files[i].type} src={URL.createObjectURL(files[i])}/>
+                </video>
+              </div>
             }
           </div>
         ))}

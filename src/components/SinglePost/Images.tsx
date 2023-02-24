@@ -9,8 +9,7 @@ interface ImagesProps {
 
 function Images({ images, handleSelectedImages }: ImagesProps) {
   const [center_video_url, setCenterVideoUrl] = useState<string>('') 
-  const [remained_view_index, setRemainedViewIndex] = useState<number>(3)
-  const [limited_image_count, setLimitedImageCount] = useState<number>(1)
+  const [all_images, setAllImages] = useState<string[]|null>(null);
 
   useEffect(() => {
     if(images) {
@@ -20,20 +19,11 @@ function Images({ images, handleSelectedImages }: ImagesProps) {
         setCenterVideoUrl(videoArray[0])
       }
 
-      if (images.length > 4) {
-        if (videoArray?.length) {
-          setRemainedViewIndex(1)
-          setLimitedImageCount(2)
-        } else {
-          setRemainedViewIndex(3)
-          setLimitedImageCount(4)
-        }
-      } else {
-        setLimitedImageCount(images.length)
-        setRemainedViewIndex(images.length)
-      }
+      const imageArray = images.filter(item => getTypeMedia(item) === 'image')
+      
+      setAllImages([...imageArray]) ;
     }
-  }, [images, center_video_url])
+  }, [images])
  
   return (
     <div className='flex flex-row flex-wrap gap-2 justify-between items-center'>
@@ -42,16 +32,16 @@ function Images({ images, handleSelectedImages }: ImagesProps) {
           <source src={center_video_url}  />
         </video>
       }
-      {images && images.length <= 4
-        ? images.slice(0, limited_image_count ).map((item, index) => (
+      {images && all_images && all_images.length <= 4
+        ? all_images.slice(0, all_images.length ).map((item, index) => (
             <div
               className='cursor-pointer flex-[41%] p-1 relative'
               key={item + ' ' + index}
-              onClick={() => handleSelectedImages(images, index)}
+              onClick={() => handleSelectedImages([...all_images].concat([center_video_url]), index)}
             >
               <div
                 className={`w-full ${
-                  images.length === 1 ? 'h-[250px]' : 'h-[250px]'
+                  all_images.length === 1 ? 'h-[250px]' : 'h-[250px]'
                 }`}
               >
                 {
@@ -66,16 +56,16 @@ function Images({ images, handleSelectedImages }: ImagesProps) {
               </div>
             </div>
           ))
-        : images &&
-          images.slice(0, limited_image_count).map((item, index) => (
+        : images && all_images &&
+          all_images.slice(0, 4).map((item, index) => (
             <div
               className='cursor-pointer flex-[41%] p-1 relative'
               key={item + ' ' + index}
-              onClick={() => handleSelectedImages(images, index)}
+              onClick={() => handleSelectedImages([...all_images].concat([center_video_url]), index)}
             >
               <div
                 className={`w-full ${
-                  images.length === 1 ? 'h-[250px]' : 'h-[250px]'
+                  all_images.length === 1 ? 'h-[250px]' : 'h-[250px]'
                 }`}
               >
                 {
@@ -88,10 +78,10 @@ function Images({ images, handleSelectedImages }: ImagesProps) {
                   />
                 }
               </div>
-              {index == remained_view_index && (
+              {index == 3 && (
                 <div className='flex flex-row absolute bg-[rgba(0,0,0,0.5)] justify-center items-center top-0 left-0 w-full h-full'>
                   <p className='font-bold text-4xl text-white'>
-                    +{images.length - (remained_view_index + 1 + (center_video_url ? 1 : 0))}
+                    +{images.length - 4}
                   </p>
                 </div>
               )}
