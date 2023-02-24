@@ -18,7 +18,7 @@ function Explore() {
 
   const observerElem = useRef(null)
   const selectedAccount = useAppSelector(
-    (state) => state.auth.selectedAccount
+    state => state.auth.selectedAccount
   )
   const [selectedPost, setSelectedPost] = useState<IPost | null>(null)
   const [isEditPostModalVisible, setIsEditPostModalVisible] =
@@ -36,7 +36,7 @@ function Explore() {
   }
 
   const toggleEditPostModal = () =>
-    setIsEditPostModalVisible((prev) => !prev)
+    setIsEditPostModalVisible(prev => !prev)
 
   const fetchExplorePosts = async (page: number) => {
     const response = await axios.get(
@@ -59,7 +59,7 @@ function Explore() {
     {
       getNextPageParam: (lastPage, allPages) => {
         const nextPage: number = allPages.length + 1
-        return lastPage.result.length !== 0 ? nextPage : undefined
+        return lastPage.result.length === limit ? nextPage : undefined
       }
     }
   )
@@ -100,7 +100,7 @@ function Explore() {
             page.result.map((post: IPost, i: number) => {
               const newIndex = pageIndex * limit + i
               return (
-                <div key={post._id} className="w-full mb-4">
+                <div key={post._id} className='w-full mb-4'>
                   <MinifiedPost
                     {...post}
                     index={newIndex + 1}
@@ -112,15 +112,15 @@ function Explore() {
             })
         )}
       {hasNextPage && (
-        <div className="my-4 w-full z-[1] loader" ref={observerElem}>
-          <div className="flex items-center justify-center z-[1]">
-            <p className="text-white text-sm bg-black px-3 py-2 rounded-lg font-semibold flex flex-row items-center">
+        <div className='my-4 w-full z-[1] loader' ref={observerElem}>
+          <div className='flex items-center justify-center z-[1]'>
+            <p className='text-white text-sm bg-black px-3 py-2 rounded-lg font-semibold flex flex-row items-center'>
               {!isFetchingNextPage ? (
                 'Load more news...'
               ) : (
                 <React.Fragment>
-                  <span className="animate-spin rotate mr-2">
-                    <BiLoaderAlt color="white" />
+                  <span className='animate-spin rotate mr-2'>
+                    <BiLoaderAlt color='white' />
                   </span>
                   Loading news...
                 </React.Fragment>

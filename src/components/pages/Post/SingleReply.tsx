@@ -3,21 +3,22 @@ import formatDistance from 'date-fns/formatDistance'
 import { BiEdit } from 'react-icons/bi'
 import { MdDelete, MdMoreHoriz } from 'react-icons/md'
 import { GoPrimitiveDot } from 'react-icons/go'
+import axios from 'axios'
+import { useMutation, useQueryClient } from 'react-query'
+import { toast } from 'react-toastify'
+import { useRouter } from 'next/router'
 
 import { IPost } from 'types/interfaces'
 import { useAppSelector } from 'store/hooks'
+import { ENV } from 'lib/env'
 
 import VotesCounter from '../../SinglePost/VotesCounter'
 import Buttons from '../../SinglePost/Buttons'
 import Avatar from 'components/Avatar'
-
-import styles from '../../SinglePost/SinglePost.module.css'
 import LinkDetails from 'components/SinglePost/LinkDetails'
 import Images from 'components/SinglePost/Images'
-import { useMutation, useQueryClient } from 'react-query'
-import axios from 'axios'
-import { ENV } from 'lib/env'
-import { toast } from 'react-toastify'
+
+import styles from '../../SinglePost/SinglePost.module.css'
 
 interface SingleReplyProps extends IPost {
   noBorder?: boolean
@@ -49,6 +50,7 @@ function SingleReply({
   toggleEditPostModal,
   handleSelectedPost
 }: SingleReplyProps) {
+  const router = useRouter()
   const queryClient = useQueryClient()
   const { selectedAccount } = useAppSelector(state => state.auth)
 
@@ -129,6 +131,10 @@ function SingleReply({
     deletePostQuery.mutate()
   }
 
+  const moveToPage = () => {
+    canPushToPost && router.push(`/post/${_id}`)
+  }
+
   return (
     <div
       className={`relative bg-white w-full ${
@@ -140,6 +146,7 @@ function SingleReply({
           ? 'cursor-pointer transition-colors duration-300 hover:bg-slate-100'
           : ''
       }`}
+      onClick={moveToPage}
     >
       <div className='flex flex-row'>
         {!isSeperate && (
