@@ -13,8 +13,10 @@ function Ticker({ onActivePageChange }: TickerProps) {
   const router = useRouter()
   const dispatch = useAppDispatch()
 
+  const { selectedAccount } = useAppSelector(state => state.auth)
+
   const newPostsNotification = useAppSelector(
-    (state) => state.notificaiton.newPosts
+    state => state.notificaiton.newPosts
   )
 
   const totalPostsCount = newPostsNotification?.length || 0
@@ -52,14 +54,14 @@ function Ticker({ onActivePageChange }: TickerProps) {
           {showPostsNotification && totalPostsCount > 0 && (
             <h1
               onClick={() => onActivePageChange('explore')}
-              className="cursor-pointer text-xs text-white flex items-center flex-wrap gap-x-1"
+              className='cursor-pointer text-xs text-white flex items-center flex-wrap gap-x-1'
             >
               <span>
                 {totalPostsCount} user{totalPostsCount > 1 ? 's' : ''}{' '}
                 just posted{' '}
                 <Link
-                  className="text-blue-100 underline"
-                  href="/post/create"
+                  className='text-blue-100 underline'
+                  href='/post/create'
                 >
                   (+) Post
                 </Link>
@@ -68,16 +70,20 @@ function Ticker({ onActivePageChange }: TickerProps) {
           )}
         </div>
 
-        <Link className="text-white text-sm m-auto " href="/explore">
+        <Link className='text-white text-sm m-auto ' href='/explore'>
           Explore
         </Link>
 
-        <div
-          className="ml-auto flex items-center justify-center bg-yellow-400 cursor-pointer rounded-full px-2 py-[3px] text-gray-900 font-semibold"
-          onClick={redirectToCreatePostPage}
-        >
-          <MdAdd className="text-md" />
-          <span className="text-xs">Add Post</span>
+        <div className='ml-auto'>
+          {selectedAccount && (
+            <div
+              className='flex items-center justify-center bg-yellow-400 cursor-pointer rounded-full px-2 py-[3px] text-gray-900 font-semibold'
+              onClick={redirectToCreatePostPage}
+            >
+              <MdAdd className='text-md' />
+              <span className='text-xs'>Add Post</span>
+            </div>
+          )}
         </div>
       </div>
     </div>
