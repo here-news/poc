@@ -4,7 +4,7 @@ import TextEditor from 'components/TextEditor/TextEditor'
 import { ENV } from 'lib/env'
 import { useRouter } from 'next/router'
 import Quill from 'quill'
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { IoMdImages } from 'react-icons/io'
 import { useMutation, useQueryClient } from 'react-query'
 import { toast } from 'react-toastify'
@@ -32,7 +32,7 @@ function CreatePost() {
   const imageRef = useRef<HTMLInputElement | null>(null)
 
   const handlePreviewData = (data?: ILinkDetails) => {
-    if (data) setPreviewData(data)
+    if (data) setPreviewData({ ...data })
     else setPreviewData(null)
   }
 
@@ -189,6 +189,10 @@ function CreatePost() {
     formData.append('userId', selectedAccount._id)
     createPost.mutate(formData)
   }
+
+  useEffect(() => {
+    if (!selectedAccount) router.push('/')
+  }, [selectedAccount])
 
   if (!accounts || !selectedAccount) return <React.Fragment />
   return (

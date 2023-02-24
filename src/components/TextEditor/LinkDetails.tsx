@@ -72,14 +72,18 @@ function LinkDetails({
         return
       }
       setDetails(linkDetails)
-      handlePreviewData({ ...previewData, ...linkDetails })
+      handlePreviewData({ ...linkDetails })
     }
 
     if (prevPreview && !initialSetPrev) {
       setDetails(prevPreview)
       handlePreviewData(prevPreview)
       setInitialSetPrev(true)
-    } else if (isVisible && link && !prevLink) {
+    } else if (
+      isVisible &&
+      link &&
+      (!prevLink || prevLink !== link)
+    ) {
       toggleDisablePost(true)
       getAllLinkDetails()
     }
@@ -97,7 +101,7 @@ function LinkDetails({
 
   if (!isVisible) return <React.Fragment />
   return (
-    <React.Fragment>
+    <React.Fragment key={link}>
       <div className='relative'>
         <div
           className='absolute -top-2 -right-1 bg-black shadow-md rounded-full p-1 z-[1] cursor-pointer'
