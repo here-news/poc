@@ -28,6 +28,7 @@ function RepliesList({
             <div key={reply._id}>
               <SingleReply
                 {...reply}
+                canPushToPost
                 totalComments={
                   reply.replies ? reply.replies.length : 0
                 }

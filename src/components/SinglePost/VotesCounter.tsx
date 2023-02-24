@@ -33,7 +33,7 @@ function VotesCounter({
   const queryClient = useQueryClient()
   const dispatch = useAppDispatch()
   const selectedAccount = useAppSelector(
-    (state) => state.auth.selectedAccount
+    state => state.auth.selectedAccount
   )
   const [isVoteChanged, setIsVoteChanged] = useState(false)
   const [votes, setVotes] = useState(totalVotes)
@@ -45,6 +45,10 @@ function VotesCounter({
     () => selectedAccount && selectedAccount._id,
     [selectedAccount]
   )
+
+  useEffect(() => {
+    setVotes(totalVotes)
+  }, [totalVotes])
 
   useEffect(() => {
     if (accountId) {
@@ -70,7 +74,7 @@ function VotesCounter({
     if (voted === 'upvote') return
 
     setIsVoteChanged(true)
-    setVotes((prev) =>
+    setVotes(prev =>
       voted === 'downvote' ? (prev ? prev + 2 : prev + 1) : prev + 1
     )
     setVoted('upvote')
@@ -87,7 +91,7 @@ function VotesCounter({
     if (voted === 'downvote') return
 
     setIsVoteChanged(true)
-    setVotes((prev) =>
+    setVotes(prev =>
       voted === 'upvote' ? (prev ? prev - 2 : prev - 1) : prev - 1
     )
 
@@ -129,16 +133,16 @@ function VotesCounter({
   )
 
   return (
-    <div className="flex flex-col justify-center items-center">
+    <div className='flex flex-col justify-center items-center'>
       <div
         className={`cursor-pointer transition ease-in-out click:-translate-y-1 active:scale-50
     ${voted === 'upvote' ? 'text-green-600' : 'text-black'}`}
         onClick={handleUpvote}
       >
         {voted === 'upvote' ? (
-          <BsCaretUpFill className="w-6 h-6" />
+          <BsCaretUpFill className='w-6 h-6' />
         ) : (
-          <BsCaretUp className="w-6 h-6" />
+          <BsCaretUp className='w-6 h-6' />
         )}
       </div>
       <AnimatedNumber
@@ -159,9 +163,9 @@ function VotesCounter({
         onClick={handleDownvote}
       >
         {voted === 'downvote' ? (
-          <BsCaretDownFill className="w-6 h-6" />
+          <BsCaretDownFill className='w-6 h-6' />
         ) : (
-          <BsCaretDown className="w-6 h-6" />
+          <BsCaretDown className='w-6 h-6' />
         )}
       </div>
     </div>

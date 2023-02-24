@@ -85,7 +85,7 @@ function Trending() {
     {
       getNextPageParam: (lastPage, allPages) => {
         const nextPage: number = allPages.length + 1
-        return lastPage.result.length !== 0 ? nextPage : undefined
+        return lastPage.result.length === limit ? nextPage : undefined
       }
     }
   )
@@ -111,11 +111,7 @@ function Trending() {
   }, [fetchNextPage, hasNextPage, handleObserver])
 
   return (
-    <div
-      className={`relative w-full px-2 md:px-0 mb-8 ${
-        selectedAccount ? 'mt-2' : ''
-      }`}
-    >
+    <div className='relative w-full px-2 md:px-0 mb-8'>
       <Head>
         <title>Trending - Here News</title>
       </Head>
@@ -135,12 +131,7 @@ function Trending() {
                   page &&
                   page.result &&
                   page.result.map((post: IPost, i: number) => (
-                    <div
-                      key={post._id}
-                      className={`w-full ${
-                        i === 0 && !selectedAccount ? 'mt-0' : 'mt-4'
-                      }`}
-                    >
+                    <div key={post._id} className='w-full mt-4'>
                       <SinglePost
                         {...post}
                         handleSelectedImages={handleSelectedImages}
