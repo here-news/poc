@@ -33,7 +33,6 @@ interface SinglePostProps extends IPost {
   hasCircle?: boolean
   hasLine?: boolean
   canReply?: boolean
-  allMedia? : boolean
   parentPostId?: string
   handleSelectedImages: (images: string[], index?: number) => void
   toggleEditPostModal: () => void
@@ -65,7 +64,6 @@ function SinglePost({
   showDetails,
   hasSingleReply,
   canReply,
-  allMedia,
   hasCircle,
   hasLine,
   parentPostId

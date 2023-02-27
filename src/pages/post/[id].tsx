@@ -113,7 +113,6 @@ function Post({ postData, postId }: PostProps) {
             post.replies && post.replies.length === 1 ? true : false
           }
           canReply
-          allMedia={true}
           handleReplySuccessCallback={onReplySuccess}
           parentPostId={post.repliedTo && post.repliedTo._id}
         />
