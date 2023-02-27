@@ -16,7 +16,7 @@ function Header() {
   const dispatch = useAppDispatch()
   const accountMenuRef = useRef<HTMLDivElement | null>(null)
   const { accounts, selectedAccount } = useAppSelector(
-    (state) => state.auth
+    state => state.auth
   )
 
   const [isRegisterVisible, setIsRegisterVisible] = useState(false)
@@ -46,16 +46,16 @@ function Header() {
   }
 
   const toggleIsRegisterVisible = () => {
-    setIsRegisterVisible((prev) => !prev)
+    setIsRegisterVisible(prev => !prev)
   }
 
   const toggleIsLoginVisible = () => {
-    setIsLoginVisible((prev) => !prev)
+    setIsLoginVisible(prev => !prev)
   }
 
   const toggleOpenAccount = () => {
     if (openAccount) return setOpenAccount(false)
-    setOpenAccount((prev) => !prev)
+    setOpenAccount(prev => !prev)
   }
 
   const switchAccount = (account: IUser) => {
@@ -70,65 +70,56 @@ function Header() {
 
   return (
     <React.Fragment>
-      <header className="bg-white flex items-center justify-center p-0 fixed left-0 right-0 top-0 z-[3] h-14">
+      <header className='bg-white flex items-center justify-center p-0 fixed left-0 right-0 top-0 z-[3] h-14'>
         <div
-          className="grid h-full max-w-[40rem]"
+          className='grid h-full max-w-[40rem]'
           style={{
             flex: '1 1 0%'
           }}
         >
-          <div className="flex justify-between items-center pb-2">
-            <div className="flex items-center">
-              <h2 className="cursor-pointer text-xl pl-4">
-                <Link href="/">News@HERE</Link>
+          <div className='flex justify-between items-center pb-2'>
+            <div className='flex items-center'>
+              <h2 className='cursor-pointer text-xl pl-4'>
+                <Link href='/'>News@HERE</Link>
               </h2>
             </div>
 
-            <div className="flex flex-row gap-2 items-center">
+            <div className='flex flex-row gap-2 items-center'>
               {selectedAccount ? (
                 <React.Fragment>
-                  <div className="flex flex-row items-center bg-gradient-to-t from-[#6a3093] to-[#a044ff] text-white pl-1 pr-2 py-[0.3125rem] rounded-xl font-semibold h-full">
-                    <MdAttachMoney className="text-md" />
-                    <p className="text-xs">
+                  <div className='flex flex-row items-center bg-gradient-to-t from-[#6a3093] to-[#a044ff] text-white pl-1 pr-2 py-[0.3125rem] rounded-xl font-semibold h-full'>
+                    <MdAttachMoney className='text-md' />
+                    <p className='text-xs'>
                       <AnimatedNumber
-                        className="select-none"
+                        className='select-none'
                         value={selectedAccount.balance}
                         hasComma={false}
                         size={12}
                       />
                     </p>
                   </div>
-                  <div className="relative" ref={accountMenuRef}>
+                  <div className='relative' ref={accountMenuRef}>
                     <div
-                      className="flex flex-row items-center border-[1px] bg-white border-slate-400 px-1 py-1 rounded-full cursor-pointer hover:bg-slate-400 hover:text-white"
+                      className='flex flex-row items-center border-[1px] bg-white border-slate-400 px-1 py-1 rounded-full cursor-pointer hover:bg-slate-400 hover:text-white'
                       onClick={toggleOpenAccount}
                     >
                       <Avatar
                         imageUrl={selectedAccount.avatar}
-                        containerClassNames="w-[18px] h-[18px]"
-                        bg="dark"
+                        containerClassNames='w-[18px] h-[18px]'
+                        bg='dark'
                       />
-                      <p className="text-xs ml-2 font-semibold select-none">
+                      <p className='text-xs ml-2 font-semibold select-none'>
                         {selectedAccount.displayName}
-                        <span
-                          className={`${
-                            selectedAccount.reputation === 5
-                              ? 'bg-yellow-400'
-                              : 'bg-blue-400 text-white'
-                          } ml-2 px-[0.375rem] py-[0.125rem] rounded-md text-[0.625rem]`}
-                        >
-                          {selectedAccount.reputation}
-                        </span>
                       </p>
-                      <p className="ml-2 text-xs">▼</p>
+                      <p className='ml-2 text-xs'>▼</p>
                     </div>
 
                     {openAccount && (
-                      <div className="z-[-1] w-full shadow-lg bg-white absolute top-0 left-0 rounded-bl-lg rounded-br-lg pt-7 pb-2">
-                        <p className="text-xs text-slate-400 pl-2 mt-2">
+                      <div className='z-[-1] w-full shadow-lg bg-white absolute top-0 left-0 rounded-bl-lg rounded-br-lg pt-7 pb-2'>
+                        <p className='text-xs text-slate-400 pl-2 mt-2'>
                           Switch to
                         </p>
-                        {accounts?.map((account) => {
+                        {accounts?.map(account => {
                           if (account._id === selectedAccount._id)
                             return null
 
@@ -139,17 +130,8 @@ function Header() {
                             >
                               {
                                 <React.Fragment>
-                                  <p className="text-xs font-semibold px-2 py-2 border-t-[1px] border-slate-400 cursor-pointer hover:bg-slate-400 hover:text-white">
+                                  <p className='text-xs font-semibold px-2 py-2 border-t-[1px] border-slate-400 cursor-pointer hover:bg-slate-400 hover:text-white'>
                                     {account.displayName}
-                                    <span
-                                      className={`${
-                                        account.reputation === 5
-                                          ? 'bg-yellow-400'
-                                          : 'bg-blue-400 text-white'
-                                      } ml-1 px-[0.375rem] py-[0.125rem] rounded-md text-[0.625rem]`}
-                                    >
-                                      {account.reputation}
-                                    </span>
                                   </p>
                                 </React.Fragment>
                               }
@@ -157,7 +139,7 @@ function Header() {
                           )
                         })}
                         <div onClick={() => logoutUser()}>
-                          <p className="text-xs font-semibold px-2 py-[6px] border-t-[1px] border-slate-400 text-red-500 cursor-pointer hover:bg-slate-400 hover:text-white">
+                          <p className='text-xs font-semibold px-2 py-[6px] border-t-[1px] border-slate-400 text-red-500 cursor-pointer hover:bg-slate-400 hover:text-white'>
                             Logout
                           </p>
                         </div>
@@ -168,13 +150,13 @@ function Header() {
               ) : (
                 <React.Fragment>
                   <p
-                    className="cursor-pointer text-md text-blue-500 pl-4 underline"
+                    className='cursor-pointer text-md text-blue-500 pl-4 underline'
                     onClick={() => toggleIsLoginVisible()}
                   >
                     Log In
                   </p>
                   <p
-                    className="cursor-pointer text-md text-blue-500 pr-4 underline ml-2"
+                    className='cursor-pointer text-md text-blue-500 pr-4 underline ml-2'
                     onClick={() => toggleIsRegisterVisible()}
                   >
                     Register
