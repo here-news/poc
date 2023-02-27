@@ -6,21 +6,22 @@ import { MdDelete, MdMoreHoriz } from 'react-icons/md'
 import { useMutation, useQueryClient } from 'react-query'
 import axios from 'axios'
 import { toast } from 'react-toastify'
+import { GoPrimitiveDot } from 'react-icons/go'
+import Link from 'next/link'
 
 import { IPost } from 'types/interfaces'
-import { useAppSelector } from 'store/hooks'
+import { useAppDispatch, useAppSelector } from 'store/hooks'
+import { toggleIsLoginModalVisible } from 'store/slices/auth.slice'
 import { ENV } from 'lib/env'
+import Avatar from 'components/Avatar'
 
 import VotesCounter from './VotesCounter'
 import Images from './Images'
 import Buttons from './Buttons'
 import LinkDetails from './LinkDetails'
-import Avatar from 'components/Avatar'
+import CreateReply from './CreateReply/CreateReply'
 
 import styles from './SinglePost.module.css'
-import { GoPrimitiveDot } from 'react-icons/go'
-import Link from 'next/link'
-import CreateReply from './CreateReply/CreateReply'
 
 interface SinglePostProps extends IPost {
   noBorder?: boolean
@@ -29,9 +30,11 @@ interface SinglePostProps extends IPost {
   showDetails?: boolean
   showMore?: boolean
   showVoting?: boolean
-  hasSingleReply?: boolean
+  hasCircle?: boolean
+  hasLine?: boolean
   canReply?: boolean
   allMedia? : boolean
+  parentPostId?: string
   handleSelectedImages: (images: string[], index?: number) => void
   toggleEditPostModal: () => void
   handleReplySuccessCallback?: () => void
@@ -62,10 +65,14 @@ function SinglePost({
   showDetails,
   hasSingleReply,
   canReply,
-  allMedia
+  allMedia,
+  hasCircle,
+  hasLine,
+  parentPostId
 }: SinglePostProps) {
-  const queryClient = useQueryClient()
   const router = useRouter()
+  const dispatch = useAppDispatch()
+  const queryClient = useQueryClient()
   const { selectedAccount } = useAppSelector(state => state.auth)
 
   const moreOptionsMenuRef = useRef<HTMLDivElement | null>(null)
@@ -116,11 +123,12 @@ function SinglePost({
     {
       onSuccess: () => {
         toast.success('Successfully deleted post!')
+        setIsMoreOptions(false)
         if (canPushToPost) {
           queryClient.invalidateQueries('getExplorePosts')
           queryClient.invalidateQueries('getTrendingPosts')
         } else {
-          router.push('/')
+          router.push(parentPostId ? `/post/${parentPostId}` : '/')
         }
       },
       onError: () => {
@@ -141,7 +149,8 @@ function SinglePost({
       images,
       preview,
       text,
-      totalComments
+      totalComments,
+      repliedTo
     })
 
     toggleEditPostModal()
@@ -151,11 +160,15 @@ function SinglePost({
     deletePostQuery.mutate()
   }
 
+  const openLoginModal = () => {
+    dispatch(toggleIsLoginModalVisible(true))
+  }
+
   return (
     <div
       className={`relative bg-white w-full ${
         !noBorder ? 'border-[0.0625rem] border-slate-400' : ''
-      } ${!hasSingleReply ? 'mb-4' : ''} ${
+      } ${!hasLine ? 'mb-4' : ''} ${
         canPushToPost
           ? 'cursor-pointer transition-colors duration-300 hover:bg-slate-100'
           : ''
@@ -163,20 +176,21 @@ function SinglePost({
       onClick={moveToPage}
     >
       <div className='flex flex-row'>
-        {hasSingleReply && (
+        {(hasCircle || hasLine) && (
           <div className='relative flex flex-col items-center w-4 z-[1] mx-2'>
             <div className='absolute top-0 left-0 min-h-[64px] flex items-center justify-center'>
               <GoPrimitiveDot className='text-gray-300 text-lg' />
             </div>
-
-            <div className='border-l-[2px] border-gray-300 h-[100%] absolute top-7 left-2' />
+            {hasLine && (
+              <div className='border-l-[2px] border-gray-300 h-[100%] absolute top-7 left-2' />
+            )}
           </div>
         )}
         <div className='flex-1'>
           {showDetails && (
             <div
               className={`flex flex-row justify-between items-center ${
-                hasSingleReply ? 'mx-4' : 'mx-4'
+                hasLine ? 'mx-4' : 'mx-4'
               }`}
             >
               <div className='flex items-center flex-1 min-h-10'>
@@ -345,13 +359,35 @@ function SinglePost({
             <Buttons totalComments={totalComments} postId={_id} />
           </div>
           {canReply && (
-            <div className='mx-4 pb-4'>
-              <CreateReply
-                postId={_id}
-                handleReplySuccessCallback={
-                  handleReplySuccessCallback
-                }
-              />
+            <div
+              className={`mx-4 pb-4 ${
+                hasCircle || hasLine
+                  ? 'max-w-[36rem]'
+                  : 'max-w-[38rem]'
+              }`}
+            >
+              {selectedAccount ? (
+                <CreateReply
+                  postId={_id}
+                  handleReplySuccessCallback={
+                    handleReplySuccessCallback
+                  }
+                />
+              ) : (
+                <p className='text-md'>
+                  Please{' '}
+                  <span
+                    className='text-blue-600 underline cursor-pointer'
+                    onClick={e => {
+                      e.stopPropagation()
+                      openLoginModal()
+                    }}
+                  >
+                    log in
+                  </span>{' '}
+                  to join the conversation
+                </p>
+              )}
             </div>
           )}
         </div>

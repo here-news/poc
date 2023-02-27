@@ -43,7 +43,7 @@ function EditPostModal({
     >
       <div className='relative w-screen max-w-[40rem] max-h-[95vh] bg-white rounded-lg'>
         <h2 className='mb-4 text-lg font-bold pt-4 px-4'>
-          {isReplyEdit ? 'Edit Reply' : 'Edit Post'}
+          {isReplyEdit || post.repliedTo ? 'Edit Reply' : 'Edit Post'}
         </h2>
 
         <div className='max-h-[84vh] overflow-scroll px-4'>

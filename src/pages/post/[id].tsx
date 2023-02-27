@@ -1,14 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
+import { GetServerSideProps } from 'next'
+import { useQuery, useQueryClient } from 'react-query'
+
+import { ENV } from 'lib/env'
+import { IPost } from 'types/interfaces'
 import Layout from 'components/Layouts'
+
 import EditPostModal from 'components/pages/home/EditPostModal/EditPostModal'
 import ShowImagesModal from 'components/pages/home/ShowImagesModal'
 import SinglePost from 'components/SinglePost/SinglePost'
-import { ENV } from 'lib/env'
-import { GetServerSideProps } from 'next'
-import { IPost } from 'types/interfaces'
 import Replies from 'components/pages/Post/Replies'
-import { useQuery, useQueryClient } from 'react-query'
+import MinifiedPost from 'components/pages/home/MinifiedPost'
 
 interface PostProps {
   postId: string
@@ -84,6 +87,18 @@ function Post({ postData, postId }: PostProps) {
   return (
     <Layout pageTitle='News Article - Here News' type='base'>
       <div className='relative w-full max-w-[40rem]'>
+        {post.repliedTo && (
+          <div className='pb-4 bg-white'>
+            <MinifiedPost
+              {...post.repliedTo}
+              noBorder
+              hasSingleLine
+              noInteraction
+              handleSelectedPost={handleSelectedPost}
+              toggleEditPostModal={toggleEditPostModal}
+            />
+          </div>
+        )}
         <SinglePost
           noBorder
           {...post}
@@ -93,16 +108,14 @@ function Post({ postData, postId }: PostProps) {
           handleSelectedPost={handleSelectedPost}
           showVoting
           showDetails
-          hasSingleReply={
-            post.replies &&
-            Array.isArray(post.replies) &&
-            post.replies.length === 1
-              ? true
-              : false
+          hasCircle={!!post.repliedTo}
+          hasLine={
+            post.replies && post.replies.length === 1 ? true : false
           }
           canReply
           allMedia={true}
           handleReplySuccessCallback={onReplySuccess}
+          parentPostId={post.repliedTo && post.repliedTo._id}
         />
         <Replies
           postId={post._id}
