@@ -4,7 +4,12 @@ import TextEditor from 'components/TextEditor/TextEditor'
 import { ENV } from 'lib/env'
 import { useRouter } from 'next/router'
 import Quill from 'quill'
-import React, { useEffect, useRef, useState } from 'react'
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useState
+} from 'react'
 import { IoMdImages } from 'react-icons/io'
 import { useMutation, useQueryClient } from 'react-query'
 import { toast } from 'react-toastify'
@@ -36,10 +41,18 @@ function CreatePost() {
   const quillRef = useRef<Quill | null>(null)
   const imageRef = useRef<HTMLInputElement | null>(null)
 
-  const handlePreviewData = (data?: ILinkDetails) => {
-    if (data) setPreviewData({ ...data })
-    else setPreviewData(null)
-  }
+  const handlePreviewData = useCallback(
+    (data?: ILinkDetails, setPreviousData?: boolean) => {
+      if (data)
+        setPreviousData
+          ? setPreviewData(prev => {
+              return { ...prev, ...data }
+            })
+          : setPreviewData({ ...data })
+      else setPreviewData(null)
+    },
+    []
+  )
 
   const handleTitle = (value: string) => setTitle(value)
   const toggleResetPreview = () => setCanResetPreview(prev => !prev)
@@ -288,7 +301,7 @@ function CreatePost() {
   }, [uploadedFileNameArray, uploadedSizeArray])
   useEffect(() => {
     if (!selectedAccount) router.push('/')
-  }, [selectedAccount])
+  }, [selectedAccount, router])
 
   if (!accounts || !selectedAccount) return <React.Fragment />
   return (

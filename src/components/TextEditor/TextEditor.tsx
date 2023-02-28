@@ -14,7 +14,10 @@ interface TextEditorProps {
   isEdit?: boolean
   containerClassName?: string
   placeholder?: string
-  handlePreviewData: (data?: ILinkDetails) => void
+  handlePreviewData: (
+    data?: ILinkDetails,
+    setPreviousData?: boolean
+  ) => void
   canResetPreview: boolean
   toggleResetPreview: () => void
   toggleDisablePost: (state: boolean) => void
@@ -81,14 +84,27 @@ const TextEditor = forwardRef(
       }
     }, [canResetPreview, toggleResetPreview])
 
+    const removeVideo = useCallback(() => {
+      setYoutubeVideo('')
+      handlePreviewData(
+        {
+          youtubeId: ''
+        } as ILinkDetails,
+        true
+      )
+    }, [handlePreviewData])
+
     const getPreviewOnLinkFound = useCallback(
       (urlLink: string) => {
         if (showLinkPreview) return
+        //remove youtube preview if any
+        removeVideo()
+
         setLink(urlLink)
         pasteTimer.current = true
         setShowLinkPreview(true)
       },
-      [showLinkPreview]
+      [showLinkPreview, removeVideo]
     )
 
     useEffect(() => {
@@ -164,42 +180,38 @@ const TextEditor = forwardRef(
     useEffect(() => {
       if (youtubeVideo && youtubeVideo !== '') {
         handlePreviewData({
-          ...previewData,
           youtubeId: youtubeVideo
         } as ILinkDetails)
       }
-    }, [handlePreviewData, previewData, youtubeVideo])
+    }, [handlePreviewData, youtubeVideo])
 
-    const removeVideo = () => {
-      setYoutubeVideo('')
-      handlePreviewData({
-        ...previewData,
-        youtubeId: ''
-      } as ILinkDetails)
-    }
     return (
       <div
         className={`${containerClassName ? containerClassName : ''}`}
         id='quill-container'
       >
         <div id={customEditorId ? customEditorId : 'editor'} />
-        {youtubeVideo && youtubeVideo !== '' && (
+
+        {youtubeVideo && youtubeVideo !== '' ? (
           <YoutubePreview
             removeVideo={removeVideo}
             youtubeVideo={youtubeVideo}
           />
+        ) : (
+          (prevPreview || previewData || link) && (
+            <LinkDetails
+              prevPreview={prevPreview}
+              previewData={previewData}
+              link={link}
+              isVisible={showLinkPreview}
+              toggleVisible={toggleLinkPreview}
+              resetLinkPreview={resetLinkPreview}
+              handlePreviewData={handlePreviewData}
+              toggleDisablePost={toggleDisablePost}
+              type={previewType}
+            />
+          )
         )}
-        <LinkDetails
-          prevPreview={prevPreview}
-          previewData={previewData}
-          link={link}
-          isVisible={showLinkPreview}
-          toggleVisible={toggleLinkPreview}
-          resetLinkPreview={resetLinkPreview}
-          handlePreviewData={handlePreviewData}
-          toggleDisablePost={toggleDisablePost}
-          type={previewType}
-        />
       </div>
     )
   }

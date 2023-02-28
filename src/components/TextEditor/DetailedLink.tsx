@@ -60,7 +60,7 @@ function DetailedLink({ link, details }: DetailedLinkProps) {
           details.description ? 'mt-2' : 'mt-1'
         } text-blue-600 underline text-xs`}
       >
-        Read the full article at
+        Read the full article at{' '}
         {new URL(link || (details && details.url)).hostname
           .split('.')
           .slice(-2)
