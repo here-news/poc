@@ -31,6 +31,7 @@ export interface IPost {
   repliedTo?: IPost
   replies?: IPost[]
   totalReplies?: Number
+  youtubeId?: string | undefined
 }
 
 export interface IComment {

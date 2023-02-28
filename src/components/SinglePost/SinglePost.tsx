@@ -62,7 +62,6 @@ function SinglePost({
   showMore,
   showVoting,
   showDetails,
-  hasSingleReply,
   canReply,
   hasCircle,
   hasLine,
@@ -350,7 +349,7 @@ function SinglePost({
             >
               <Images
                 images={images}
-                handleSelectedImages={handleSelectedImages} 
+                handleSelectedImages={handleSelectedImages}
               />
             </div>
 
