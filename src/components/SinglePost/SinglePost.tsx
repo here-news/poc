@@ -62,9 +62,10 @@ function SinglePost({
   showMore,
   showVoting,
   showDetails,
+  hasSingleReply,
+  canReply,
   hasCircle,
   hasLine,
-  canReply,
   parentPostId
 }: SinglePostProps) {
   const router = useRouter()
@@ -349,7 +350,7 @@ function SinglePost({
             >
               <Images
                 images={images}
-                handleSelectedImages={handleSelectedImages}
+                handleSelectedImages={handleSelectedImages} 
               />
             </div>
 

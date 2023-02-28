@@ -1,5 +1,6 @@
+import React, { useEffect, useState } from 'react'
 import Image from 'next/image'
-import React from 'react'
+import { getTypeMedia } from 'helper/stringHelper'
 
 interface ImagesProps {
   images: string[] | undefined
@@ -7,51 +8,77 @@ interface ImagesProps {
 }
 
 function Images({ images, handleSelectedImages }: ImagesProps) {
+  const [center_video_url, setCenterVideoUrl] = useState<string>('') 
+  const [all_images, setAllImages] = useState<string[]|null>(null);
+
+  useEffect(() => {
+    if(images) {
+      const videoArray = images.filter(item => getTypeMedia(item) === 'video')
+
+      if(videoArray?.length) {
+        setCenterVideoUrl(videoArray[0])
+      }
+
+      const imageArray = images.filter(item => getTypeMedia(item) === 'image')
+      
+      setAllImages([...imageArray]) ;
+    }
+  }, [images])
+ 
   return (
     <div className='flex flex-row flex-wrap gap-2 justify-between items-center'>
-      {images && images.length <= 4
-        ? images.map((item, index) => (
+      {
+        center_video_url && <video style={{width:'100%'}} controls>
+          <source src={center_video_url}  />
+        </video>
+      }
+      {images && all_images && all_images.length <= 4
+        ? all_images.slice(0, all_images.length ).map((item, index) => (
             <div
               className='cursor-pointer flex-[41%] p-1 relative'
               key={item + ' ' + index}
-              onClick={() => handleSelectedImages(images, index)}
+              onClick={() => handleSelectedImages([...all_images].concat([center_video_url]), index)}
             >
               <div
                 className={`w-full ${
-                  images.length === 1 ? 'h-[250px]' : 'h-[250px]'
+                  all_images.length === 1 ? 'h-[250px]' : 'h-[250px]'
                 }`}
               >
-                <Image
-                  src={item}
-                  fill
-                  alt='post image'
-                  quality={20}
-                  className='object-cover'
-                />
+                {
+                  getTypeMedia(item) === 'image' && <Image
+                    src={item}
+                    fill
+                    alt='post image'
+                    quality={20}
+                    className='object-cover'
+                  />
+                }
               </div>
             </div>
           ))
-        : images &&
-          images.slice(0, 4).map((item, index) => (
+        : images && all_images &&
+          all_images.slice(0, 4).map((item, index) => (
             <div
               className='cursor-pointer flex-[41%] p-1 relative'
               key={item + ' ' + index}
-              onClick={() => handleSelectedImages(images, index)}
+              onClick={() => handleSelectedImages([...all_images].concat([center_video_url]), index)}
             >
               <div
                 className={`w-full ${
-                  images.length === 1 ? 'h-[250px]' : 'h-[250px]'
+                  all_images.length === 1 ? 'h-[250px]' : 'h-[250px]'
                 }`}
               >
-                <Image
-                  src={item}
-                  fill
-                  alt='post image'
-                  quality={20}
-                  className='object-cover'
-                />
+                {
+                  getTypeMedia(item) === 'image' && <Image
+                    src={item}
+                    fill
+                    alt='post image'
+                    quality={20}
+                    className='object-cover'
+                  />
+                }
               </div>
-              {index === 3 && (
+              {index == 3 && (
                 <div className='flex flex-row absolute bg-[rgba(0,0,0,0.5)] justify-center items-center top-0 left-0 w-full h-full'>
                   <p className='font-bold text-4xl text-white'>
                     +{images.length - 4}
