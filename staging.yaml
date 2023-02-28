@@ -1,6 +1,6 @@
 env: standard
 runtime: nodejs14
-service: production
+service: staging
 handlers:
   - url: /.*
     secure: always
