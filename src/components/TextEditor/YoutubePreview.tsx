@@ -1,5 +1,7 @@
 import React from 'react'
 import { MdClose } from 'react-icons/md'
+import LiteYouTubeEmbed from 'react-lite-youtube-embed'
+import 'react-lite-youtube-embed/dist/LiteYouTubeEmbed.css'
 
 interface YoutubePreviewProps {
   removeVideo: () => void
@@ -22,12 +24,10 @@ const YoutubePreview = ({
         <MdClose className='text-white' />
       </div>
       <div className='w-full mt-4'>
-        <iframe
-          className='h-60 w-full'
-          src={`https://www.youtube.com/embed/${youtubeVideo}`}
-          title='YouTube video player'
-          allow='accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture'
-          allowFullScreen
+        <LiteYouTubeEmbed
+          id={youtubeVideo}
+          iframeClass='h-60 w-full'
+          title='youtube video player'
         />
       </div>
     </div>

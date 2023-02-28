@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import Modal from 'components/Modal'
 import Image from 'next/image'
+import { getTypeMedia } from 'helper/stringHelper'
 
 interface ShowImagesModalProps {
   showImagesVisible: boolean
@@ -68,7 +69,7 @@ function ShowImagesModal({
             <p className='text-lg text-white'>&lt;</p>
           </div>
         </div>
-        <div className='relative w-[calc(100%-96px)] my-2'>
+        <div className='relative w-[calc(100%-96px)] my-2 flex justify-center items-center'>
           <div className='absolute bottom-0 w-full z-[1]'>
             <div className='flex items-center justify-center p-4 z-[1]'>
               <p className='text-white bg-[rgba(0,0,0,0.7)] px-4 py-2 rounded-lg font-semibold'>
@@ -76,14 +77,18 @@ function ShowImagesModal({
               </p>
             </div>
           </div>
-          {images && images[selectedIndex] ? (
+          {images && getTypeMedia(images[selectedIndex]) === 'image' ? (
             <Image
               src={images[selectedIndex]}
               fill
               className='object-contain'
               alt='show image'
             />
-          ) : (
+          ) : getTypeMedia(images[selectedIndex]) === 'video' 
+          ?  <video style={{width : 'fit-content', height:'fit-content'}} controls>
+              <source src={images[selectedIndex]} />
+            </video> 
+          :(
             <React.Fragment />
           )}
         </div>

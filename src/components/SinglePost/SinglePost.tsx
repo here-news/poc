@@ -62,9 +62,9 @@ function SinglePost({
   showMore,
   showVoting,
   showDetails,
+  canReply,
   hasCircle,
   hasLine,
-  canReply,
   parentPostId
 }: SinglePostProps) {
   const router = useRouter()
