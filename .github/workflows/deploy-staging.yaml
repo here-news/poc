@@ -1,9 +1,9 @@
-name: Deploy Staging News App to GCP App Engine
+name: Deploy Production News App to GCP App Engine
 
 on:
   push:
     branches:
-      - staging
+      - main
 
   workflow_dispatch:
 
@@ -52,6 +52,10 @@ jobs:
       - name: Install dependencies
         run: ${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}
 
+      - name: Create env.ts file
+        run: |
+          echo "export const FRONTEND_ENV = '$(echo ${{ secrets.PRODUCTION_FRONTEND_ENV }} | sed 's|/|\\/|g')';" > ./src/lib/env.ts
+
       - name: Build with Next.js
         run: ${{ steps.detect-package-manager.outputs.runner }} next build
 
@@ -65,7 +69,7 @@ jobs:
         name: 'Deploy to App Engine'
         uses: 'google-github-actions/deploy-appengine@v1'
         with:
-          deliverables: staging.yaml
+          deliverables: app.yaml
           project_id: ${{ secrets.GCP_PROJECT }}
 
       - name: 'Check Deployment'
