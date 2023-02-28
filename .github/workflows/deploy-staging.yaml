@@ -54,7 +54,9 @@ jobs:
 
       - name: Create env.ts file
         run: |
-          echo '${{ secrets.STAGING_FRONTEND_ENV }}' > ./src/lib/env.ts
+          echo "export const ENV = {
+        WS_URL: '${{ secrets.STAGING_WS_URL }}',
+        API_URL: '${{ secrets.STAGING_API_URL }} };" > ./src/lib/env.ts
 
       - name: Check env.ts file
         run: |
