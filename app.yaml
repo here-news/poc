@@ -11,8 +11,10 @@
 #   max_instances: 15
 # instance_class: F2
 
-env:
-  - APP_ENV: ${{ github.ref == 'refs/heads/main' && 'main' || 'staging' }}
+env: standard
+
+env_variables:
+  APP_ENV: ${{ github.ref == 'refs/heads/main' && 'main' || 'staging' }}
 
 runtime: nodejs14
 service: ${APP_ENV}
