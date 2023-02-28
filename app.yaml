@@ -1,6 +1,21 @@
-env: standard
+# env: standard
+# runtime: nodejs14
+# service: staging
+# handlers:
+#   - url: /.*
+#     secure: always
+#     script: auto
+# automatic_scaling:
+#   target_cpu_utilization: 0.75
+#   min_instances: 5
+#   max_instances: 15
+# instance_class: F2
+
+env:
+  - APP_ENV: ${{ github.ref == 'refs/heads/main' && 'main' || 'staging' }}
+
 runtime: nodejs14
-service: default
+service: ${APP_ENV}
 handlers:
   - url: /.*
     secure: always
