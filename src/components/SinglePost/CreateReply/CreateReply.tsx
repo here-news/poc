@@ -92,12 +92,6 @@ function CreateReply({
 
     const formData = new FormData()
 
-    // if (files && files.length) {
-    //   for (let i = 0; i < files.length; i++) {
-    //     formData.append('images', files[i])
-    //   }
-    // }
-
     if (!hasNoText) {
       const sanitize = await import('sanitize-html')
       const sanitizedHTML = await sanitize.default(text)
