@@ -52,12 +52,14 @@ jobs:
       - name: Install dependencies
         run: ${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}
 
-      - name: Create env.ts file
-        run: |
-          echo "export const FRONTEND_ENV = '$(echo ${{ secrets.PRODUCTION_FRONTEND_ENV }} | sed "s/'/\\\'/g")';" > ./src/lib/env.ts
-
       - name: Build with Next.js
-        run: ${{ steps.detect-package-manager.outputs.runner }} next build
+        run: |
+          echo "export const ENV = {
+            WS_URL: '${{ secrets.PRODUCTION_WS_URL }}',
+            API_URL: '${{ secrets.PRODUCTION_API_URL }}'
+          };" > ./src/lib/env.ts
+
+          ${{ steps.detect-package-manager.outputs.runner }} next build
 
       - id: 'auth'
         name: 'Authenticate with GCP'
