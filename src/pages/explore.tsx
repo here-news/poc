@@ -4,7 +4,7 @@ import React from 'react'
 
 export default function explore() {
   return (
-    <Layout pageTitle="Explore - Here News" type="base">
+    <Layout pageTitle='Explore - Here News' type='base'>
       <Explore />
     </Layout>
   )
