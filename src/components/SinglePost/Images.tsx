@@ -17,7 +17,7 @@ function Images({ images, handleSelectedImages }: ImagesProps) {
 
       if(videoArray?.length) {
         setCenterVideoUrl(videoArray[0])
-      }
+      } else setCenterVideoUrl('')
 
       const imageArray = images.filter(item => getTypeMedia(item) === 'image')
       
@@ -81,7 +81,7 @@ function Images({ images, handleSelectedImages }: ImagesProps) {
               {index == 3 && (
                 <div className='flex flex-row absolute bg-[rgba(0,0,0,0.5)] justify-center items-center top-0 left-0 w-full h-full'>
                   <p className='font-bold text-4xl text-white'>
-                    +{images.length - 4}
+                    +{all_images.length - 4}
                   </p>
                 </div>
               )}

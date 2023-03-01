@@ -5,6 +5,7 @@ import Quill from 'quill'
 import React, { useRef, useState } from 'react'
 import { useMutation } from 'react-query'
 import { toast } from 'react-toastify'
+import FileUploadService from 'services/FileUploadService'
 import { useAppSelector } from 'store/hooks'
 import { ILinkDetails } from 'types/interfaces'
 import ImageUpload from './ImageUpload'
@@ -24,6 +25,7 @@ function CreateReply({
   )
 
   const [files, setFiles] = useState<FileList | null>(null)
+  
   const [posted, setPosted] = useState(false)
   const [canResetPreview, setCanResetPreview] = useState(false)
   const [isDisablePost, setIsDisablePost] = useState(false)
@@ -65,6 +67,7 @@ function CreateReply({
         setTimeout(() => {
           setPosted(false)
         }, 1000)
+
       },
       onError: () => {
         toast.error('There was some error create post!')
@@ -72,7 +75,7 @@ function CreateReply({
     }
   )
 
-  const handlePost = async () => {
+  const handlePost = async (uploadedFileNameArray : String[]) => {
     const text = editorRef.current && editorRef.current.root.innerHTML
 
     if (posted) return
@@ -89,11 +92,12 @@ function CreateReply({
 
     const formData = new FormData()
 
-    if (files && files.length) {
-      for (let i = 0; i < files.length; i++) {
-        formData.append('images', files[i])
-      }
-    }
+    // if (files && files.length) {
+    //   for (let i = 0; i < files.length; i++) {
+    //     formData.append('images', files[i])
+    //   }
+    // }
+
     if (!hasNoText) {
       const sanitize = await import('sanitize-html')
       const sanitizedHTML = await sanitize.default(text)
@@ -133,6 +137,10 @@ function CreateReply({
     }
 
     formData.append('userId', selectedAccount._id)
+
+    for (let i = 0; i < uploadedFileNameArray.length; i++) {
+      formData.append('images[]', uploadedFileNameArray[i].toString());
+    }
 
     createPostReply.mutate(formData)
   }

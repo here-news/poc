@@ -55,14 +55,12 @@ function CreatePost() {
     e: React.ChangeEvent<HTMLInputElement>    
   ): void => {
     if(!e.target.files) return
-    
+
     let videoCount : number = 0 ;
     const maximum_size : number = 15728640 ;
 
     let tempSizeArray : Number[] = [] ;
     let tempNameArray : String[] = [] ;
-
-    const newFormData : FormData = new FormData();
 
     const lengthOfFiles = files
       ? files.length + e.target.files.length
@@ -97,7 +95,6 @@ function CreatePost() {
           return ;
         }
 
-        newFormData.append('image', e.target.files[i])
         dt.items.add(e.target.files[i])
         
         tempSizeArray.push(0)
@@ -111,7 +108,6 @@ function CreatePost() {
 
       for(let i = 0 ; i < e.target.files.length ; i++) {
         FileUploadService.upload(e.target.files[i], (event: any) => {
-          // console.log(i," file => " , event.loaded,"  ",Math.round((100 * event.loaded) / event.total), "%")
           tempSizeArray[first_index + i] = Math.round((100 * event.loaded) / event.total)
           setUploadedSizeArray([...tempSizeArray])
         })
@@ -134,7 +130,7 @@ function CreatePost() {
         });
       }
     }
-  };
+  }
 
   const clearImages = async () => {
     if(uploadLoading) return
@@ -229,7 +225,7 @@ function CreatePost() {
     formData.append('title', title)
 
     for (let i = 0; i < uploadedFileNameArray.length; i++) {
-      formData.append('images', uploadedFileNameArray[i].toString());
+      formData.append('images[]', uploadedFileNameArray[i].toString());
     }
 
     if (text) {
@@ -286,8 +282,10 @@ function CreatePost() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uploadedFileNameArray, uploadedSizeArray])
+
   useEffect(() => {
     if (!selectedAccount) router.push('/')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedAccount])
 
   if (!accounts || !selectedAccount) return <React.Fragment />

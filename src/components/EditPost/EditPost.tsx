@@ -16,6 +16,8 @@ import { useAppSelector } from 'store/hooks'
 import TextEditor from 'components/TextEditor/TextEditor'
 import Input from 'components/Input'
 import UploadedImages from './UploadedImages'
+import FileUploadService from 'services/FileUploadService'
+import { getTypeMedia } from 'helper/stringHelper'
 
 interface EditPostProps extends IPost {
   isModalVisible: boolean
@@ -36,6 +38,10 @@ function EditPost({
   const { accounts, selectedAccount } = useAppSelector(
     state => state.auth
   )
+
+  const [uploadLoading, setUploadLoading] = useState<Boolean>(false)
+  const [uploadedSizeArray, setUploadedSizeArray] = useState<Number[]>([])
+  const [uploadedFileNameArray,setUploadedFileNameArray] = useState<String[]>([]);
 
   const [isDisablePost, setIsDisablePost] = useState(false)
   const [canResetPreview, setCanResetPreview] = useState(false)
@@ -85,6 +91,8 @@ function EditPost({
     setIsDisablePost(state)
 
   const handleUploadImages = () => {
+    if(uploadLoading) return
+    
     imageRef.current && imageRef.current.click()
   }
 
@@ -93,33 +101,93 @@ function EditPost({
   ): void => {
     if (!e.target.files) return
 
-    let lengthOfFiles = e.target.files.length
+    let videoCount : number = 0 ;
+    const maximum_size : number = 15728640 ;
 
-    if (prevFiles) lengthOfFiles += prevFiles.length
-    if (files) lengthOfFiles += files.length
+    let tempSizeArray : Number[] = [] ;
+    let tempNameArray : String[] = [] ;
+
+    if(prevFiles) {
+      const videoArray = prevFiles.filter(item => getTypeMedia(item) === 'video')
+
+      if(videoArray.length) videoCount++
+    }
+    
+    const lengthOfFiles = (files
+    ? files.length + e.target.files.length 
+    : e.target.files.length )
+    + ( prevFiles ? prevFiles.length : 0)
 
     if (lengthOfFiles > 10) {
-      toast.error('You can only upload 10 images')
+      toast.error('You can only upload 10 media files')
     } else {
       const dt = new DataTransfer()
 
-      if (files && files.length) {
-        for (let i = 0; i < files.length; i++) {
-          const file = files[i]
-          dt.items.add(file)
+      if(files) {
+        for (let i = 0; i < files.length ; i++) {
+          if(files[i].type.search('video') >= 0) videoCount++;
+          dt.items.add(files[i])
         }
+
+        tempNameArray = [...uploadedFileNameArray]
+        tempSizeArray = [...uploadedSizeArray]
+      }
+      
+      for (let i = 0; i < (e.target.files.length <= 10 ? e.target.files.length : 10); i++) {
+        if(e.target.files[i].type.search('video') >= 0) {
+          if(videoCount === 1) {
+            toast.error('You can only upload 1 video file');
+            return ;
+          }
+          videoCount++;
+        }
+
+        if(e.target.files[i].size > maximum_size) {
+          toast.error('You can only upload with maximum size of 15MB');
+          return ;
+        }
+
+        dt.items.add(e.target.files[i])
+        
+        tempSizeArray.push(0)
+        tempNameArray.push("")
       }
 
-      for (let i = 0; i < e.target.files.length; i++) {
-        const file = e.target.files[i]
-        dt.items.add(file)
-      }
-
+      setUploadLoading(true)
       setFiles(dt.files)
+
+      const first_index = files ? files.length : 0 ;
+
+      for(let i = 0 ; i < e.target.files.length ; i++) {
+        FileUploadService.upload(e.target.files[i], (event: any) => {
+          tempSizeArray[first_index + i] = Math.round((100 * event.loaded) / event.total)
+          setUploadedSizeArray([...tempSizeArray])
+        })
+        .then((response) => {
+          tempSizeArray[first_index + i] = 100
+          tempNameArray[first_index + i] = response.data.url
+          setUploadedSizeArray([...tempSizeArray])
+          setUploadedFileNameArray([...tempNameArray])
+        })
+        .then((files) => {
+        })
+        .catch((err) => {
+          tempSizeArray.splice(first_index + i , 1) ;
+          tempNameArray.splice(first_index + i, 1) ;
+
+          dt.items.remove(i);
+          setFiles(dt.files);
+          setUploadedSizeArray([...tempSizeArray])
+          setUploadedFileNameArray([...tempNameArray])
+        });
+      }
     }
+
   }
 
   const clearImages = () => {
+    if(uploadLoading) return
+
     setPrevFiles(null)
     setFiles(null)
   }
@@ -135,12 +203,24 @@ function EditPost({
       tempFiles.splice(index, 1)
       setPrevFiles(tempFiles)
     } else if (type === 'notUploaded' && files) {
+
+      let tempSizedArray = [...uploadedSizeArray] ;
+      let tempNameArray = [...uploadedFileNameArray] ;
+
+      tempSizedArray.splice(index, 1)
+      tempNameArray.splice(index, 1)
+      
+
       const dt = new DataTransfer()
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i]
         if (index !== i) dt.items.add(file)
       }
+  
+      setFiles(dt.files && dt.files.length > 0 ? dt.files : null)
+      setUploadedFileNameArray([...tempNameArray])
+      setUploadedSizeArray([...tempSizedArray])
 
       setFiles(dt.files && dt.files.length > 0 ? dt.files : null)
     }
@@ -167,6 +247,7 @@ function EditPost({
         setTimeout(() => {
           setPosted(false)
         }, 1000)
+
       },
       onError: () => {
         toast.error('There was some error create post!')
@@ -195,12 +276,6 @@ function EditPost({
 
     if (title) {
       formData.append('title', titleState)
-    }
-
-    if (files && files.length) {
-      for (let i = 0; i < files.length; i++) {
-        formData.append('images', files[i])
-      }
     }
 
     if (prevFiles && prevFiles.length) {
@@ -244,8 +319,27 @@ function EditPost({
       )
     }
 
+    if (uploadedFileNameArray.length) {
+      for (let i = 0; i < uploadedFileNameArray.length; i++) {
+        formData.append('images[]', uploadedFileNameArray[i].toString())
+      }
+    }
+
     editPost.mutate(formData)
   }
+
+  useEffect(() => {
+    const filledSizeCount = uploadedSizeArray.filter(uploadedSize => uploadedSize === 100).length ;
+    const filledNameCount = uploadedFileNameArray.filter(uploadedName => uploadedName !== "").length ;
+
+    if (filledSizeCount === uploadedSizeArray.length 
+      && filledNameCount === uploadedFileNameArray.length 
+      && uploadedSizeArray.length === uploadedFileNameArray.length
+    ) {
+      setUploadLoading(false)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uploadedFileNameArray, uploadedSizeArray])
 
   if (!accounts || !selectedAccount) return <React.Fragment />
   return (
@@ -258,14 +352,14 @@ function EditPost({
           style={{
             display: 'none'
           }}
-          accept='image/png, image/gif, image/jpeg, image/webp'
+          accept='image/png, image/gif, image/jpeg, image/webp, video/*'
           onChange={handleFileSelected}
         />
         <div className='flex flex-col gap-2'>
           <div className='flex flex-row gap-2 items-end'>
             <div className='flex items-center justify-center z-[1] cursor-pointer'>
               <p
-                className='text-white text-sm bg-black px-3 py-2 rounded-lg flex flex-row items-center'
+                className={`text-white text-sm ${uploadLoading ? 'bg-gray-700 cursor-not-allowed' : 'bg-black'} px-3 py-2 rounded-lg flex flex-row items-center`}
                 onClick={() => handleUploadImages()}
               >
                 <span className='mr-2 text-lg'>
@@ -289,7 +383,7 @@ function EditPost({
                   Selected
                 </p>
                 <p
-                  className='cursor-pointer text-md text-blue-500 underline'
+                  className={`${uploadLoading ? 'cursor-not-allowed' : 'cursor-pointer'} text-md text-blue-500 underline`}
                   onClick={clearImages}
                 >
                   Clear
@@ -302,14 +396,14 @@ function EditPost({
         </div>
         <div
           className={`cursor-pointer transition duration-500 ease-in-out ${
-            editPost.isLoading || isDisablePost
+            (editPost.isLoading || isDisablePost|| uploadLoading)
               ? 'bg-slate-600'
               : posted
               ? 'bg-green-600'
               : 'bg-blue-600'
           } px-4 py-2 rounded-md text-white flex justify-center items-center`}
           onClick={() =>
-            !editPost.isLoading && !isDisablePost && handlePost()
+            !editPost.isLoading && !isDisablePost && !uploadLoading && handlePost()
           }
         >
           <p className='text-sm'>
@@ -328,6 +422,9 @@ function EditPost({
             files={files}
             prevFiles={prevFiles ? prevFiles : null}
             removeFile={removeFile}
+            uploadLoading={uploadLoading}
+            uploadedSizeArray={uploadedSizeArray}
+            uploadedFileNameArray={uploadedFileNameArray}
           />
         ) : (
           <React.Fragment />

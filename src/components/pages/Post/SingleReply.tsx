@@ -181,7 +181,7 @@ function SingleReply({
                 bg='dark'
               />
               <div className='flex flex-col flex-1 ml-2'>
-                <h4 className='text-md'>{userId.displayName}</h4>
+                <h4 className='text-md'>{userId?.displayName}</h4>
                 <p className='text-xs text-slate-500'>
                   {formatDistance(new Date(createdAt), new Date(), {
                     addSuffix: true
@@ -191,7 +191,7 @@ function SingleReply({
             </div>
             <div>
               {selectedAccount &&
-                selectedAccount._id === userId._id && (
+                selectedAccount._id === userId?._id && (
                   <div
                     className='relative'
                     ref={moreOptionsMenuRef}

@@ -296,7 +296,7 @@ function MinifiedPost({
                 </span>
                 <span className='px-1'>\</span>
                 <span className='text-blue-600'>
-                  @{userId.displayName}
+                  @{userId?.displayName}
                 </span>
                 <span className='px-1'>\</span>
                 <span>
@@ -310,7 +310,7 @@ function MinifiedPost({
           {!noInteraction && (
             <div className='ml-3'>
               {selectedAccount &&
-                selectedAccount._id === userId._id && (
+                selectedAccount._id === userId?._id && (
                   <div
                     className='relative'
                     ref={moreOptionsMenuRef}

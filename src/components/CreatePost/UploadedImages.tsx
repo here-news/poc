@@ -58,7 +58,7 @@ const UploadedImages = ({
                 overflow: 'hidden'
               }}
             >
-              <video style={{ objectFit: 'cover' }}>
+              <video style={{ objectFit: 'cover' }} playsInline muted autoPlay loop>
                 <source
                   type={files[i].type}
                   src={URL.createObjectURL(files[i])}

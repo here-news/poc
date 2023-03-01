@@ -213,18 +213,18 @@ function SinglePost({
                     showVoting ? 'ml-2' : 'ml-2 mt-2'
                   }`}
                 >
-                  <h4 className='text-md'>{userId.displayName}</h4>
+                  <h4 className='text-md'>{userId?.displayName}</h4>
 
                   <p className='text-xs text-slate-500 flex flex-row items-center flex-wrap'>
                     {repliedTo &&
                       repliedTo.userId &&
-                      repliedTo.userId.displayName && (
+                      repliedTo.userId?.displayName && (
                         <React.Fragment>
                           <span>
                             Replying to{' '}
                             <Link href={`/post/${repliedTo._id}`}>
                               <span className='font-bold text-blue-600'>
-                                @{repliedTo.userId.displayName}
+                                @{repliedTo.userId?.displayName}
                               </span>
                             </Link>
                           </span>
@@ -239,7 +239,7 @@ function SinglePost({
               </div>
               <div>
                 {selectedAccount &&
-                  selectedAccount._id === userId._id && (
+                  selectedAccount._id === userId?._id && (
                     <div
                       className='relative'
                       ref={moreOptionsMenuRef}
