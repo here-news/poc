@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import Modal from 'components/Modal'
 import Image from 'next/image'
-import { getTypeMedia } from 'helper/stringHelper'
+import { getTypeMedia } from 'utils'
 
 interface ShowImagesModalProps {
   showImagesVisible: boolean

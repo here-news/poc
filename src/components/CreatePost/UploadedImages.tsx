@@ -49,16 +49,9 @@ const UploadedImages = ({
           )}
           {files[i].type.search('video') >= 0 && (
             <div
-              className='flex align-items justify-center'
-              style={{
-                width: '100%',
-                height: '100%',
-                border: '1.5px solid lightgray',
-                borderRadius: '7px',
-                overflow: 'hidden'
-              }}
+              className='flex align-items justify-center w-full h-full border-gray-[600] border-[1.5px] border-solid rounded-[7px] overflow-hidden'
             >
-              <video style={{ objectFit: 'cover' }} playsInline muted autoPlay loop>
+              <video className='object-cover' playsInline muted autoPlay loop>
                 <source
                   type={files[i].type}
                   src={URL.createObjectURL(files[i])}

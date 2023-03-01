@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import Image from 'next/image'
-import { getTypeMedia } from 'helper/stringHelper'
+import { getTypeMedia } from 'utils'
 
 interface ImagesProps {
   images: string[] | undefined
@@ -28,7 +28,7 @@ function Images({ images, handleSelectedImages }: ImagesProps) {
   return (
     <div className='flex flex-row flex-wrap gap-2 justify-between items-center'>
       {
-        center_video_url && <video style={{width:'100%'}} controls>
+        center_video_url && <video className='w-full' controls>
           <source src={center_video_url}  />
         </video>
       }

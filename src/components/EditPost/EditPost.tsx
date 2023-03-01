@@ -17,7 +17,7 @@ import TextEditor from 'components/TextEditor/TextEditor'
 import Input from 'components/Input'
 import UploadedImages from './UploadedImages'
 import FileUploadService from 'services/FileUploadService'
-import { getTypeMedia } from 'helper/stringHelper'
+import { getTypeMedia, uploadMedia } from 'utils'
 
 interface EditPostProps extends IPost {
   isModalVisible: boolean
@@ -121,68 +121,14 @@ function EditPost({
     if (lengthOfFiles > 10) {
       toast.error('You can only upload 10 media files')
     } else {
-      const dt = new DataTransfer()
-
-      if(files) {
-        for (let i = 0; i < files.length ; i++) {
-          if(files[i].type.search('video') >= 0) videoCount++;
-          dt.items.add(files[i])
-        }
-
-        tempNameArray = [...uploadedFileNameArray]
-        tempSizeArray = [...uploadedSizeArray]
-      }
-      
-      for (let i = 0; i < (e.target.files.length <= 10 ? e.target.files.length : 10); i++) {
-        if(e.target.files[i].type.search('video') >= 0) {
-          if(videoCount === 1) {
-            toast.error('You can only upload 1 video file');
-            return ;
-          }
-          videoCount++;
-        }
-
-        if(e.target.files[i].size > maximum_size) {
-          toast.error('You can only upload with maximum size of 15MB');
-          return ;
-        }
-
-        dt.items.add(e.target.files[i])
-        
-        tempSizeArray.push(0)
-        tempNameArray.push("")
-      }
-
-      setUploadLoading(true)
-      setFiles(dt.files)
-
-      const first_index = files ? files.length : 0 ;
-
-      for(let i = 0 ; i < e.target.files.length ; i++) {
-        FileUploadService.upload(e.target.files[i], (event: any) => {
-          tempSizeArray[first_index + i] = Math.round((100 * event.loaded) / event.total)
-          setUploadedSizeArray([...tempSizeArray])
-        })
-        .then((response) => {
-          tempSizeArray[first_index + i] = 100
-          tempNameArray[first_index + i] = response.data.url
-          setUploadedSizeArray([...tempSizeArray])
-          setUploadedFileNameArray([...tempNameArray])
-        })
-        .then((files) => {
-        })
-        .catch((err) => {
-          tempSizeArray.splice(first_index + i , 1) ;
-          tempNameArray.splice(first_index + i, 1) ;
-
-          dt.items.remove(i);
-          setFiles(dt.files);
-          setUploadedSizeArray([...tempSizeArray])
-          setUploadedFileNameArray([...tempNameArray])
-        });
-      }
+      uploadMedia(files, e.target.files, videoCount,
+        tempSizeArray, tempNameArray, 
+        uploadedSizeArray, uploadedFileNameArray, 
+        setUploadedSizeArray, setUploadedFileNameArray,
+        setUploadLoading,
+        setFiles
+      )
     }
-
   }
 
   const clearImages = () => {
