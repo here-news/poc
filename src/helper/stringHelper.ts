@@ -1,6 +1,6 @@
 export const getTypeMedia = (mediaName: string) => {
-    if(!mediaName) return '';
+  if (!mediaName) return ''
 
-    const tokens = mediaName.split('_') ;
-    return tokens[1] ;
+  const tokens = mediaName.split('_')
+  return tokens[1]
 }
