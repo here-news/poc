@@ -1,0 +1,14 @@
+env: standard
+
+runtime: nodejs14
+service: production
+
+handlers:
+  - url: /.*
+    secure: always
+    script: auto
+automatic_scaling:
+  target_cpu_utilization: 0.75
+  min_instances: 5
+  max_instances: 15
+instance_class: F2
