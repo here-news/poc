@@ -34,13 +34,13 @@ export const notification = createSlice({
       const tempNewPosts = [...state.newPosts]
 
       tempNewPosts.splice(
-        tempNewPosts.findIndex((post) => post.postId === postId),
+        tempNewPosts.findIndex(post => post.postId === postId),
         1
       )
 
       state.newPosts = [...tempNewPosts]
     },
-    removeAllPosts: (state) => {
+    removeAllPosts: state => {
       state.newPosts = []
     }
   }

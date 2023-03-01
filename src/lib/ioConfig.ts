@@ -14,7 +14,7 @@ async function ioConnect() {
   }
 
   conn.on('connect', () => {
-    console.log('WS Connnected!')
+    // console.log('WS Connnected!')
     socketConnected = true
   })
 
@@ -24,7 +24,7 @@ async function ioConnect() {
   })
 
   conn.on('disconnect', () => {
-    console.log('WS Disconnected!')
+    // console.log('WS Disconnected!')
   })
 }
 

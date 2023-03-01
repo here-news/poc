@@ -77,18 +77,22 @@ function ShowImagesModal({
               </p>
             </div>
           </div>
-          {images && getTypeMedia(images[selectedIndex]) === 'image' ? (
+          {images &&
+          getTypeMedia(images[selectedIndex]) === 'image' ? (
             <Image
               src={images[selectedIndex]}
               fill
               className='object-contain'
               alt='show image'
             />
-          ) : getTypeMedia(images[selectedIndex]) === 'video' 
-          ?  <video style={{width : 'fit-content', height:'fit-content'}} controls>
+          ) : getTypeMedia(images[selectedIndex]) === 'video' ? (
+            <video
+              style={{ width: 'fit-content', height: 'fit-content' }}
+              controls
+            >
               <source src={images[selectedIndex]} />
-            </video> 
-          :(
+            </video>
+          ) : (
             <React.Fragment />
           )}
         </div>

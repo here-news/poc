@@ -4,7 +4,7 @@ import React from 'react'
 
 function Home() {
   return (
-    <Layout pageTitle="POC - Here News" type="base">
+    <Layout pageTitle='POC - Here News' type='base'>
       <Trending />
     </Layout>
   )

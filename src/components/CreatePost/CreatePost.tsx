@@ -26,8 +26,12 @@ function CreatePost() {
   )
 
   const [uploadLoading, setUploadLoading] = useState<Boolean>(false)
-  const [uploadedSizeArray, setUploadedSizeArray] = useState<Number[]>([])
-  const [uploadedFileNameArray,setUploadedFileNameArray] = useState<String[]>([]);
+  const [uploadedSizeArray, setUploadedSizeArray] = useState<
+    Number[]
+  >([])
+  const [uploadedFileNameArray, setUploadedFileNameArray] = useState<
+    String[]
+  >([])
 
   const [isDisablePost, setIsDisablePost] = useState(false)
   const [canResetPreview, setCanResetPreview] = useState(false)
@@ -60,22 +64,22 @@ function CreatePost() {
     setIsDisablePost(state)
 
   const handleUploadImages = () => {
-    if(uploadLoading) return
+    if (uploadLoading) return
     imageRef.current && imageRef.current.click()
   }
 
   const handleFileSelected = (
-    e: React.ChangeEvent<HTMLInputElement>    
+    e: React.ChangeEvent<HTMLInputElement>
   ): void => {
-    if(!e.target.files) return
-    
-    let videoCount : number = 0 ;
-    const maximum_size : number = 15728640 ;
+    if (!e.target.files) return
 
-    let tempSizeArray : Number[] = [] ;
-    let tempNameArray : String[] = [] ;
+    let videoCount: number = 0
+    const maximum_size: number = 15728640
 
-    const newFormData : FormData = new FormData();
+    let tempSizeArray: Number[] = []
+    let tempNameArray: String[] = []
+
+    const newFormData: FormData = new FormData()
 
     const lengthOfFiles = files
       ? files.length + e.target.files.length
@@ -86,75 +90,81 @@ function CreatePost() {
     } else {
       const dt = new DataTransfer()
 
-      if(files) {
-        for (let i = 0; i < files.length ; i++) {
-          if(files[i].type.search('video') >= 0) videoCount++;
+      if (files) {
+        for (let i = 0; i < files.length; i++) {
+          if (files[i].type.search('video') >= 0) videoCount++
           dt.items.add(files[i])
         }
 
         tempNameArray = [...uploadedFileNameArray]
         tempSizeArray = [...uploadedSizeArray]
       }
-      
-      for (let i = 0; i < (e.target.files.length <= 10 ? e.target.files.length : 10); i++) {
-        if(e.target.files[i].type.search('video') >= 0) {
-          if(videoCount === 1) {
-            toast.error('You can only upload 1 video file');
-            return ;
+
+      for (
+        let i = 0;
+        i <
+        (e.target.files.length <= 10 ? e.target.files.length : 10);
+        i++
+      ) {
+        if (e.target.files[i].type.search('video') >= 0) {
+          if (videoCount === 1) {
+            toast.error('You can only upload 1 video file')
+            return
           }
-          videoCount++;
+          videoCount++
         }
 
-        if(e.target.files[i].size > maximum_size) {
-          toast.error('You can only upload with maximum size of 15MB');
-          return ;
+        if (e.target.files[i].size > maximum_size) {
+          toast.error('You can only upload with maximum size of 15MB')
+          return
         }
 
         newFormData.append('image', e.target.files[i])
         dt.items.add(e.target.files[i])
-        
+
         tempSizeArray.push(0)
-        tempNameArray.push("")
+        tempNameArray.push('')
       }
 
       setUploadLoading(true)
       setFiles(dt.files)
 
-      const first_index = files ? files.length : 0 ;
+      const first_index = files ? files.length : 0
 
-      for(let i = 0 ; i < e.target.files.length ; i++) {
+      for (let i = 0; i < e.target.files.length; i++) {
         FileUploadService.upload(e.target.files[i], (event: any) => {
           // console.log(i," file => " , event.loaded,"  ",Math.round((100 * event.loaded) / event.total), "%")
-          tempSizeArray[first_index + i] = Math.round((100 * event.loaded) / event.total)
+          tempSizeArray[first_index + i] = Math.round(
+            (100 * event.loaded) / event.total
+          )
           setUploadedSizeArray([...tempSizeArray])
         })
-        .then((response) => {
-          tempSizeArray[first_index + i] = 100
-          tempNameArray[first_index + i] = response.data.url
-          setUploadedSizeArray([...tempSizeArray])
-          setUploadedFileNameArray([...tempNameArray])
-        })
-        .then((files) => {
-        })
-        .catch((err) => {
-          tempSizeArray.splice(first_index + i , 1) ;
-          tempNameArray.splice(first_index + i, 1) ;
+          .then(response => {
+            tempSizeArray[first_index + i] = 100
+            tempNameArray[first_index + i] = response.data.url
+            setUploadedSizeArray([...tempSizeArray])
+            setUploadedFileNameArray([...tempNameArray])
+          })
+          .then(files => {})
+          .catch(err => {
+            tempSizeArray.splice(first_index + i, 1)
+            tempNameArray.splice(first_index + i, 1)
 
-          dt.items.remove(i);
-          setFiles(dt.files);
-          setUploadedSizeArray([...tempSizeArray])
-          setUploadedFileNameArray([...tempNameArray])
-        });
+            dt.items.remove(i)
+            setFiles(dt.files)
+            setUploadedSizeArray([...tempSizeArray])
+            setUploadedFileNameArray([...tempNameArray])
+          })
       }
     }
-  };
+  }
 
   const clearImages = async () => {
-    if(uploadLoading) return
-    if(files) {
-      for(let i = 0 ; i < files.length ; i++) {
-        axios.post(`${ENV.API_URL}/removeFile`,  {
-          filename : uploadedFileNameArray[i]
+    if (uploadLoading) return
+    if (files) {
+      for (let i = 0; i < files.length; i++) {
+        axios.post(`${ENV.API_URL}/removeFile`, {
+          filename: uploadedFileNameArray[i]
         })
       }
     }
@@ -162,22 +172,21 @@ function CreatePost() {
     setUploadedSizeArray([])
     setUploadedFileNameArray([])
     setFiles(null)
-
   }
 
   const removeFile = async (index: number) => {
     if (!files) return
 
     const dt = new DataTransfer()
-   
-    let tempSizedArray = [...uploadedSizeArray] ;
-    let tempNameArray = [...uploadedFileNameArray] ;
+
+    let tempSizedArray = [...uploadedSizeArray]
+    let tempNameArray = [...uploadedFileNameArray]
 
     tempSizedArray.splice(index, 1)
     tempNameArray.splice(index, 1)
 
     axios.post(`${ENV.API_URL}/removeFile`, {
-      filename : uploadedFileNameArray[index]
+      filename: uploadedFileNameArray[index]
     })
 
     for (let i = 0; i < files.length; i++) {
@@ -242,7 +251,7 @@ function CreatePost() {
     formData.append('title', title)
 
     for (let i = 0; i < uploadedFileNameArray.length; i++) {
-      formData.append('images', uploadedFileNameArray[i].toString());
+      formData.append('images', uploadedFileNameArray[i].toString())
     }
 
     if (text) {
@@ -288,16 +297,21 @@ function CreatePost() {
   }
 
   useEffect(() => {
-    const filledSizeCount = uploadedSizeArray.filter(uploadedSize => uploadedSize === 100).length ;
-    const filledNameCount = uploadedFileNameArray.filter(uploadedName => uploadedName !== "").length ;
+    const filledSizeCount = uploadedSizeArray.filter(
+      uploadedSize => uploadedSize === 100
+    ).length
+    const filledNameCount = uploadedFileNameArray.filter(
+      uploadedName => uploadedName !== ''
+    ).length
 
-    if (filledSizeCount === uploadedSizeArray.length 
-      && filledNameCount === uploadedFileNameArray.length 
-      && uploadedSizeArray.length === uploadedFileNameArray.length
+    if (
+      filledSizeCount === uploadedSizeArray.length &&
+      filledNameCount === uploadedFileNameArray.length &&
+      uploadedSizeArray.length === uploadedFileNameArray.length
     ) {
       setUploadLoading(false)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uploadedFileNameArray, uploadedSizeArray])
   useEffect(() => {
     if (!selectedAccount) router.push('/')
@@ -314,14 +328,18 @@ function CreatePost() {
           style={{
             display: 'none'
           }}
-          accept="image/png, image/gif, image/jpeg, image/webp, video/*"
+          accept='image/png, image/gif, image/jpeg, image/webp, video/*'
           onChange={handleFileSelected}
         />
         <div className='flex flex-col gap-2'>
           <div className='flex flex-row gap-2 items-end'>
             <div className='flex items-center justify-center z-[1] cursor-pointer'>
               <p
-                className={`text-white text-sm ${uploadLoading ? 'bg-gray-700 cursor-not-allowed' : 'bg-black'} px-3 py-2 rounded-lg flex flex-row items-center`}
+                className={`text-white text-sm ${
+                  uploadLoading
+                    ? 'bg-gray-700 cursor-not-allowed'
+                    : 'bg-black'
+                } px-3 py-2 rounded-lg flex flex-row items-center`}
                 onClick={() => handleUploadImages()}
               >
                 <span className='mr-2 text-lg'>
@@ -336,7 +354,11 @@ function CreatePost() {
                   {files.length} Selected
                 </p>
                 <p
-                  className={`${uploadLoading ? 'cursor-not-allowed' : 'cursor-pointer'} text-md text-blue-500 underline`}
+                  className={`${
+                    uploadLoading
+                      ? 'cursor-not-allowed'
+                      : 'cursor-pointer'
+                  } text-md text-blue-500 underline`}
                   onClick={clearImages}
                 >
                   Clear
@@ -347,14 +369,17 @@ function CreatePost() {
         </div>
         <div
           className={`cursor-pointer transition duration-500 ease-in-out ${
-            (createPost.isLoading || isDisablePost || uploadLoading)
+            createPost.isLoading || isDisablePost || uploadLoading
               ? 'bg-slate-600 cursor-not-allowed'
               : posted
               ? 'bg-green-600'
               : 'bg-blue-600'
           } px-4 py-2 rounded-md text-white flex justify-center items-center`}
           onClick={() =>
-            !createPost.isLoading && !isDisablePost && !uploadLoading && handlePost()
+            !createPost.isLoading &&
+            !isDisablePost &&
+            !uploadLoading &&
+            handlePost()
           }
         >
           <p className='text-sm'>
@@ -368,9 +393,9 @@ function CreatePost() {
       </div>
       <div className='flex flex-row gap-2 flex-wrap mb-2'>
         {files && files.length && (
-          <UploadedImages 
-            files={files} 
-            removeFile={removeFile} 
+          <UploadedImages
+            files={files}
+            removeFile={removeFile}
             uploadLoading={uploadLoading}
             uploadedSizeArray={uploadedSizeArray}
             uploadedFileNameArray={uploadedFileNameArray}
