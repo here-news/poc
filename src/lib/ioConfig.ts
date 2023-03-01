@@ -9,11 +9,7 @@ let isCreatingConnection: boolean
 
 async function ioConnect() {
   if (!conn) {
-    conn = SocketIO(ENV.WS_URL, {
-      path: '/socket.io',
-      transports: ['websocket'],
-      secure: true
-    })
+    conn = SocketIO(ENV.WS_URL)
     conn.connect()
   }
 
