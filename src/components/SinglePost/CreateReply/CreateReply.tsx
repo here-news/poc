@@ -7,7 +7,7 @@ import { useMutation } from 'react-query'
 import { toast } from 'react-toastify'
 import FileUploadService from 'services/FileUploadService'
 import { useAppSelector } from 'store/hooks'
-import { ILinkDetails } from 'types/interfaces'
+import { ILinkDetails, IUploadedStatus } from 'types/interfaces'
 import ImageUpload from './ImageUpload'
 
 interface CreateReplyProps {
@@ -75,7 +75,7 @@ function CreateReply({
     }
   )
 
-  const handlePost = async (uploadedFileNameArray : String[]) => {
+  const handlePost = async (uploadedStatus : IUploadedStatus) => {
     const text = editorRef.current && editorRef.current.root.innerHTML
 
     if (posted) return
@@ -132,8 +132,8 @@ function CreateReply({
 
     formData.append('userId', selectedAccount._id)
 
-    for (let i = 0; i < uploadedFileNameArray.length; i++) {
-      formData.append('images[]', uploadedFileNameArray[i].toString());
+    for (let i = 0; i < uploadedStatus.nameArray.length; i++) {
+      formData.append('images[]', uploadedStatus.nameArray[i].toString());
     }
 
     createPostReply.mutate(formData)

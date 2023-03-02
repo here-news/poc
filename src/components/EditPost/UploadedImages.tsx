@@ -2,13 +2,13 @@ import React, { memo } from 'react'
 import Image from 'next/image'
 import { getTypeMedia } from 'utils';
 import Loading from 'react-loading';
+import { IUploadedStatus } from 'types/interfaces';
 
 interface UploadedImagesProps {
   files: FileList | null
   prevFiles: string[] | null
   uploadLoading?: Boolean
-  uploadedSizeArray?: Number[]
-  uploadedFileNameArray?: String[]
+  uploadedStatus? : IUploadedStatus
   removeFile: (
     index: number,
     type: 'uploaded' | 'notUploaded'
@@ -16,7 +16,7 @@ interface UploadedImagesProps {
 }
 
 const UploadedImages =
-  ({ files, prevFiles, removeFile, uploadLoading, uploadedFileNameArray }: UploadedImagesProps) => {
+  ({ files, prevFiles, removeFile, uploadLoading, uploadedStatus }: UploadedImagesProps) => {
     return (
       <React.Fragment>
         {prevFiles &&
@@ -59,7 +59,7 @@ const UploadedImages =
                     <p className='text-xs'>x</p>
                 </div>}
               
-                {uploadedFileNameArray && !uploadedFileNameArray[i] && (
+                {uploadedStatus && !uploadedStatus.nameArray[i] && (
                   <div className='absolute top-0 left-0 w-full h-full border-b-2 flex items-center justify-center z-10'>
                     <Loading
                       type='spin'

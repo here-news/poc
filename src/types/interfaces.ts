@@ -53,3 +53,8 @@ export interface ILinkDetails {
   description?: string
   youtubeId?: string
 }
+
+export interface IUploadedStatus {
+  nameArray : string[]
+  sizeArray : number[]
+}

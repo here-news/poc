@@ -5,13 +5,14 @@ import React, { useRef, useState, useEffect } from 'react'
 import { FiPaperclip } from 'react-icons/fi'
 import { toast } from 'react-toastify'
 import FileUploadService from 'services/FileUploadService'
-import { uploadMedia } from 'utils'
+import { IUploadedStatus } from 'types/interfaces'
+import { selectAndUploadMedia } from 'utils'
 
 interface ImageUploadProps {
   isLoading: boolean
   posted: boolean
   isDisablePost: boolean
-  handlePost: (uploadedFileNameArray : String[]) => void
+  handlePost: (uploadedStatus : IUploadedStatus) => void
   files: FileList | null
   handleFiles: (files: FileList | null) => void
 }
@@ -25,37 +26,56 @@ function ImageUpload({
   handleFiles
 }: ImageUploadProps) {
   const imageRef = useRef<HTMLInputElement | null>(null)
-  const [uploadedSizeArray, setUploadedSizeArray] = useState<Number[]>([])
-  const [uploadedFileNameArray,setUploadedFileNameArray] = useState<String[]>([]);
   const [uploadLoading, setUploadLoading] = useState<Boolean>(false)
+  const [uploadedStatus, setUploadedStatus] = useState<IUploadedStatus>({
+    sizeArray : [],
+    nameArray :[]
+  });
 
   const handleFileSelected = (
     e: React.ChangeEvent<HTMLInputElement>
   ): void => {
     if(!e.target.files) return
 
-    let videoCount : number = 0 ;
-    const maximum_size : number = 15728640 ;
-
-    let tempSizeArray : Number[] = [] ;
-    let tempNameArray : String[] = [] ;
-
-    const newFormData : FormData = new FormData();
-
     const lengthOfFiles = files
       ? files.length + e.target.files.length
-      : e.target.files
+      : e.target.files.length
 
     if (lengthOfFiles > 10) {
       toast.error('You can only upload 10 media files')
     } else {
-      uploadMedia(files, e.target.files, videoCount,
-        tempSizeArray, tempNameArray, 
-        uploadedSizeArray, uploadedFileNameArray, 
-        setUploadedSizeArray, setUploadedFileNameArray,
-        setUploadLoading,
-        handleFiles
-      )
+      let i : number = 0 ;
+      let tempStatus : IUploadedStatus;
+      setUploadLoading(true)
+
+      for(const result of selectAndUploadMedia(
+          null, files, e.target.files,
+          uploadedStatus
+      )){
+        if(result.error) {
+          setUploadLoading(false)
+          break
+        }
+        if(result.selected) {
+          handleFiles(result.files)
+          setUploadedStatus(result.initialStatus)
+          tempStatus = result.initialStatus
+        } else {
+          const index = i
+          let countOfUploaded : number = files ? files.length : 0 
+
+          result.then((response:any) => {
+            tempStatus.sizeArray[countOfUploaded + index] = 100
+            tempStatus.nameArray[countOfUploaded + index] = response.data.url
+            setUploadedStatus({...tempStatus})
+          }).catch((err:any) => {
+            tempStatus.sizeArray.slice(countOfUploaded+index, 1)
+            tempStatus.nameArray.slice(countOfUploaded+index, 1)
+            setUploadedStatus({...tempStatus})
+          })
+          i++;
+        }
+      }
     }
   }
 
@@ -67,6 +87,7 @@ function ImageUpload({
   const clearImages = () => {
     if(uploadLoading) return
     handleFiles(null)
+    if(imageRef.current) imageRef.current.value = ''
   }
 
   const removeFile = (index: number) => {
@@ -74,14 +95,13 @@ function ImageUpload({
 
     const dt = new DataTransfer()
    
-    let tempSizedArray = [...uploadedSizeArray] ;
-    let tempNameArray = [...uploadedFileNameArray] ;
+    let tempStatus = {...uploadedStatus}
 
-    tempSizedArray.splice(index, 1)
-    tempNameArray.splice(index, 1)
+    tempStatus.nameArray.splice(index, 1)
+    tempStatus.sizeArray.splice(index, 1)
 
     axios.post(`${ENV.API_URL}/removeFile`, {
-      filename : uploadedFileNameArray[index]
+      filename : tempStatus.nameArray[index]
     })
 
     for (let i = 0; i < files.length; i++) {
@@ -90,22 +110,21 @@ function ImageUpload({
     }
 
     handleFiles(dt.files && dt.files.length > 0 ? dt.files : null)
-    setUploadedFileNameArray([...tempNameArray])
-    setUploadedSizeArray([...tempSizedArray])
+    setUploadedStatus({...tempStatus})
   }
 
   useEffect(() => {
-    const filledSizeCount = uploadedSizeArray.filter(uploadedSize => uploadedSize === 100).length ;
-    const filledNameCount = uploadedFileNameArray.filter(uploadedName => uploadedName !== "").length ;
+    const filledSizeCount = uploadedStatus.sizeArray.filter(uploadedSize => uploadedSize === 100).length ;
+    const filledNameCount = uploadedStatus.nameArray.filter(uploadedName => uploadedName !== "").length ;
 
-    if (filledSizeCount === uploadedSizeArray.length 
-      && filledNameCount === uploadedFileNameArray.length 
-      && uploadedSizeArray.length === uploadedFileNameArray.length
+    if (filledSizeCount === uploadedStatus.sizeArray.length 
+      && filledNameCount === uploadedStatus.nameArray.length 
+      && uploadedStatus.sizeArray.length === uploadedStatus.nameArray.length
     ) {
       setUploadLoading(false)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uploadedFileNameArray, uploadedSizeArray])
+  }, [uploadedStatus])
 
   return (
     <div>
@@ -153,7 +172,7 @@ function ImageUpload({
               ? 'bg-green-600'
               : 'bg-blue-600'
           } px-4 py-2 rounded-md text-white flex justify-center items-center`}
-          onClick={() => !isLoading && !isDisablePost && !uploadLoading && handlePost(uploadedFileNameArray)}
+          onClick={() => !isLoading && !isDisablePost && !uploadLoading && handlePost(uploadedStatus)}
         >
           <p className='text-sm'>
             {isLoading ? 'Posting...' : posted ? 'Posted!' : 'Post'}
@@ -165,8 +184,7 @@ function ImageUpload({
           <UploadedImages 
             files={files} removeFile={removeFile} 
             uploadLoading={uploadLoading}
-            uploadedSizeArray={uploadedSizeArray}
-            uploadedFileNameArray={uploadedFileNameArray}
+            uploadedStatus={uploadedStatus}
           />
         )}
       </div>

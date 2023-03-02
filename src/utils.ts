@@ -1,8 +1,13 @@
 import * as React from 'react'
 import { toast } from 'react-toastify'
 import FileUploadService from 'services/FileUploadService';
+import { IUploadedStatus } from 'types/interfaces';
 
 const maximum_size : number = 15728640 ;
+
+const ErrorYield  = {
+  error : true
+}
 
 export const youtubeParser = (url: any) => {
   const regExp = /.*(?:youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=)([^#\&\?]*).*/;
@@ -29,19 +34,25 @@ export const getTypeMedia = (mediaName: string) => {
   return tokens[1] ;
 }
 
-export const uploadMedia = (
+export const selectAndUploadMedia = function* (
+  prevFiles : string[] | null,
   selected_files: FileList | null, 
-  files : FileList, 
-  videoCount : number, 
-  tempSizeArray : Number[], 
-  tempNameArray : String[],
-  uploadedSizeArray : Number[],
-  uploadedFileNameArray : String[],
-  setUploadedSizeArray : React.Dispatch<React.SetStateAction<Number[]>>,
-  setUploadedFileNameArray : React.Dispatch<React.SetStateAction<String[]>>,
-  setUploadLoading : React.Dispatch<React.SetStateAction<Boolean>>,
-  setFiles : (files: FileList | null) => void | React.Dispatch<React.SetStateAction<FileList | null>>
-) => {
+  files : FileList,
+  uploadedStatus : IUploadedStatus
+) : any {
+  let videoCount : number = 0 ;
+  const maximum_size : number = 15728640 ;
+
+  let tempStatus : IUploadedStatus = {
+    ...uploadedStatus
+  }
+
+  if(prevFiles) {
+    const videoArray = prevFiles.filter(item => getTypeMedia(item) === 'video')
+
+    if(videoArray.length) videoCount++
+  }
+  
   const dt = new DataTransfer()
 
   if(selected_files) {
@@ -49,14 +60,14 @@ export const uploadMedia = (
       if(selected_files[i].type.search('video') >= 0) videoCount++;
       dt.items.add(selected_files[i])
     }
-    tempNameArray = [...uploadedFileNameArray]
-    tempSizeArray = [...uploadedSizeArray]
+   
   }
 
   for (let i = 0; i < (files.length <= 10 ? files.length : 10); i++) {
     if(files[i].type.search('video') >= 0) {
       if(videoCount === 1) {
         toast.error('You can only upload 1 video file')
+        yield ErrorYield
         return 
       }
       videoCount++
@@ -64,41 +75,30 @@ export const uploadMedia = (
 
     if(files[i].size > maximum_size) {
       toast.error('You can only upload with maximum size of 15MB');
+      yield ErrorYield
       return 
     }
 
     dt.items.add(files[i])
     
-    tempSizeArray.push(0)
-    tempNameArray.push("")
+    tempStatus = {
+      nameArray : [...tempStatus.nameArray, ""],
+      sizeArray : [...tempStatus.sizeArray, 0]
+    }
   }
 
-  setUploadLoading(true)
-  setFiles(dt.files)
+  const first_index : number = selected_files ? selected_files.length : 0 
 
-  const first_index = selected_files ? selected_files.length : 0 
+  yield {
+    first_index,
+    files : dt.files,
+    selected:true,
+    initialStatus : {...tempStatus}
+  }
 
   for(let i = 0 ; i < files.length ; i++) {
-    FileUploadService.upload(files[i], (event: any) => {
-      tempSizeArray[first_index + i] = Math.round((100 * event.loaded) / event.total)
-      setUploadedSizeArray([...tempSizeArray])
+    yield FileUploadService.upload(files[i], (event: any) => {
+      tempStatus.sizeArray[first_index + i] = Math.round((100 * event.loaded) / event.total)
     })
-    .then((response) => {
-      tempSizeArray[first_index + i] = 100
-      tempNameArray[first_index + i] = response.data.url
-      setUploadedSizeArray([...tempSizeArray])
-      setUploadedFileNameArray([...tempNameArray])
-    })
-    .then((files) => {
-    })
-    .catch((err) => {
-      tempSizeArray.splice(first_index + i , 1) 
-      tempNameArray.splice(first_index + i, 1) 
-
-      dt.items.remove(i)
-      setFiles(dt.files)
-      setUploadedSizeArray([...tempSizeArray])
-      setUploadedFileNameArray([...tempNameArray])
-    });
   }
 }

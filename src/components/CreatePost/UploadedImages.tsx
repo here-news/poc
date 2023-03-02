@@ -1,21 +1,20 @@
 import Image from 'next/image'
 import React from 'react'
 import Loading from 'react-loading'
+import { IUploadedStatus } from 'types/interfaces'
 
 interface UploadedImagesProps {
   files: FileList
   removeFile: (index: number) => void
   uploadLoading?: Boolean
-  uploadedSizeArray?: Number[]
-  uploadedFileNameArray?: String[]
+  uploadedStatus? : IUploadedStatus
 }
 
 const UploadedImages = ({
   files,
   removeFile,
   uploadLoading,
-  uploadedSizeArray,
-  uploadedFileNameArray
+  uploadedStatus
 }: UploadedImagesProps) => {
   return (
     <React.Fragment>
@@ -29,7 +28,7 @@ const UploadedImages = ({
               <p className='text-xs'>x</p>
             </div>
           )}
-          {uploadedFileNameArray && !uploadedFileNameArray[i] && (
+          {uploadedStatus && !uploadedStatus.nameArray[i] && (
             <div className='absolute top-0 left-0 w-full h-full border-b-2 flex items-center justify-center z-10'>
               <Loading
                 type='spin'

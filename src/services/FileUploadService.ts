@@ -1,6 +1,6 @@
 import http from "./http-common";
 
-const upload = (file : File, onUploadProgress: any): Promise<any> => {
+const upload = (file : File, onUploadProgress: any) => {
     const formData = new FormData() ;
 
     formData.append('image', file) ;
@@ -13,13 +13,8 @@ const upload = (file : File, onUploadProgress: any): Promise<any> => {
     });
 };
 
-const getFiles = () : Promise<any> => {
-  return http.get("/files");
-};
-
 const FileUploadService = {
-  upload,
-  getFiles,
+  upload
 };
 
 export default FileUploadService;

@@ -11,13 +11,13 @@ import { toast } from 'react-toastify'
 import { IoMdImages } from 'react-icons/io'
 import Quill from 'quill'
 
-import { ILinkDetails, IPost } from 'types/interfaces'
+import { ILinkDetails, IPost, IUploadedStatus } from 'types/interfaces'
 import { useAppSelector } from 'store/hooks'
 import TextEditor from 'components/TextEditor/TextEditor'
 import Input from 'components/Input'
 import UploadedImages from './UploadedImages'
 import FileUploadService from 'services/FileUploadService'
-import { getTypeMedia, uploadMedia } from 'utils'
+import { getTypeMedia, selectAndUploadMedia } from 'utils'
 
 interface EditPostProps extends IPost {
   isModalVisible: boolean
@@ -40,8 +40,10 @@ function EditPost({
   )
 
   const [uploadLoading, setUploadLoading] = useState<Boolean>(false)
-  const [uploadedSizeArray, setUploadedSizeArray] = useState<Number[]>([])
-  const [uploadedFileNameArray,setUploadedFileNameArray] = useState<String[]>([]);
+  const [uploadedStatus, setUploadedStatus] = useState<IUploadedStatus>({
+    nameArray : [],
+    sizeArray : []
+  })
 
   const [isDisablePost, setIsDisablePost] = useState(false)
   const [canResetPreview, setCanResetPreview] = useState(false)
@@ -101,18 +103,6 @@ function EditPost({
   ): void => {
     if (!e.target.files) return
 
-    let videoCount : number = 0 ;
-    const maximum_size : number = 15728640 ;
-
-    let tempSizeArray : Number[] = [] ;
-    let tempNameArray : String[] = [] ;
-
-    if(prevFiles) {
-      const videoArray = prevFiles.filter(item => getTypeMedia(item) === 'video')
-
-      if(videoArray.length) videoCount++
-    }
-    
     const lengthOfFiles = (files
     ? files.length + e.target.files.length 
     : e.target.files.length )
@@ -121,13 +111,38 @@ function EditPost({
     if (lengthOfFiles > 10) {
       toast.error('You can only upload 10 media files')
     } else {
-      uploadMedia(files, e.target.files, videoCount,
-        tempSizeArray, tempNameArray, 
-        uploadedSizeArray, uploadedFileNameArray, 
-        setUploadedSizeArray, setUploadedFileNameArray,
-        setUploadLoading,
-        setFiles
-      )
+      let i : number = 0 ;
+      let tempStatus : IUploadedStatus;
+      setUploadLoading(true)
+
+      for(const result of selectAndUploadMedia(
+          prevFiles, files, e.target.files,
+          uploadedStatus
+      )){
+        if(result.error) {
+          setUploadLoading(false)
+          break
+        }
+        if(result.selected) {
+          setFiles(result.files)
+          setUploadedStatus(result.initialStatus)
+          tempStatus = result.initialStatus
+        } else {
+          const index = i
+          let countOfUploaded : number = files ? files.length : 0 
+
+          result.then((response:any) => {
+            tempStatus.sizeArray[countOfUploaded + index] = 100
+            tempStatus.nameArray[countOfUploaded + index] = response.data.url
+            setUploadedStatus({...tempStatus})
+          }).catch((err:any) => {
+            tempStatus.sizeArray.slice(countOfUploaded+index, 1)
+            tempStatus.nameArray.slice(countOfUploaded+index, 1)
+            setUploadedStatus({...tempStatus})
+          })
+          i++;
+        }
+      }
     }
   }
 
@@ -136,6 +151,7 @@ function EditPost({
 
     setPrevFiles(null)
     setFiles(null)
+    if(imageRef.current) imageRef.current.value = ''
   }
 
   const removeFile = (
@@ -150,12 +166,10 @@ function EditPost({
       setPrevFiles(tempFiles)
     } else if (type === 'notUploaded' && files) {
 
-      let tempSizedArray = [...uploadedSizeArray] ;
-      let tempNameArray = [...uploadedFileNameArray] ;
+      let tempStatus = {...uploadedStatus}
 
-      tempSizedArray.splice(index, 1)
-      tempNameArray.splice(index, 1)
-      
+      tempStatus.nameArray.splice(index, 1)
+      tempStatus.sizeArray.splice(index, 1)
 
       const dt = new DataTransfer()
 
@@ -165,10 +179,7 @@ function EditPost({
       }
   
       setFiles(dt.files && dt.files.length > 0 ? dt.files : null)
-      setUploadedFileNameArray([...tempNameArray])
-      setUploadedSizeArray([...tempSizedArray])
-
-      setFiles(dt.files && dt.files.length > 0 ? dt.files : null)
+      setUploadedStatus({...tempStatus})
     }
   }
 
@@ -265,27 +276,25 @@ function EditPost({
       )
     }
 
-    if (uploadedFileNameArray.length) {
-      for (let i = 0; i < uploadedFileNameArray.length; i++) {
-        formData.append('images[]', uploadedFileNameArray[i].toString())
-      }
+    for (let i = 0; i < uploadedStatus.nameArray.length; i++) {
+      formData.append('images[]', uploadedStatus.nameArray[i])
     }
 
     editPost.mutate(formData)
   }
 
   useEffect(() => {
-    const filledSizeCount = uploadedSizeArray.filter(uploadedSize => uploadedSize === 100).length ;
-    const filledNameCount = uploadedFileNameArray.filter(uploadedName => uploadedName !== "").length ;
+    const filledSizeCount = uploadedStatus.sizeArray.filter(uploadedSize => uploadedSize === 100).length ;
+    const filledNameCount = uploadedStatus.nameArray.filter(uploadedName => uploadedName !== "").length ;
 
-    if (filledSizeCount === uploadedSizeArray.length 
-      && filledNameCount === uploadedFileNameArray.length 
-      && uploadedSizeArray.length === uploadedFileNameArray.length
+    if (filledSizeCount === uploadedStatus.sizeArray.length 
+      && filledNameCount === uploadedStatus.nameArray.length 
+      && uploadedStatus.sizeArray.length === uploadedStatus.nameArray.length
     ) {
       setUploadLoading(false)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uploadedFileNameArray, uploadedSizeArray])
+  }, [uploadedStatus])
 
   if (!accounts || !selectedAccount) return <React.Fragment />
   return (
@@ -369,8 +378,7 @@ function EditPost({
             prevFiles={prevFiles ? prevFiles : null}
             removeFile={removeFile}
             uploadLoading={uploadLoading}
-            uploadedSizeArray={uploadedSizeArray}
-            uploadedFileNameArray={uploadedFileNameArray}
+            uploadedStatus={uploadedStatus}
           />
         ) : (
           <React.Fragment />
