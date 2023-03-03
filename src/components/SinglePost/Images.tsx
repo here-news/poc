@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import Image from 'next/image'
-import { getTypeMedia } from 'helper/stringHelper'
+import { getTypeMedia } from 'utils'
 
 interface ImagesProps {
   images: string[] | undefined
@@ -19,7 +19,7 @@ function Images({ images, handleSelectedImages }: ImagesProps) {
 
       if (videoArray?.length) {
         setCenterVideoUrl(videoArray[0])
-      }
+      } else setCenterVideoUrl('')
 
       const imageArray = images.filter(
         item => getTypeMedia(item) === 'image'
@@ -31,11 +31,11 @@ function Images({ images, handleSelectedImages }: ImagesProps) {
 
   return (
     <div className='flex flex-row flex-wrap gap-2 justify-between items-center'>
-      {center_video_url && (
-        <video style={{ width: '100%' }} controls>
-          <source src={center_video_url} />
+      {
+        center_video_url && <video className='w-full' controls>
+          <source src={center_video_url}  />
         </video>
-      )}
+      }
       {images && all_images && all_images.length <= 4
         ? all_images
             .slice(0, all_images.length)
@@ -100,7 +100,7 @@ function Images({ images, handleSelectedImages }: ImagesProps) {
               {index == 3 && (
                 <div className='flex flex-row absolute bg-[rgba(0,0,0,0.5)] justify-center items-center top-0 left-0 w-full h-full'>
                   <p className='font-bold text-4xl text-white'>
-                    +{images.length - 4}
+                    +{all_images.length - 4}
                   </p>
                 </div>
               )}
