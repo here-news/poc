@@ -53,7 +53,13 @@ jobs:
         run: ${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}
 
       - name: Build with Next.js
-        run: ${{ steps.detect-package-manager.outputs.runner }} next build
+        run: |
+          echo "export const ENV = {
+            WS_URL: '${{ secrets.STAGING_WS_URL }}',
+            API_URL: '${{ secrets.STAGING_API_URL }}'
+          };" > ./src/lib/env.ts
+
+          ${{ steps.detect-package-manager.outputs.runner }} next build
 
       - id: 'auth'
         name: 'Authenticate with GCP'

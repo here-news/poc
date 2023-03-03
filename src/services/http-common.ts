@@ -1,9 +1,9 @@
-import axios from "axios";
-import { ENV } from 'lib/env';
+import axios from 'axios'
+import { ENV } from 'lib/env'
 
 export default axios.create({
   baseURL: `${ENV.API_URL}`,
   headers: {
-    "Content-type": "application/json",
-  },
-});
+    'Content-type': 'application/json'
+  }
+})

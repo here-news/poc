@@ -18,7 +18,7 @@ function BaseLayout({ children, pageTitle }: ILayout) {
         */}
       </Head>
       <Ticker onActivePageChange={changeActivePage} />
-      <div className="flex flex-col items-center">{children}</div>
+      <div className='flex flex-col items-center'>{children}</div>
     </div>
   )
 }

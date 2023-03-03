@@ -63,7 +63,7 @@ function CreatePost() {
     setIsDisablePost(state)
 
   const handleUploadImages = () => {
-    if(uploadLoading) return
+    if (uploadLoading) return
     imageRef.current && imageRef.current.click()
   }
 
@@ -283,14 +283,18 @@ function CreatePost() {
           style={{
             display: 'none'
           }}
-          accept="image/png, image/gif, image/jpeg, image/webp, video/*"
+          accept='image/png, image/gif, image/jpeg, image/webp, video/*'
           onChange={handleFileSelected}
         />
         <div className='flex flex-col gap-2'>
           <div className='flex flex-row gap-2 items-end'>
             <div className='flex items-center justify-center z-[1] cursor-pointer'>
               <p
-                className={`text-white text-sm ${uploadLoading ? 'bg-gray-700 cursor-not-allowed' : 'bg-black'} px-3 py-2 rounded-lg flex flex-row items-center`}
+                className={`text-white text-sm ${
+                  uploadLoading
+                    ? 'bg-gray-700 cursor-not-allowed'
+                    : 'bg-black'
+                } px-3 py-2 rounded-lg flex flex-row items-center`}
                 onClick={() => handleUploadImages()}
               >
                 <span className='mr-2 text-lg'>
@@ -305,7 +309,11 @@ function CreatePost() {
                   {files.length} Selected
                 </p>
                 <p
-                  className={`${uploadLoading ? 'cursor-not-allowed' : 'cursor-pointer'} text-md text-blue-500 underline`}
+                  className={`${
+                    uploadLoading
+                      ? 'cursor-not-allowed'
+                      : 'cursor-pointer'
+                  } text-md text-blue-500 underline`}
                   onClick={clearImages}
                 >
                   Clear
@@ -316,14 +324,17 @@ function CreatePost() {
         </div>
         <div
           className={`cursor-pointer transition duration-500 ease-in-out ${
-            (createPost.isLoading || isDisablePost || uploadLoading)
+            createPost.isLoading || isDisablePost || uploadLoading
               ? 'bg-slate-600 cursor-not-allowed'
               : posted
               ? 'bg-green-600'
               : 'bg-blue-600'
           } px-4 py-2 rounded-md text-white flex justify-center items-center`}
           onClick={() =>
-            !createPost.isLoading && !isDisablePost && !uploadLoading && handlePost()
+            !createPost.isLoading &&
+            !isDisablePost &&
+            !uploadLoading &&
+            handlePost()
           }
         >
           <p className='text-sm'>
@@ -337,9 +348,9 @@ function CreatePost() {
       </div>
       <div className='flex flex-row gap-2 flex-wrap mb-2'>
         {files && files.length && (
-          <UploadedImages 
-            files={files} 
-            removeFile={removeFile} 
+          <UploadedImages
+            files={files}
+            removeFile={removeFile}
             uploadLoading={uploadLoading}
             uploadedStatus={uploadedStatus}
           />
