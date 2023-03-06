@@ -5,7 +5,8 @@ const nextConfig = {
     domains: [
       'localhost',
       'poc.here.news',
-      'staging-dot-phonic-jetty-356702.uc.r.appspot.com'
+      'staging-dot-phonic-jetty-356702.uc.r.appspot.com',
+      'production-dot-phonic-jetty-356702.uc.r.appspot.com'
     ],
     remotePatterns: [
       {
