@@ -10,6 +10,12 @@ import { IUser } from 'types/interfaces'
 import Avatar from './Avatar'
 import LoginModal from './pages/home/LoginModal'
 import RegisterModal from './pages/home/RegisterModal'
+import Input from './Input'
+import axios from 'axios'
+import { ENV } from 'lib/env'
+import { useInfiniteQuery } from 'react-query'
+import Popover from './SearchModal'
+import SearchModal from './SearchModal'
 
 function Header() {
   const router = useRouter()
@@ -21,6 +27,7 @@ function Header() {
 
   const [isRegisterVisible, setIsRegisterVisible] = useState(false)
   const [isLoginVisible, setIsLoginVisible] = useState(false)
+  const [searchKey, setSearchKey] = useState('');
 
   const [openAccount, setOpenAccount] = useState(false)
 
@@ -45,6 +52,7 @@ function Header() {
     setOpenAccount(false)
   }
 
+  const handleSearchKey = (value : string) => { setSearchKey(value) }
   const toggleIsRegisterVisible = () => {
     setIsRegisterVisible(prev => !prev)
   }
@@ -83,7 +91,7 @@ function Header() {
                 <Link href='/'>News@HERE</Link>
               </h2>
             </div>
-
+            <SearchModal />
             <div className='flex flex-row gap-2 items-center'>
               {selectedAccount ? (
                 <React.Fragment>
