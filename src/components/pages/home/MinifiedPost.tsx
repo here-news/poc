@@ -32,8 +32,9 @@ interface MinifiedPostProps extends IPost {
   noBorder?: boolean
   hasSingleLine?: boolean
   noInteraction?: boolean
-  toggleEditPostModal: () => void
-  handleSelectedPost: (post: IPost) => void
+  toggleEditPostModal?: () => void
+  handleSelectedPost?: (post: IPost) => void
+  clickPost? : () => void
 }
 
 function MinifiedPost({
@@ -54,7 +55,8 @@ function MinifiedPost({
   hasSingleLine,
   noInteraction,
   handleSelectedPost,
-  toggleEditPostModal
+  toggleEditPostModal,
+  clickPost
 }: MinifiedPostProps) {
   const router = useRouter()
   const queryClient = useQueryClient()
@@ -175,7 +177,7 @@ function MinifiedPost({
   )
 
   const editPost = () => {
-    handleSelectedPost({
+    if(handleSelectedPost) handleSelectedPost({
       _id,
       createdAt,
       downvotes,
@@ -189,7 +191,7 @@ function MinifiedPost({
       repliedTo
     })
 
-    toggleEditPostModal()
+    if(toggleEditPostModal) toggleEditPostModal()
   }
 
   const deletePost = () => {
@@ -227,7 +229,10 @@ function MinifiedPost({
   }, [title, text, findFirstTextNode])
 
   return (
-    <div onClick={() => router.push(`/post/${_id}`)} className=''>
+    <div onClick={() => {
+      router.push(`/post/${_id}`)
+      if(clickPost) clickPost()
+    }} className=''>
       <div
         className={`${
           !noBorder ? 'border-[0.0625rem] border-slate-400' : ''

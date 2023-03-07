@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { ENV } from 'lib/env';
 import React , { useState, useRef, useCallback, useEffect} from 'react'
-import { useInfiniteQuery, useQueryClient } from 'react-query'
+import { useInfiniteQuery, useQueryClient, useQuery } from 'react-query'
 import { IPost } from 'types/interfaces';
 
 import Input from './Input'
@@ -15,8 +15,11 @@ const SearchModal = ({} : SearchModalProps) => {
     const limit = 5;
 
     const [visible, setVisible] = useState(false)
+    const [focused, setFocused] = useState(false)
+    const [ptInRect, setPtInRect] = useState(false)
+
     const [searchKey, setSearchKey]  = useState('')
-    const [selectedPost, setSelectedPost] = useState<IPost | null>(null)
+
     const observerElem = useRef(null)
     const queryClient = useQueryClient()
 
@@ -27,21 +30,14 @@ const SearchModal = ({} : SearchModalProps) => {
      }
     
     const toggleEvent = () => {
-        setVisible(true)
+        setFocused(true)
     }
 
     const blurEvent = () => {
-        setVisible(false)
+        setFocused(false)
     }
 
-    const toggleEditPostModal = () => {}
-
-    const handleSelectedPost = (post?: IPost) => {
-        if (!post) return setSelectedPost(null)
-        setSelectedPost(post)
-    }
-
-    const fetchExplorePosts = async (page: Number) => {
+    const fetchExplorePosts = async (page: Number, searchKey:string) => {
         const response = await axios.get(
           `${ENV.API_URL}/getSearchPosts?per_page=${limit}&page=${page}&search=${searchKey}`
         )
@@ -55,10 +51,11 @@ const SearchModal = ({} : SearchModalProps) => {
         isSuccess,
         hasNextPage,
         fetchNextPage,
-        isFetchingNextPage
+        isFetchingNextPage,
+        refetch
     } = useInfiniteQuery(
         'getSearchedPosts',
-        ({ pageParam = 1 }) => fetchExplorePosts(pageParam),
+        ({ pageParam = 1 }) => fetchExplorePosts(pageParam, searchKey),
         {
             getNextPageParam: (lastPage, allPages) => {
                 const nextPage: number = allPages.length + 1
@@ -77,7 +74,7 @@ const SearchModal = ({} : SearchModalProps) => {
             }
         },
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [fetchNextPage, hasNextPage]
+        [fetchNextPage, hasNextPage, searchKey]
     )
     
     useEffect(() => {
@@ -88,13 +85,22 @@ const SearchModal = ({} : SearchModalProps) => {
         const observer = new IntersectionObserver(handleObserver, option)
         observer.observe(element)
         return () => observer.unobserve(element)
-    }, [fetchNextPage, hasNextPage, handleObserver])
+    }, [fetchNextPage, hasNextPage, handleObserver, searchKey])
+
+    useEffect(() => {
+        if(ptInRect) return ;
+        setVisible(focused)
+    }, [focused])
 
     return (
-        <div className='relative' onMouseOver={() => setVisible(true)} onMouseOut={() => setVisible(false)}>
+        <div className='relative'>
            <Input
-                onKeyUp={fetchNextPage}
-                onChange={handleSearchKey}
+                onKeyUp={() => {
+                    refetch()
+                }}
+                onChange={(value) => {
+                    handleSearchKey(value)
+                }}
                 value={searchKey}
                 placeholder='Enter Search Key'
                 type='text'
@@ -103,14 +109,19 @@ const SearchModal = ({} : SearchModalProps) => {
                   maxLength: 120
                 }}
                 onFocus={() => toggleEvent()}
+                onBlur={() => blurEvent()}
             />
             <div 
                 className='absolute z-10 border-[black] border-[1px] w-[300px] max-h-[400px] overflow-y-auto bg-white pt-2 pl-1 pr-1'
                 style={{
-                    display: visible ? 'block' : 'none'
+                    display: (visible && searchKey) ? 'block' : 'none'
                 }}
-                onMouseOutCapture={() => setVisible(false)}
-                onMouseOver={() => setVisible(true)}
+                onMouseOver={() => {
+                    setPtInRect(true)
+                }}
+                onMouseOut={() => {
+                    setPtInRect(false)
+                }}
             >
                 {searchKey && isSuccess &&
                     data &&
@@ -119,25 +130,23 @@ const SearchModal = ({} : SearchModalProps) => {
                     (page, pageIndex) =>
                         page &&
                         page.result &&
-                        page.result.map((post: IPost, i: number) => {
-                        const newIndex = pageIndex * limit + i
-                        return (
-                            // eslint-disable-next-line no-console
-                            <div key={post._id} className='w-full mb-2' onClick={() => { setVisible(false) }}>
-                            <MinifiedPost
-                                {...post}
-                                index={newIndex + 1}
-                                toggleEditPostModal={toggleEditPostModal}
-                                handleSelectedPost={handleSelectedPost}
-                            />
-                            </div>
+                        (page.result.length ? page.result.map((post: IPost, i: number) => {
+                            const newIndex = pageIndex * limit + i
+                            return (
+                                // eslint-disable-next-line no-console
+                                <div key={post._id} className='w-full mb-2'>
+                                    <MinifiedPost
+                                        noInteraction = {true}
+                                        {...post}
+                                        index={newIndex + 1}
+                                        clickPost={() => setVisible(false)}
+                                    />
+                                </div>
+                            )
+                        }) : <div className='w-full flex items-center justify-center pb-2' key={'not_found_id'}>No Found</div>
                         )
-                        })
                 )}
-                {
-                    !searchKey  && <div className='w-full h-full flex items-center justify-center pb-2'> No found!</div>
-                }
-                {searchKey && hasNextPage && (
+                {hasNextPage && (
                     <div className='my-4 w-full z-[1] loader' ref={observerElem}>
                     <div className='flex items-center justify-center z-[1]'>
                         <p className='text-white text-sm bg-black px-3 py-2 rounded-lg font-semibold flex flex-row items-center'>

@@ -40,7 +40,7 @@ function Input({
         placeholder={placeholder}
         onFocus={() => onFocus && onFocus()}
         onBlur={() => onBlur && onBlur()}
-        onKeyUp={() => onKeyUp && onKeyUp()}
+        onKeyUp={e => onKeyUp && onKeyUp()}
         {...inputProps}
       />
     </div>
