@@ -1,4 +1,4 @@
-import axios, { AxiosProgressEvent } from 'axios'
+import axios from 'axios'
 import Input from 'components/Input'
 import TextEditor from 'components/TextEditor/TextEditor'
 import { ENV } from 'lib/env'
@@ -11,15 +11,16 @@ import React, {
   useState
 } from 'react'
 import { IoMdImages } from 'react-icons/io'
+import Loading from 'react-loading'
 import { useMutation, useQueryClient } from 'react-query'
 import { toast } from 'react-toastify'
-import FileUploadService from 'services/FileUploadService'
 import { useAppSelector } from 'store/hooks'
 import { ILinkDetails, IUploadedStatus } from 'types/interfaces'
 import { selectAndUploadMedia } from 'utils'
 import UploadedImages from './UploadedImages'
 
 function CreatePost() {
+  const titleRef = useRef<NodeJS.Timeout | null>(null)
   const router = useRouter()
   const queryClient = useQueryClient()
   const { accounts, selectedAccount } = useAppSelector(
@@ -27,10 +28,11 @@ function CreatePost() {
   )
 
   const [uploadLoading, setUploadLoading] = useState<Boolean>(false)
-  const [uploadedStatus, setUploadedStatus] = useState<IUploadedStatus>({
-    sizeArray : [],
-    nameArray :[]
-  });
+  const [uploadedStatus, setUploadedStatus] =
+    useState<IUploadedStatus>({
+      sizeArray: [],
+      nameArray: []
+    })
 
   const [isDisablePost, setIsDisablePost] = useState(false)
   const [canResetPreview, setCanResetPreview] = useState(false)
@@ -40,6 +42,8 @@ function CreatePost() {
     null
   )
   const [posted, setPosted] = useState(false)
+  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
 
   const quillRef = useRef<Quill | null>(null)
   const imageRef = useRef<HTMLInputElement | null>(null)
@@ -57,7 +61,22 @@ function CreatePost() {
     []
   )
 
-  const handleTitle = (value: string) => setTitle(value)
+  const handleTitle = (value: string) => {
+    setTitle(value)
+    if (titleRef.current) {
+      clearTimeout(titleRef.current)
+    }
+    titleRef.current = setTimeout(() => {
+      if (
+        value.length > 5 &&
+        !suggestions
+          .map((x: string) => x.toLowerCase())
+          .includes(value.toLowerCase())
+      ) {
+        getSuggestions.mutate({ searchText: value })
+      }
+    }, 300)
+  }
   const toggleResetPreview = () => setCanResetPreview(prev => !prev)
   const toggleDisablePost = (state: boolean) =>
     setIsDisablePost(state)
@@ -68,9 +87,9 @@ function CreatePost() {
   }
 
   const handleFileSelected = async (
-    e: React.ChangeEvent<HTMLInputElement>    
+    e: React.ChangeEvent<HTMLInputElement>
   ): Promise<any> => {
-    if(!e.target.files) return
+    if (!e.target.files) return
 
     const lengthOfFiles = files
       ? files.length + e.target.files.length
@@ -79,72 +98,76 @@ function CreatePost() {
     if (lengthOfFiles > 10) {
       toast.error('You can only upload 10 media files')
     } else {
-      let i : number = 0 ;
-      let tempStatus : IUploadedStatus;
+      let i: number = 0
+      let tempStatus: IUploadedStatus
       setUploadLoading(true)
 
-      for(const result of selectAndUploadMedia(
-          null, files, e.target.files,
-          uploadedStatus
-      )){
-        if(result.error) {
+      for (const result of selectAndUploadMedia(
+        null,
+        files,
+        e.target.files,
+        uploadedStatus
+      )) {
+        if (result.error) {
           setUploadLoading(false)
           break
         }
-        if(result.selected) {
+        if (result.selected) {
           setFiles(result.files)
           setUploadedStatus(result.initialStatus)
           tempStatus = result.initialStatus
         } else {
           const index = i
-          let countOfUploaded : number = files ? files.length : 0 
+          let countOfUploaded: number = files ? files.length : 0
 
-          result.then((response:any) => {
-            tempStatus.sizeArray[countOfUploaded + index] = 100
-            tempStatus.nameArray[countOfUploaded + index] = response.data.url
-            setUploadedStatus({...tempStatus})
-          }).catch((err:any) => {
-            tempStatus.sizeArray.slice(countOfUploaded+index, 1)
-            tempStatus.nameArray.slice(countOfUploaded+index, 1)
-            setUploadedStatus({...tempStatus})
-          })
-          i++;
+          result
+            .then((response: any) => {
+              tempStatus.sizeArray[countOfUploaded + index] = 100
+              tempStatus.nameArray[countOfUploaded + index] =
+                response.data.url
+              setUploadedStatus({ ...tempStatus })
+            })
+            .catch((err: any) => {
+              tempStatus.sizeArray.slice(countOfUploaded + index, 1)
+              tempStatus.nameArray.slice(countOfUploaded + index, 1)
+              setUploadedStatus({ ...tempStatus })
+            })
+          i++
         }
       }
     }
   }
 
   const clearImages = async () => {
-    if(uploadLoading) return
-    if(files) {
-      for(let i = 0 ; i < files.length ; i++) {
-        axios.post(`${ENV.API_URL}/removeFile`,  {
-          filename : uploadedStatus.nameArray[i]
+    if (uploadLoading) return
+    if (files) {
+      for (let i = 0; i < files.length; i++) {
+        axios.post(`${ENV.API_URL}/removeFile`, {
+          filename: uploadedStatus.nameArray[i]
         })
       }
     }
 
     setUploadedStatus({
-      nameArray : [],
-      sizeArray : []
+      nameArray: [],
+      sizeArray: []
     })
     setFiles(null)
-    if(imageRef.current) imageRef.current.value = ''
+    if (imageRef.current) imageRef.current.value = ''
   }
 
   const removeFile = async (index: number) => {
     if (!files) return
 
     const dt = new DataTransfer()
-   
-    let tempStatus = {...uploadedStatus} ;
-    
-    
+
+    let tempStatus = { ...uploadedStatus }
+
     tempStatus.sizeArray.splice(index, 1)
     tempStatus.nameArray.splice(index, 1)
 
     axios.post(`${ENV.API_URL}/removeFile`, {
-      filename : uploadedStatus.nameArray[index]
+      filename: uploadedStatus.nameArray[index]
     })
 
     for (let i = 0; i < files.length; i++) {
@@ -157,7 +180,7 @@ function CreatePost() {
       ...tempStatus
     })
   }
-  
+
   const createPost = useMutation(
     (data: FormData) => {
       return axios.post(`${ENV.API_URL}/createPost`, data)
@@ -190,6 +213,20 @@ function CreatePost() {
     }
   )
 
+  const getSuggestions = useMutation(
+    ({ searchText }: { searchText: string }) => {
+      return axios.post(`${ENV.API_URL}/suggestion`, { searchText })
+    },
+    {
+      onSuccess: data => {
+        setSuggestions(data.data.data)
+      },
+      onError: () => {
+        toast.error('There was some error create post!')
+      }
+    }
+  )
+
   const handlePost = async () => {
     const text = quillRef.current && quillRef.current.root.innerHTML
 
@@ -210,7 +247,10 @@ function CreatePost() {
     formData.append('title', title)
 
     for (let i = 0; i < uploadedStatus.nameArray.length; i++) {
-      formData.append('images[]', uploadedStatus.nameArray[i].toString());
+      formData.append(
+        'images[]',
+        uploadedStatus.nameArray[i].toString()
+      )
     }
 
     if (text) {
@@ -256,18 +296,23 @@ function CreatePost() {
   }
 
   useEffect(() => {
-    const filledSizeCount = uploadedStatus.sizeArray.filter(uploadedSize => uploadedSize === 100).length ;
-    const filledNameCount = uploadedStatus.nameArray.filter(uploadedName => uploadedName !== "").length ;
+    const filledSizeCount = uploadedStatus.sizeArray.filter(
+      uploadedSize => uploadedSize === 100
+    ).length
+    const filledNameCount = uploadedStatus.nameArray.filter(
+      uploadedName => uploadedName !== ''
+    ).length
 
-    if (filledSizeCount === uploadedStatus.sizeArray.length 
-      && filledNameCount === uploadedStatus.nameArray.length 
-      && uploadedStatus.sizeArray.length === uploadedStatus.nameArray.length
+    if (
+      filledSizeCount === uploadedStatus.sizeArray.length &&
+      filledNameCount === uploadedStatus.nameArray.length &&
+      uploadedStatus.sizeArray.length ===
+        uploadedStatus.nameArray.length
     ) {
       setUploadLoading(false)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uploadedStatus])
-
   useEffect(() => {
     if (!selectedAccount) router.push('/')
   }, [selectedAccount, router])
@@ -356,17 +401,50 @@ function CreatePost() {
           />
         )}
       </div>
-      <Input
-        onChange={handleTitle}
-        value={title}
-        placeholder='Enter title'
-        type='text'
-        className='mb-2'
-        inputClassName='rounded-none placeholder:text-[#666]'
-        inputProps={{
-          maxLength: 120
-        }}
-      />
+      <div
+        className='flex flex-col w-full relative'
+        onBlur={e => !e.relatedTarget && setShowSuggestions(false)}
+      >
+        <div className='w-full relative'>
+          <Input
+            onChange={handleTitle}
+            value={title}
+            placeholder='Enter title'
+            type='text'
+            className='mb-2'
+            inputClassName='rounded-none placeholder:text-[#666] pr-12'
+            inputProps={{
+              maxLength: 120
+            }}
+            onFocus={() => setShowSuggestions(true)}
+          />
+          {getSuggestions.isLoading && (
+            <Loading
+              type='spin'
+              color='black'
+              height={24}
+              width={24}
+              className='absolute top-[50%] translate-y-[-65%] right-2'
+            />
+          )}
+        </div>
+        {showSuggestions && suggestions.length > 0 ? (
+          <div className='absolute w-full bg-white border-[1px] border-slate-300 top-[90%] flex flex-col z-[2]'>
+            {suggestions.map(item => (
+              <button
+                type='button'
+                className='border-[1px] border-gray-100 px-4 py-1 text-left hover:bg-gray-50'
+                onClick={() => {
+                  handleTitle(item)
+                  setShowSuggestions(false)
+                }}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
       <TextEditor
         ref={quillRef}
         containerClassName='w-full'
