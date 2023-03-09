@@ -3,6 +3,9 @@ import React from 'react'
 interface InputProps {
   value: string
   onChange: (value: string) => void
+  onFocus? : () => void 
+  onBlur? : () => void
+  onKeyUp? : () => void
   type: string
   placeholder: string
   className?: string
@@ -16,6 +19,9 @@ interface InputProps {
 function Input({
   value,
   onChange,
+  onFocus,
+  onBlur,
+  onKeyUp,
   type,
   placeholder,
   className,
@@ -32,6 +38,9 @@ function Input({
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
+        onFocus={() => onFocus && onFocus()}
+        onBlur={() => onBlur && onBlur()}
+        onKeyUp={e => onKeyUp && onKeyUp()}
         {...inputProps}
       />
     </div>
