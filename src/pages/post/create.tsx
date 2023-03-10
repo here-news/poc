@@ -1,4 +1,4 @@
-import CreatePost from 'components/CreatePost/CreatePost'
+import CreatePost from 'modules/Post/Create'
 import Layout from 'components/Layouts'
 import React from 'react'
 
