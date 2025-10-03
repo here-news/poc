@@ -157,9 +157,9 @@ class UniversalWebExtractor:
                     result.error_message = "Failed to load page"
                     return result
 
-                # Update canonical URL if redirected
-                result.canonical_url = page.url
-                result.domain = urlparse(page.url).netloc
+                # Extract canonical URL (prefer meta tag, fallback to cleaned URL)
+                result.canonical_url = await self._extract_canonical_url(page)
+                result.domain = urlparse(result.canonical_url).netloc
 
                 # Step 3: Check if content is available and extract
                 readability_check = await self._check_readability(page)
@@ -521,6 +521,87 @@ class UniversalWebExtractor:
         except Exception as e:
             print(f"❌ Screenshot failed: {e}")
             return None
+
+    async def _extract_canonical_url(self, page) -> str:
+        """
+        Extract canonical URL from page metadata or clean the current URL
+
+        Strategy:
+        1. Try <link rel="canonical"> tag (publisher's official canonical URL)
+        2. Try og:url meta tag
+        3. Fallback: strip tracking parameters from current URL
+        """
+        try:
+            # Method 1: <link rel="canonical" href="...">
+            canonical = await page.get_attribute('link[rel="canonical"]', 'href')
+            if canonical:
+                print(f"📎 Canonical URL from <link>: {canonical}")
+                return canonical
+
+            # Method 2: <meta property="og:url">
+            og_url = await page.get_attribute('meta[property="og:url"]', 'content')
+            if og_url:
+                print(f"📎 Canonical URL from og:url: {og_url}")
+                return og_url
+
+        except:
+            pass
+
+        # Method 3: Fallback - strip tracking parameters
+        current_url = page.url
+        cleaned_url = self._strip_tracking_params(current_url)
+        if cleaned_url != current_url:
+            print(f"📎 Canonical URL (cleaned): {cleaned_url}")
+        return cleaned_url
+
+    def _strip_tracking_params(self, url: str) -> str:
+        """
+        Strip common tracking/marketing parameters from URL
+
+        Generic approach - removes widely used tracking params across all sites
+        """
+        from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+
+        parsed = urlparse(url)
+        params = parse_qs(parsed.query)
+
+        # Common tracking parameters to remove (site-agnostic)
+        tracking_params = {
+            # UTM parameters (Google Analytics, common across all sites)
+            'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+            # Facebook/Social
+            'fbclid', 'fb_action_ids', 'fb_action_types', 'fb_source', 'fb_ref',
+            # Google
+            'gclid', 'gclsrc', 'dclid',
+            # Analytics/Tracking
+            'mc_cid', 'mc_eid',  # Mailchimp
+            '_hsenc', '_hsmi',    # HubSpot
+            'mkt_tok',            # Marketo
+            # Referral tracking
+            'ref', 'referrer', 'source',
+            # Session/Click tracking
+            'click_id', 'clickid', 'sid', 'sessionid',
+            # Newsletter/Email
+            'newsletter_id', 'email_id',
+            # Misc
+            'share', 'platform'
+        }
+
+        # Remove tracking parameters
+        cleaned_params = {k: v for k, v in params.items() if k not in tracking_params}
+
+        # Rebuild URL
+        cleaned_query = urlencode(cleaned_params, doseq=True)
+        cleaned = urlunparse((
+            parsed.scheme,
+            parsed.netloc,
+            parsed.path,
+            parsed.params,
+            cleaned_query,
+            ''  # Remove fragment
+        ))
+
+        return cleaned
 
 # Global instance
 web_extractor = UniversalWebExtractor()
