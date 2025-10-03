@@ -527,32 +527,51 @@ class UniversalWebExtractor:
         Extract canonical URL from page metadata or clean the current URL
 
         Strategy:
-        1. Try <link rel="canonical"> tag (publisher's official canonical URL)
-        2. Try og:url meta tag
-        3. Fallback: strip tracking parameters from current URL
+        1. Strip tracking params from current URL (preserve content params)
+        2. Check if canonical tag exists and differs meaningfully
+        3. Prefer current URL to avoid losing essential query params
         """
-        try:
-            # Method 1: <link rel="canonical" href="...">
-            canonical = await page.get_attribute('link[rel="canonical"]', 'href')
-            if canonical:
-                print(f"📎 Canonical URL from <link>: {canonical}")
-                return canonical
+        current_url = page.url
+        cleaned_current_url = self._strip_tracking_params(current_url)
 
-            # Method 2: <meta property="og:url">
+        try:
+            # Check <link rel="canonical"> tag
+            canonical_tag = await page.get_attribute('link[rel="canonical"]', 'href')
+            if canonical_tag:
+                # Only use canonical tag if it differs from cleaned current URL
+                # This prevents trusting bad canonical tags that strip content params
+                if canonical_tag != cleaned_current_url:
+                    # Canonical tag is different - check if it's just stripping content params
+                    parsed_canonical = urlparse(canonical_tag)
+                    parsed_current = urlparse(cleaned_current_url)
+
+                    # If base path differs, trust canonical tag
+                    if parsed_canonical.path != parsed_current.path:
+                        print(f"📎 Canonical URL from <link>: {canonical_tag}")
+                        return canonical_tag
+
+                    # If query params differ, prefer current URL (keep content params)
+                    if parsed_canonical.query != parsed_current.query:
+                        print(f"📎 Canonical URL (current, preserving query params): {cleaned_current_url}")
+                        return cleaned_current_url
+
+                    # Otherwise use canonical tag
+                    print(f"📎 Canonical URL from <link>: {canonical_tag}")
+                    return canonical_tag
+
+            # Try og:url as fallback
             og_url = await page.get_attribute('meta[property="og:url"]', 'content')
-            if og_url:
+            if og_url and og_url != cleaned_current_url:
                 print(f"📎 Canonical URL from og:url: {og_url}")
                 return og_url
 
         except:
             pass
 
-        # Method 3: Fallback - strip tracking parameters
-        current_url = page.url
-        cleaned_url = self._strip_tracking_params(current_url)
-        if cleaned_url != current_url:
-            print(f"📎 Canonical URL (cleaned): {cleaned_url}")
-        return cleaned_url
+        # Fallback: use cleaned current URL
+        if cleaned_current_url != current_url:
+            print(f"📎 Canonical URL (cleaned): {cleaned_current_url}")
+        return cleaned_current_url
 
     def _strip_tracking_params(self, url: str) -> str:
         """
