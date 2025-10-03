@@ -1,0 +1,8 @@
+centroid: 
+gist: 
+time range:
+diff: 
+- yet https://www.reuters.com/world/china/philippines-says-watching-chinas-actions-south-china-sea-nature-reserve-2025-10-03/ still can't access via program, as it's even blocked iframely
+- now publishing time and author names can be well extracted from SCMP case
+- the content validate works better by flagging "short content" and working on globaltimes.cn, foreignpolicy.com(paywalled but flagged), and LA examiner(short and data oriented), all basically correct and richer now
+- the content validator(cleanser) now act as transparent filter rather than a gate, the Foreign Policy article about Yu Menglong now flags as : metadata date mismatch, no author, and navigation heavy which is true, but also it should flag as incomplete.  

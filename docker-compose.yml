@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  hn4-app:
+    build: .
+    ports:
+      - "9494:9494"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    volumes:
+      # Optional: mount for development
+      - ./static:/app/static
+      - ./templates:/app/templates
+      # Cache Playwright browsers across rebuilds
+      - playwright-cache:/root/.cache/ms-playwright
+      # Cache pip downloads to speed up rebuilds
+      - pip-cache:/root/.cache/pip
+    restart: unless-stopped
+    container_name: hn4-app
+
+volumes:
+  playwright-cache:
+    driver: local
+  pip-cache:
+    driver: local
