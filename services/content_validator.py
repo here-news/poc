@@ -59,18 +59,19 @@ class ContentValidator:
                         "content": """You are a content validation expert. Your job is to analyze extracted web content and:
 1. Clean the content to focus ONLY on the main article - remove navigation, footers, related articles, sidebars
 2. Extract the actual publish time from the content text (look for patterns like "SEPTEMBER 30, 2025, 3:31 PM")
-3. Extract author name from content - look for names appearing BEFORE "Published:" or after "By"
+3. Extract author name(s) from content - handle both single and multiple authors
 4. Validate metadata coherence and ensure title/content match
 5. Extract a concise summary focusing on the core topic
 6. FLAG quality issues rather than rejecting
 
 IMPORTANT: NEVER reject content. Always return is_valid=true and use "flags" array to signal issues.
 
-AUTHOR EXTRACTION: Be diligent - check multiple locations:
-- Right before "Published:", "Posted:", timestamps (common pattern: "Name\nPublished:")
-- After "By", "Written by", "Author:"
-- Near headline or reading time metadata
-- Between headline and article body
+AUTHOR EXTRACTION: Be diligent - check multiple locations and formats:
+- Single author patterns: after "By" or before "Published:"
+- Multiple authors: can appear comma-separated on one line or on consecutive lines
+- Common locations: after "By", "Written by", "Author:", or before "Published:", "Posted:"
+- Near headline, reading time metadata, or between headline and article body
+- If multiple authors found, return comma-separated list
 
 Common flags to include (CHECK ALL):
 - "paywall_detected" - ANY mention of: Subscribe, subscription, sign in, premium, member-only
@@ -258,34 +259,97 @@ Return validation result as JSON. ALWAYS set is_valid=true. Include whatever con
     def _extract_author_fallback(self, content: str) -> str:
         """
         Programmatic fallback to extract author from common patterns
-        Case-insensitive and flexible for different name formats
+        Generic patterns that work across different site layouts
         """
         import re
 
-        # Pattern 1: Name before "Published:" or "Posted:" (case-insensitive)
-        pattern1 = r'([A-Z][a-zA-Z\'\-]+(?:\s+[A-Z][a-zA-Z\'\-]+){1,3})\s*(?:\n|\r\n?)\s*(?:Published|Posted|By\s*line):'
-        match = re.search(pattern1, content, re.IGNORECASE)
-        if match:
-            return match.group(1).strip()
-
-        # Pattern 2: After "By" - flexible for different name cases
-        pattern2 = r'(?:^|\n|\s)By\s+([A-Z][a-zA-Z\'\-]+(?:\s+[A-Z]\.?\s*)?(?:\s+[A-Z][a-zA-Z\'\-]+)*)'
-        match = re.search(pattern2, content, re.MULTILINE | re.IGNORECASE)
+        # Pattern 1: Name before "Published:" or "Posted:"
+        # Matches: "John Smith\nPublished:" or "Jane Doe\nPosted:"
+        pattern1 = r'([A-Z][a-z]+(?:\s+[A-Z]\.?\s*[A-Z][a-z]+)+)\s*[\r\n]+\s*(?:Published|Posted|By\s*line):'
+        match = re.search(pattern1, content)
         if match:
             author = match.group(1).strip()
-            # Exclude common false positives
-            author_lower = author.lower()
-            exclude = ["sign", "subscribe", "click", "read", "more", "here", "now"]
-            if author_lower not in exclude and len(author) > 3:
+            if self._is_valid_author_name(author):
                 return author
 
-        # Pattern 3: After "Written by" or "Author:" (case-insensitive)
-        pattern3 = r'(?:Written\s+by|Author):\s*([A-Z][a-zA-Z\'\-]+(?:\s+[A-Z][a-zA-Z\'\-]+){1,3})'
-        match = re.search(pattern3, content, re.IGNORECASE)
+        # Pattern 2: After "By"
+        # Matches: "By John Smith" or "By John Smith, Jane Doe, Bob Wilson"
+        pattern2 = r'(?:^|\n)By\s+([A-Z][a-z]+(?:\s+[A-Z]\.?\s*)?(?:\s+[A-Z][a-z]+)+(?:,\s+[A-Z][a-z]+(?:\s+[A-Z]\.?\s*)?(?:\s+[A-Z][a-z]+)+)*)'
+        match = re.search(pattern2, content, re.MULTILINE)
         if match:
-            return match.group(1).strip()
+            author = match.group(1).strip()
+            if self._is_valid_author_name(author):
+                return author
+
+        # Pattern 3: After "Written by" or "Author:"
+        # Matches: "Written by John Smith" or "Author: Jane Doe"
+        pattern3 = r'(?:Written\s+by|Author):\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)'
+        match = re.search(pattern3, content)
+        if match:
+            author = match.group(1).strip()
+            if self._is_valid_author_name(author):
+                return author
+
+        # Pattern 4: Multiple consecutive lines with proper names (multi-author byline)
+        # Generic pattern: looks for 2-5 consecutive lines with valid names in first 100 lines
+        # This handles sites that list authors on separate lines
+        lines = content.split('\n')
+        for i in range(min(100, len(lines))):
+            line = lines[i].strip()
+            # Check if this line is a valid author name
+            if self._is_valid_author_name(line):
+                authors = [line]
+                # Look for consecutive author names
+                for j in range(i + 1, min(i + 5, len(lines))):
+                    next_line = lines[j].strip()
+                    if self._is_valid_author_name(next_line):
+                        authors.append(next_line)
+                    else:
+                        # Stop if we hit a non-name line
+                        break
+                # If we found multiple consecutive names, likely a multi-author byline
+                if len(authors) >= 2:
+                    result = ', '.join(authors)
+                    print(f"✅ Fallback extracted multiple authors: {result}")
+                    return result
 
         return ""
+
+    def _is_valid_author_name(self, name: str) -> bool:
+        """
+        Validate that a string looks like a real author name
+        Rejects common false positives
+        """
+        if not name or len(name) < 4:
+            return False
+
+        # Exclude common false positives
+        name_lower = name.lower()
+        exclude_words = [
+            "sign", "subscribe", "click", "read", "more", "here", "now",
+            "continue", "share", "print", "save", "follow", "latest",
+            "shutdown", "update", "breaking", "live", "today", "news"
+        ]
+
+        # Check if name contains excluded words
+        for word in exclude_words:
+            if word in name_lower:
+                return False
+
+        # Name should have at least 2 parts (first + last)
+        parts = name.split()
+        if len(parts) < 2:
+            return False
+
+        # Each part should be mostly alphabetic (allow apostrophes, hyphens)
+        for part in parts:
+            if part in [".", "Jr", "Sr", "Jr.", "Sr.", "II", "III"]:
+                continue
+            clean_part = part.replace("'", "").replace("-", "").replace(".", "")
+            if not clean_part.isalpha() or len(clean_part) < 2:
+                return False
+
+        return True
 
 # Global validator instance
 content_validator = ContentValidator()
