@@ -277,32 +277,35 @@ class UniversalWebExtractor:
             page_text = await page.evaluate('document.body.textContent || ""')
             page_html = await page.content()
 
-            # Detect CAPTCHA/verification pages
-            captcha_indicators = [
-                'verification required',
-                'verify you are human',
-                'captcha',
-                'cloudflare',
-                'checking your browser',
-                'enable javascript',
-                'access denied',
-                'unusual activity'
-            ]
-
             text_lower = page_text.lower()
             html_lower = page_html.lower()
 
-            for indicator in captcha_indicators:
-                if indicator in text_lower or indicator in html_lower:
-                    print(f"🛡️ CAPTCHA/Block detected: {indicator}")
-                    return {
-                        'is_readable': False,
-                        'status': 'captcha_blocked',
-                        'reason': f'CAPTCHA or bot detection ({indicator})'
-                    }
+            # Check for actual content first
+            has_content = page_text and len(page_text.strip()) > 100
 
-            # Check for actual content
-            if page_text and len(page_text.strip()) > 100:
+            # Detect CAPTCHA/verification pages (only if no content)
+            # This prevents false positives on paywalled articles with teasers
+            if not has_content:
+                captcha_indicators = [
+                    'verification required',
+                    'verify you are human',
+                    'checking your browser',
+                    'enable javascript',
+                    'access denied',
+                    'unusual activity'
+                ]
+
+                for indicator in captcha_indicators:
+                    if indicator in text_lower or indicator in html_lower:
+                        print(f"🛡️ CAPTCHA/Block detected: {indicator}")
+                        return {
+                            'is_readable': False,
+                            'status': 'captcha_blocked',
+                            'reason': f'CAPTCHA or bot detection ({indicator})'
+                        }
+
+            # Return readable if we have content (even if paywalled - validator will flag it)
+            if has_content:
                 print("✅ Content is readable")
                 return {
                     'is_readable': True,
@@ -466,10 +469,11 @@ class UniversalWebExtractor:
         lines = content.split('\n')
         cleaned_lines = []
 
-        # Patterns to skip
+        # Patterns to skip (only obvious UI noise, NOT paywall indicators)
+        # Don't skip 'subscribe' - validator needs to see it for paywall detection
         skip_patterns = [
             'cookie', 'privacy policy', 'terms of service',
-            'subscribe', 'newsletter', 'follow us',
+            'newsletter', 'follow us',
             'share', 'tweet', 'facebook', 'linkedin',
             'advertisement', 'sponsored'
         ]

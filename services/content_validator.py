@@ -226,7 +226,8 @@ Return validation result as JSON. ALWAYS set is_valid=true. Include whatever con
         paywall_patterns = [
             "subscribe", "subscription", "sign in to read", "sign in to continue",
             "become a member", "premium content", "member-only", "subscribers only",
-            "unlock this article", "create a free account", "register to read"
+            "unlock this article", "create a free account", "register to read",
+            "see subscription options", "enjoy unlimited access", "subscriber exclusive"
         ]
         content_lower = (original_content + " " + cleaned_content).lower()
         has_paywall = any(pattern in content_lower for pattern in paywall_patterns)
