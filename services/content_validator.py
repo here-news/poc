@@ -242,8 +242,11 @@ Return validation result as JSON. ALWAYS set is_valid=true. Include whatever con
             if fallback_author:
                 cleaned_metadata["author"] = fallback_author
                 print(f"✅ Fallback extracted author: {fallback_author}")
-            elif "no_author" not in flags:
-                flags.append("no_author")
+                # Don't flag if fallback succeeded
+            else:
+                # Only flag if both LLM and fallback failed
+                if "no_author" not in flags:
+                    flags.append("no_author")
 
         # Check 4: Very short content (likely extraction failure)
         if word_count < 50 and "empty_content" not in flags:

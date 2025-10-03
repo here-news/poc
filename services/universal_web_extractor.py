@@ -169,11 +169,11 @@ class UniversalWebExtractor:
                 if result.is_readable:
                     # Step 4: Extract content and metadata
                     await self._extract_content_and_metadata(page, result)
-
-                    # Step 5: Capture screenshot
-                    result.screenshot_bytes = await self._capture_screenshot(page)
                 else:
                     result.error_message = readability_check.get('reason', 'No content found')
+
+                # Step 5: Capture screenshot (always - for forensic evidence even if blocked)
+                result.screenshot_bytes = await self._capture_screenshot(page)
 
                 await browser.close()
 
