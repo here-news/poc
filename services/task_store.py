@@ -25,6 +25,7 @@ class ExtractionTask:
         self.task_id = data.get("task_id")
         self.url = data.get("url")
         self.status = data.get("status", TaskStatus.PENDING)
+        self.preview_meta = data.get("preview_meta")  # iFramely quick preview
         self.result = data.get("result")
         self.semantic_data = data.get("semantic_data")
         self.screenshot_bytes = None  # Not persisted in Firestore (too large)

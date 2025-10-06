@@ -210,7 +210,7 @@ class Neo4jClient:
              collect(DISTINCT person) AS people,
              collect(DISTINCT location) + collect(DISTINCT artifact_location) AS all_locations,
              max(artifact.created_at) AS last_artifact_date,
-             toLower($query) AS q
+             toLower($search_text) AS q
         WITH story, artifacts, claims, people, all_locations, last_artifact_date, q,
              size(artifacts) AS artifact_count,
              size(claims) AS claim_count,
@@ -243,7 +243,7 @@ class Neo4jClient:
         """
 
         with self.driver.session(database=self.database) as session:
-            result = session.run(cypher, query=query.lower(), limit=limit)
+            result = session.run(cypher, search_text=query.lower(), limit=limit)
             matches: List[Dict] = []
             for record in result:
                 summary = self._record_to_summary(record)
