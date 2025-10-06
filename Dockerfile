@@ -4,41 +4,22 @@ FROM python:3.11-slim as python-base
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies in single layer
+# Install Node.js for React build
 RUN apt-get update && apt-get install -y \
     curl \
-    libnss3 \
-    libnspr4 \
-    libatk-bridge2.0-0 \
-    libdrm2 \
-    libxkbcommon0 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxrandr2 \
-    libgbm1 \
-    libxss1 \
-    libasound2 \
-    libcups2 \
-    libxfixes3 \
-    libpango-1.0-0 \
-    libcairo2 \
-    fonts-liberation \
     && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-# Stage for Python dependencies and Playwright - heavily cached
+# Stage for Python dependencies - lightweight, no Playwright/spaCy
 FROM python-base as deps-stage
 
 # Copy requirements.txt first for better layer caching
 COPY requirements.txt ./
 
-# Install Python dependencies
+# Install Python dependencies (now just FastAPI + Google Cloud libs)
 RUN pip install --timeout=300 --retries=5 -r requirements.txt
-
-# Install Playwright browsers (this will be cached in Docker layer)
-RUN playwright install chromium
 
 # Final stage
 FROM deps-stage as final

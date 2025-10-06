@@ -2,6 +2,12 @@
 
 A prototype web content extractor with AI-powered content validation and cleaning.
 
+> **Migration notice:** The live extraction/cleaning/entity-resolution pipeline now
+> runs inside the Cloud Run project in `../here-extraction-service`. This repo
+> focuses on the FastAPI gateway, Firestore task coordination, and the React
+> frontend. The Python modules under `services/` (other than `task_store.py` and
+> `pubsub_publisher.py`) are legacy snapshots kept for reference only.
+
 ## Features
 
 - **URL Extraction**: Extracts content from any URL using Playwright
@@ -14,10 +20,12 @@ A prototype web content extractor with AI-powered content validation and cleanin
 
 ## Architecture
 
-- **Backend**: FastAPI (Python) on port 9494
+- **Backend**: FastAPI (Python) on port 9494, publishing jobs to Pub/Sub topics
 - **Frontend**: React + Vite + Tailwind CSS
-- **Extraction**: Playwright (headless browser)
-- **Validation**: OpenAI GPT-4o-mini
+- **Pipeline**: Cloud Run workers in `here-extraction-service` (Playwright
+  extraction, GPT-4o cleaning, entity resolution, semantic analysis)
+- **Persistence**: Firestore for task tracking, GCS for artifacts (managed by
+  Cloud Run workers)
 
 ## Quick Start
 
@@ -84,15 +92,14 @@ Required in `.env`:
 ```
 hn4/
 ├── app/                    # React frontend
-│   ├── App.tsx            # Router
-│   ├── HomePage.tsx       # URL submission
-│   └── ResultPage.tsx     # Content display + Clean button
+│   ├── App.tsx             # Router
+│   ├── HomePage.tsx        # URL submission
+│   └── ResultPage.tsx      # Task detail view (clean/semantize controls)
 ├── services/
-│   ├── universal_web_extractor.py   # Playwright extraction
-│   ├── content_validator.py         # AI validation
-│   ├── semantic_analyzer.py         # Claims extraction with NER
-│   └── extraction_manager.py        # Task management
-├── server.py              # FastAPI backend
-├── Dockerfile             # Multi-stage build
-└── docker-compose.yml     # Container setup
+│   ├── task_store.py       # Firestore-backed task persistence (active)
+│   ├── pubsub_publisher.py # Pub/Sub client (active)
+│   └── *.py                # Legacy pipeline snapshots (do not modify)
+├── server.py               # FastAPI backend proxying to Cloud Run workers
+├── Dockerfile              # Multi-stage build
+└── docker-compose.yml      # Container setup
 ```

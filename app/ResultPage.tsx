@@ -1,5 +1,41 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import {
+  ensureUserId,
+  formatUserId,
+  persistUserId,
+  composeUserHeaders
+} from './userSession'
+
+interface PreviewImage {
+  url: string
+  secure_url: string
+  width: number | null
+  height: number | null
+}
+
+interface Publisher {
+  name: string
+  favicon: string
+  facebook: string
+  twitter: string
+}
+
+interface Author {
+  name: string
+  facebook: string
+  twitter: string
+}
+
+interface Metadata {
+  language: string
+  language_name: string
+  locale: string
+  publish_date: string
+  section: string
+  tags: string[]
+  content_type: string
+}
 
 interface ExtractionResult {
   url: string
@@ -17,6 +53,29 @@ interface ExtractionResult {
   extraction_timestamp: string
   processing_time_ms: number
   error_message: string
+  language?: string
+  language_confidence?: number
+}
+
+interface Preview {
+  title: string
+  description: string
+  preview_image: PreviewImage
+  url: string
+  domain: string
+  publisher: Publisher
+  author: Author
+  metadata: Metadata
+  metrics: {
+    word_count: number
+    reading_time_minutes: number
+    language_confidence: number
+  }
+  quality: {
+    flags: string[]
+    is_readable: boolean
+    status: string
+  }
 }
 
 interface TokenCosts {
@@ -35,12 +94,15 @@ interface TaskResponse {
   token_costs?: TokenCosts
   result?: ExtractionResult
   error?: string
+  user_id?: string
 }
 
 function ResultPage() {
   const { taskId } = useParams<{ taskId: string }>()
   const navigate = useNavigate()
+  const [userId, setUserId] = useState('')
   const [task, setTask] = useState<TaskResponse | null>(null)
+  const [preview, setPreview] = useState<Preview | null>(null)
   const [polling, setPolling] = useState(true)
   const [error, setError] = useState('')
   const [isCleaning, setIsCleaning] = useState(false)
@@ -49,22 +111,51 @@ function ResultPage() {
   const [semanticData, setSemanticData] = useState<any>(null)
 
   useEffect(() => {
+    const id = ensureUserId()
+    setUserId(id)
+  }, [])
+
+  useEffect(() => {
     let interval: NodeJS.Timeout
 
     const checkTaskStatus = async () => {
       try {
-        const response = await fetch(`/api/task/${taskId}`)
+        const response = await fetch(`/api/task/${taskId}`, {
+          headers: composeUserHeaders(userId)
+        })
         const data = await response.json()
 
         setTask(data)
 
+        if (data.user_id && data.user_id !== userId) {
+          setUserId(data.user_id)
+          persistUserId(data.user_id)
+        }
+
         // Stop polling if completed or failed
         if (data.status === 'completed' || data.status === 'failed') {
           setPolling(false)
+
+          // Fetch preview data when completed
+          if (data.status === 'completed') {
+            fetchPreview()
+          }
         }
       } catch (err) {
         setError('Failed to fetch task status')
         setPolling(false)
+      }
+    }
+
+    const fetchPreview = async () => {
+      try {
+        const response = await fetch(`/api/task/${taskId}/preview`, {
+          headers: composeUserHeaders(userId)
+        })
+        const data = await response.json()
+        setPreview(data)
+      } catch (err) {
+        console.error('Failed to fetch preview:', err)
       }
     }
 
@@ -79,7 +170,7 @@ function ResultPage() {
     return () => {
       if (interval) clearInterval(interval)
     }
-  }, [taskId, polling])
+  }, [taskId, polling, userId])
 
   const formatContent = (content: string) => {
     if (!content) return ''
@@ -96,8 +187,10 @@ function ResultPage() {
     setError('')
 
     try {
+      // Submit cleaning job to Cloud Run
       const response = await fetch(`/api/task/${taskId}/clean`, {
         method: 'POST',
+        headers: composeUserHeaders(userId)
       })
 
       const data = await response.json()
@@ -108,17 +201,50 @@ function ResultPage() {
         return
       }
 
-      setCleaningResult(data)
+      // Poll for cleaning completion
+      let attempts = 0
+      const maxAttempts = 30 // 30 seconds max
+      const pollInterval = 1000 // 1 second
+      const startTime = task?.result?.updated_at || Date.now()
 
-      // If cleaning was successful, update the task with cleaned data
-      if (data.is_valid && data.result && task) {
-        setTask({
-          ...task,
-          result: data.result
+      const pollForCompletion = async () => {
+        attempts++
+        const taskResponse = await fetch(`/api/task/${taskId}`, {
+          headers: composeUserHeaders(userId)
         })
+        const taskData = await taskResponse.json()
+
+        if (taskData.user_id && taskData.user_id !== userId) {
+          setUserId(taskData.user_id)
+          persistUserId(taskData.user_id)
+        }
+
+        // Check if cleaning completed (either tokens > 0 OR content was too short)
+        const cleaningDone = taskData.token_costs?.cleaning > 0 ||
+                            (taskData.result?.word_count === 0 && attempts > 3) ||
+                            (taskData.result?.updated_at && taskData.result.updated_at !== startTime)
+
+        if (cleaningDone) {
+          // Cleaning complete! Update UI
+          setTask(taskData)
+          setCleaningResult({
+            is_valid: true,
+            message: taskData.result?.word_count === 0 ? 'Content too short to clean' : 'Content cleaned successfully',
+            token_usage: taskData.token_costs.cleaning
+          })
+          setIsCleaning(false)
+        } else if (attempts >= maxAttempts) {
+          setError('Cleaning timed out - please refresh the page')
+          setIsCleaning(false)
+        } else {
+          // Keep polling
+          setTimeout(pollForCompletion, pollInterval)
+        }
       }
 
-      setIsCleaning(false)
+      // Start polling after a brief delay
+      setTimeout(pollForCompletion, 1000)
+
     } catch (err) {
       setError('Failed to clean content')
       setIsCleaning(false)
@@ -133,8 +259,10 @@ function ResultPage() {
     setError('')
 
     try {
+      // Submit semantization job to Cloud Run
       const response = await fetch(`/api/task/${taskId}/semantize`, {
         method: 'POST',
+        headers: composeUserHeaders(userId)
       })
 
       const data = await response.json()
@@ -145,12 +273,86 @@ function ResultPage() {
         return
       }
 
-      setSemanticData(data)
-      setIsSemanticizing(false)
+      // Poll for semantization completion
+      let attempts = 0
+      const maxAttempts = 60 // 60 seconds max (semantization takes longer)
+      const pollInterval = 1000 // 1 second
+
+      const pollForCompletion = async () => {
+        attempts++
+        const taskResponse = await fetch(`/api/task/${taskId}`, {
+          headers: composeUserHeaders(userId)
+        })
+        const taskData = await taskResponse.json()
+
+        // Check if semantization completed
+        const semantizationDone = (taskData.token_costs?.semantization > 0 && taskData.semantic_data) ||
+                                   taskData.status === 'completed'
+
+        if (semantizationDone) {
+          // Semantization complete! Update UI
+          setTask(taskData)
+          if (taskData.user_id && taskData.user_id !== userId) {
+            setUserId(taskData.user_id)
+            persistUserId(taskData.user_id)
+          }
+          if (taskData.semantic_data) {
+            setSemanticData(taskData.semantic_data)
+          }
+          setIsSemanticizing(false)
+        } else if (attempts >= maxAttempts) {
+          setError('Semantization timed out - please refresh the page')
+          setIsSemanticizing(false)
+        } else {
+          // Keep polling
+          setTimeout(pollForCompletion, pollInterval)
+        }
+      }
+
+      // Start polling after a brief delay
+      setTimeout(pollForCompletion, 2000)
+
     } catch (err) {
       setError('Failed to semantize content')
       setIsSemanticizing(false)
     }
+  }
+
+  const renderTokenUsage = () => {
+    if (!task?.token_costs || task.token_costs.total <= 0) {
+      return null
+    }
+
+    const { extraction, cleaning, semantization, total } = task.token_costs
+
+    return (
+      <div className="mt-2 w-full max-w-xs bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-600">
+        <div className="flex items-center justify-between mb-2">
+          <span className="font-semibold text-gray-700">Token Usage</span>
+          <span className="font-bold text-blue-700">Total: {total.toLocaleString()}</span>
+        </div>
+        <div className="flex flex-wrap gap-3 justify-end text-xs">
+          {extraction > 0 && (
+            <div className="text-right">
+              <div className="text-gray-500">Extraction</div>
+              <div className="font-semibold text-gray-700">{extraction.toLocaleString()}</div>
+            </div>
+          )}
+          {cleaning > 0 && (
+            <div className="text-right">
+              <div className="text-green-600">Cleaning</div>
+              <div className="font-semibold text-green-700">{cleaning.toLocaleString()}</div>
+            </div>
+          )}
+          {semantization > 0 && (
+            <div className="text-right">
+              <div className="text-purple-600">Semantization</div>
+              <div className="font-semibold text-purple-700">{semantization.toLocaleString()}</div>
+            </div>
+          )}
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -163,39 +365,9 @@ function ResultPage() {
           ← Back to Home
         </button>
 
-        {/* Token Costs Banner */}
-        {task && task.token_costs && task.token_costs.total > 0 && (
-          <div className="mb-4 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-2xl">🪙</span>
-                <span className="font-semibold text-gray-700">Token Usage</span>
-              </div>
-              <div className="flex gap-6 text-sm">
-                {task.token_costs.extraction > 0 && (
-                  <div className="text-center">
-                    <div className="text-gray-500 text-xs">Extraction</div>
-                    <div className="font-semibold text-gray-700">{task.token_costs.extraction.toLocaleString()}</div>
-                  </div>
-                )}
-                {task.token_costs.cleaning > 0 && (
-                  <div className="text-center">
-                    <div className="text-green-600 text-xs">Cleaning</div>
-                    <div className="font-semibold text-green-700">{task.token_costs.cleaning.toLocaleString()}</div>
-                  </div>
-                )}
-                {task.token_costs.semantization > 0 && (
-                  <div className="text-center">
-                    <div className="text-purple-600 text-xs">Semantization</div>
-                    <div className="font-semibold text-purple-700">{task.token_costs.semantization.toLocaleString()}</div>
-                  </div>
-                )}
-                <div className="text-center border-l-2 border-gray-300 pl-6">
-                  <div className="text-blue-600 text-xs font-semibold">TOTAL</div>
-                  <div className="font-bold text-blue-700 text-lg">{task.token_costs.total.toLocaleString()}</div>
-                </div>
-              </div>
-            </div>
+        {userId && (
+          <div className="mb-4 text-xs text-gray-500">
+            User ID: <span title={userId}>{formatUserId(userId)}</span>
           </div>
         )}
 
@@ -240,9 +412,80 @@ function ResultPage() {
 
         {task && task.status === 'completed' && task.result && (
           <div className="bg-white p-8 rounded-lg shadow">
+            {/* Preview Image */}
+            {preview && preview.preview_image && preview.preview_image.url && (
+              <div className="mb-6 -mx-8 -mt-8">
+                <img
+                  src={preview.preview_image.url}
+                  alt={preview.title}
+                  className="w-full h-64 object-cover rounded-t-lg"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none'
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Publisher Header with Favicon */}
+            {preview && (
+              <div className="mb-4 pb-4 border-b border-gray-200 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <img
+                    src={preview.publisher.favicon}
+                    alt=""
+                    className="w-6 h-6 rounded"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none'
+                    }}
+                  />
+                  <div>
+                    <div className="font-semibold text-gray-800">{preview.publisher.name}</div>
+                    <div className="text-xs text-gray-500 flex items-center gap-2">
+                      {preview.publisher.facebook && (
+                        <a href={preview.publisher.facebook} target="_blank" rel="noopener noreferrer" className="hover:text-blue-600">
+                          FB
+                        </a>
+                      )}
+                      {preview.publisher.twitter && (
+                        <a href={`https://twitter.com/${preview.publisher.twitter.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="hover:text-blue-600">
+                          {preview.publisher.twitter}
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Language & Section Badges */}
+                <div className="flex gap-2">
+                  {preview.metadata.language && (
+                    <span className="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-full font-medium">
+                      🌐 {preview.metadata.language_name}
+                    </span>
+                  )}
+                  {preview.metadata.section && (
+                    <span className="px-3 py-1 bg-purple-100 text-purple-700 text-sm rounded-full font-medium">
+                      📂 {preview.metadata.section}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="mb-6 flex justify-between items-start">
               <div className="flex-1">
                 <h1 className="text-3xl font-bold text-gray-800 mb-2">{task.result.title || 'Untitled'}</h1>
+
+                {/* Tags */}
+                {preview && preview.metadata.tags && preview.metadata.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {preview.metadata.tags.map((tag, i) => (
+                      <span key={i} className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
                 <div className="text-sm text-gray-500 space-y-1">
                   <p>Domain: {task.result.domain}</p>
                   <p>URL: <a href={task.result.canonical_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">{task.result.canonical_url}</a></p>
@@ -250,24 +493,33 @@ function ResultPage() {
                   {task.result.publish_date && <p>Published: {task.result.publish_date}</p>}
                   <p>Word Count: {task.result.word_count} words ({task.result.reading_time_minutes} min read)</p>
                   <p>Extracted in: {task.result.processing_time_ms}ms</p>
+                  {preview && preview.metadata.language && preview.metrics.language_confidence && (
+                    <p>Language: {preview.metadata.language_name} ({Math.round(preview.metrics.language_confidence * 100)}% confidence)</p>
+                  )}
                 </div>
               </div>
               {!cleaningResult ? (
-                <button
-                  onClick={handleClean}
-                  disabled={isCleaning}
-                  className="ml-4 bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-6 rounded-lg transition-colors disabled:bg-gray-400"
-                >
-                  {isCleaning ? 'Cleaning...' : 'Clean'}
-                </button>
+                <div className="ml-4 flex flex-col items-end gap-2">
+                  <button
+                    onClick={handleClean}
+                    disabled={isCleaning}
+                    className="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-6 rounded-lg transition-colors disabled:bg-gray-400"
+                  >
+                    {isCleaning ? 'Cleaning...' : 'Clean'}
+                  </button>
+                  {renderTokenUsage()}
+                </div>
               ) : (
-                <button
-                  onClick={handleSemantize}
-                  disabled={isSemanticizing}
-                  className="ml-4 bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-6 rounded-lg transition-colors disabled:bg-gray-400"
-                >
-                  {isSemanticizing ? 'Semantizing...' : 'Semantize'}
-                </button>
+                <div className="ml-4 flex flex-col items-end gap-2">
+                  <button
+                    onClick={handleSemantize}
+                    disabled={isSemanticizing}
+                    className="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-6 rounded-lg transition-colors disabled:bg-gray-400"
+                  >
+                    {isSemanticizing ? 'Semantizing...' : 'Semantize'}
+                  </button>
+                  {renderTokenUsage()}
+                </div>
               )}
             </div>
 

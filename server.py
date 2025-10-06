@@ -1,18 +1,14 @@
-from fastapi import FastAPI, BackgroundTasks
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
 
-from services.extraction_manager import extraction_manager, TaskStatus
-from services.universal_web_extractor import web_extractor
-from services.content_validator import content_validator
-from services.semantic_analyzer import semantic_analyzer
-from services.gcs_persistence import initialize_gcs_persistence
+from typing import Optional
 
-# Initialize GCS persistence
-gcs_persistence = initialize_gcs_persistence()
+from services.task_store import task_store, TaskStatus
+from services.pubsub_publisher import pubsub_publisher
 
 app = FastAPI()
 
@@ -28,27 +24,7 @@ app.add_middleware(
 # Request models
 class URLSubmission(BaseModel):
     url: str
-
-# Background task for extraction (without validation)
-async def extract_url_background(task_id: str, url: str):
-    """Background task to extract URL content"""
-    try:
-        extraction_manager.update_task_status(task_id, TaskStatus.PROCESSING)
-
-        # Extract content
-        print(f"🔍 Extracting: {url}")
-        result = await web_extractor.extract_page(url)
-
-        # Store screenshot_bytes separately before converting to dict
-        task = extraction_manager.get_task(task_id)
-        if task:
-            task.screenshot_bytes = result.screenshot_bytes
-
-        extraction_manager.set_task_result(task_id, result.to_dict())
-        print(f"✅ Extraction completed")
-    except Exception as e:
-        print(f"❌ Extraction error: {e}")
-        extraction_manager.set_task_error(task_id, str(e))
+    user_id: Optional[str] = None
 
 # API endpoints
 @app.get("/api/health")
@@ -56,21 +32,27 @@ async def health_check():
     return {"status": "ok"}
 
 @app.post("/api/extract")
-async def extract_url(submission: URLSubmission, background_tasks: BackgroundTasks):
+async def extract_url(submission: URLSubmission, request: Request):
     """Submit URL for extraction - returns immediately with task_id"""
-    task_id = extraction_manager.create_task(submission.url)
-    background_tasks.add_task(extract_url_background, task_id, submission.url)
+    user_id = submission.user_id or request.headers.get('x-user-id')
+
+    # Create task in Firestore
+    task_id = task_store.create_task(submission.url, user_id=user_id)
+
+    # Publish to Pub/Sub for Cloud Run worker to process
+    pubsub_publisher.publish_extraction_job(task_id, submission.url)
 
     return {
         "task_id": task_id,
         "status": "submitted",
-        "message": "Extraction started"
+        "message": "Extraction job published to Cloud Run",
+        "user_id": user_id
     }
 
 @app.get("/api/task/{task_id}")
 async def get_task_status(task_id: str):
     """Get extraction task status and result"""
-    task = extraction_manager.get_task(task_id)
+    task = task_store.get_task(task_id)
 
     if not task:
         return {"error": "Task not found"}, 404
@@ -82,7 +64,8 @@ async def get_task_status(task_id: str):
         "created_at": task.created_at,
         "completed_at": task.completed_at,
         "token_costs": task.token_costs,
-        "gcs_paths": task.gcs_paths
+        "gcs_paths": task.gcs_paths,
+        "user_id": task.user_id
     }
 
     if task.status == TaskStatus.COMPLETED:
@@ -95,7 +78,7 @@ async def get_task_status(task_id: str):
 @app.post("/api/task/{task_id}/clean")
 async def clean_task_content(task_id: str):
     """Clean/validate the extracted content"""
-    task = extraction_manager.get_task(task_id)
+    task = task_store.get_task(task_id)
 
     if not task:
         return {"error": "Task not found"}, 404
@@ -106,81 +89,46 @@ async def clean_task_content(task_id: str):
     if not task.result:
         return {"error": "No result to clean"}, 400
 
-    try:
-        print(f"🧹 Cleaning content for task {task_id}")
-        validation = await content_validator.validate_extraction(task.result)
+    # Publish cleaning job to Cloud Run worker
+    pubsub_publisher.publish_cleaning_job(task_id)
 
-        # Log flags if any
-        if validation.flags:
-            print(f"⚠️  Content flags: {', '.join(validation.flags)}")
+    return {
+        "success": True,
+        "message": "Cleaning job published to Cloud Run",
+        "task_id": task_id
+    }
 
-        # Apply cleaned metadata to result
-        if validation.cleaned_data:
-            print(f"✅ Applying cleaned metadata")
-            if "title" in validation.cleaned_data and validation.cleaned_data["title"]:
-                task.result["title"] = validation.cleaned_data["title"]
-            if "author" in validation.cleaned_data:
-                task.result["author"] = validation.cleaned_data["author"]
-            if "publish_date" in validation.cleaned_data:
-                task.result["publish_date"] = validation.cleaned_data["publish_date"]
-            if "meta_description" in validation.cleaned_data:
-                task.result["meta_description"] = validation.cleaned_data["meta_description"]
+@app.post("/api/task/{task_id}/resolve")
+async def resolve_task_entities(task_id: str):
+    """
+    Resolve entities from cleaned content using NER + Wikidata linking
 
-        # Apply cleaned content
-        if validation.cleaned_content:
-            print(f"✅ Applying cleaned content")
-            task.result["content_text"] = validation.cleaned_content
-            # Recalculate word count
-            words = validation.cleaned_content.split()
-            task.result["word_count"] = len(words)
-            task.result["reading_time_minutes"] = round(len(words) / 200, 1)
+    This should be called AFTER /clean and BEFORE /semantize
+    """
+    task = task_store.get_task(task_id)
 
-        # Track token usage
-        if validation.token_usage:
-            extraction_manager.add_token_cost(
-                task_id,
-                "cleaning",
-                validation.token_usage.get("total_tokens", 0)
-            )
+    if not task:
+        return {"error": "Task not found"}, 404
 
-        # Persist to GCS (forensic evidence) - only if GCS is available
-        if gcs_persistence:
-            try:
-                print(f"💾 Persisting to GCS...")
-                # Don't pass task_id - let it generate deterministic UUID from canonical URL
-                gcs_paths = gcs_persistence.persist_extraction(
-                    url=task.url,
-                    extraction_result=task.result,
-                    cleaned_content=validation.cleaned_content,
-                    screenshot_bytes=task.screenshot_bytes,
-                    task_id=None  # Generate from canonical URL for consistency
-                )
-                extraction_manager.set_gcs_paths(task_id, gcs_paths)
-                print(f"✅ Persisted to GCS: {gcs_paths['artifact_id']} (deterministic from URL)")
-            except Exception as e:
-                print(f"⚠️  GCS persistence failed (non-blocking): {e}")
-        else:
-            print(f"⚠️  GCS persistence skipped (not initialized)")
+    if task.status != TaskStatus.COMPLETED:
+        return {"error": "Task not completed yet"}, 400
 
-        print(f"✅ Cleaning completed")
-        return {
-            "is_valid": True,
-            "reason": validation.reason,
-            "flags": validation.flags,
-            "cleaned_data": validation.cleaned_data,
-            "cleaned_content": validation.cleaned_content,
-            "token_usage": validation.token_usage,
-            "result": task.result
-        }
+    if not task.result:
+        return {"error": "No result to resolve entities from"}, 400
 
-    except Exception as e:
-        print(f"❌ Cleaning error: {e}")
-        return {"error": str(e)}, 500
+    # Publish resolution job to Cloud Run worker
+    pubsub_publisher.publish_resolution_job(task_id)
+
+    return {
+        "success": True,
+        "message": "Entity resolution job published to Cloud Run",
+        "task_id": task_id
+    }
 
 @app.post("/api/task/{task_id}/semantize")
 async def semantize_task_content(task_id: str):
     """Extract semantic claims from cleaned content"""
-    task = extraction_manager.get_task(task_id)
+    task = task_store.get_task(task_id)
 
     if not task:
         return {"error": "Task not found"}, 404
@@ -191,55 +139,203 @@ async def semantize_task_content(task_id: str):
     if not task.result:
         return {"error": "No result to semantize"}, 400
 
-    try:
-        print(f"🧠 Semantizing content for task {task_id}")
+    # Publish semantization job to Cloud Run worker
+    pubsub_publisher.publish_semantization_job(task_id)
 
-        # Prepare content for semantic analysis
-        page_meta = {
-            "title": task.result.get("title", ""),
-            "byline": task.result.get("author", ""),
-            "pub_time": task.result.get("publish_date", ""),
-            "site": task.result.get("domain", "")
-        }
+    return {
+        "success": True,
+        "message": "Semantization job published to Cloud Run",
+        "task_id": task_id
+    }
 
-        # Convert content to page_text format expected by semantic analyzer
-        content_text = task.result.get("content_text", "")
-        page_text = [{"selector": "#main-content", "text": content_text}]
+@app.get("/api/task/{task_id}/preview")
+async def get_task_preview(task_id: str):
+    """
+    Get frontend-optimized preview data for display
 
-        # Extract claims
-        semantic_result = await semantic_analyzer.extract_enhanced_claims(
-            page_meta=page_meta,
-            page_text=page_text,
-            url=task.result.get("canonical_url", task.url),
-            lang="en"
-        )
+    Returns:
+    - Article card data (title, image, description)
+    - Metadata badges (language, section, tags)
+    - Quality indicators (flags, confidence scores)
+    - Social links (publisher profiles)
+    """
+    task = task_store.get_task(task_id)
 
-        # Store semantic data
-        extraction_manager.set_semantic_data(task_id, semantic_result)
+    if not task:
+        return {"error": "Task not found"}, 404
 
-        # Track token usage
-        if semantic_result.get('token_usage'):
-            extraction_manager.add_token_cost(
-                task_id,
-                "semantization",
-                semantic_result['token_usage'].get("total_tokens", 0)
-            )
-
-        admitted_count = len(semantic_result.get('claims', []))
-        excluded_count = len(semantic_result.get('excluded_claims', []))
-        print(f"✅ Semantization completed: {admitted_count} claims admitted, {excluded_count} excluded")
-
+    if task.status != TaskStatus.COMPLETED:
         return {
-            "success": True,
-            "semantic_data": semantic_result,
-            "claims_count": admitted_count,
-            "excluded_count": excluded_count,
-            "token_usage": semantic_result.get('token_usage', {})
+            "task_id": task_id,
+            "status": task.status,
+            "preview_available": False
         }
 
-    except Exception as e:
-        print(f"❌ Semantization error: {e}")
-        return {"error": str(e)}, 500
+    result = task.result or {}
+
+    # Extract Open Graph metadata (with backwards compatibility)
+    og_meta = result.get('og_metadata', {})
+    article_meta = result.get('article_metadata', {})
+    twitter_meta = result.get('twitter_metadata', {})
+    jsonld_meta = result.get('jsonld_metadata', {})
+
+    # Debug logging for missing metadata (informational only - normal for simple pages)
+    if not og_meta and not article_meta:
+        print(f"ℹ️  Task {task_id} has minimal metadata (page may lack Open Graph tags)")
+
+    # Build frontend-optimized response
+    preview = {
+        # Card display
+        "title": result.get('title', ''),
+        "description": result.get('meta_description', ''),
+        "preview_image": _get_preview_image(og_meta, jsonld_meta),
+        "url": result.get('canonical_url', result.get('url', '')),
+        "domain": result.get('domain', ''),
+
+        # Publisher info
+        "publisher": {
+            "name": og_meta.get('site_name', result.get('domain', '')),
+            "favicon": f"https://www.google.com/s2/favicons?domain={result.get('domain', '')}&sz=32",
+            "facebook": article_meta.get('publisher', '') if article_meta.get('publisher', '').startswith('http') else '',
+            "twitter": twitter_meta.get('site', '')
+        },
+
+        # Author info
+        "author": {
+            "name": result.get('author', ''),
+            "facebook": article_meta.get('author', '') if article_meta.get('author', '').startswith('http') else '',
+            "twitter": twitter_meta.get('creator', '')
+        },
+
+        # Metadata badges
+        "metadata": {
+            "language": result.get('language', ''),
+            "language_name": _get_language_name(result.get('language', '')),
+            "locale": og_meta.get('locale', ''),
+            "publish_date": result.get('publish_date', ''),
+            "section": article_meta.get('section', ''),
+            "tags": article_meta.get('tags', []),
+            "content_type": og_meta.get('type', 'article')
+        },
+
+        # Content metrics
+        "metrics": {
+            "word_count": result.get('word_count', 0),
+            "reading_time_minutes": result.get('reading_time_minutes', 0),
+            "language_confidence": result.get('language_confidence', 0.0)
+        },
+
+        # Quality indicators
+        "quality": {
+            "flags": result.get('flags', []),
+            "is_readable": result.get('is_readable', True),
+            "status": result.get('status', 'readable')
+        },
+
+        # Processing info
+        "processing": {
+            "extraction_timestamp": result.get('extraction_timestamp', ''),
+            "processing_time_ms": result.get('processing_time_ms', 0),
+            "token_costs": task.token_costs
+        },
+
+        # GCS paths (for downloading artifacts)
+        "artifacts": task.gcs_paths if task.gcs_paths else {}
+    }
+
+    return preview
+
+def _get_preview_image(og_meta: dict, jsonld_meta: dict) -> dict:
+    """Extract preview image with dimensions"""
+    # Priority: Open Graph image (most reliable)
+    og_image = og_meta.get('image', {})
+    if isinstance(og_image, dict) and og_image.get('url'):
+        return {
+            "url": og_image.get('url', ''),
+            "secure_url": og_image.get('secure_url', og_image.get('url', '')),
+            "width": int(og_image.get('width', 0)) if og_image.get('width') else None,
+            "height": int(og_image.get('height', 0)) if og_image.get('height') else None
+        }
+
+    # Fallback: JSON-LD image
+    jsonld_image = jsonld_meta.get('image', '')
+    if jsonld_image:
+        return {
+            "url": jsonld_image,
+            "secure_url": jsonld_image,
+            "width": None,
+            "height": None
+        }
+
+    return {
+        "url": '',
+        "secure_url": '',
+        "width": None,
+        "height": None
+    }
+
+@app.get("/api/task/{task_id}/debug")
+async def debug_task_metadata(task_id: str):
+    """
+    Debug endpoint to see what metadata was extracted
+
+    Useful for troubleshooting missing metadata fields
+    """
+    task = task_store.get_task(task_id)
+
+    if not task:
+        return {"error": "Task not found"}, 404
+
+    result = task.result or {}
+
+    return {
+        "task_id": task_id,
+        "status": task.status,
+        "result_keys": list(result.keys()),
+        "has_rich_metadata": {
+            "og_metadata": bool(result.get('og_metadata')),
+            "article_metadata": bool(result.get('article_metadata')),
+            "twitter_metadata": bool(result.get('twitter_metadata')),
+            "jsonld_metadata": bool(result.get('jsonld_metadata'))
+        },
+        "og_metadata": result.get('og_metadata', {}),
+        "article_metadata": result.get('article_metadata', {}),
+        "twitter_metadata": result.get('twitter_metadata', {}),
+        "jsonld_metadata": result.get('jsonld_metadata', {}),
+        "basic_fields": {
+            "title": result.get('title', ''),
+            "author": result.get('author', ''),
+            "publish_date": result.get('publish_date', ''),
+            "language": result.get('language', ''),
+            "domain": result.get('domain', '')
+        }
+    }
+
+def _get_language_name(lang_code: str) -> str:
+    """Convert ISO 639-1 code to readable language name"""
+    language_names = {
+        'en': 'English',
+        'es': 'Spanish',
+        'fr': 'French',
+        'de': 'German',
+        'zh-cn': 'Chinese (Simplified)',
+        'zh-tw': 'Chinese (Traditional)',
+        'ja': 'Japanese',
+        'ko': 'Korean',
+        'ar': 'Arabic',
+        'pt': 'Portuguese',
+        'ru': 'Russian',
+        'it': 'Italian',
+        'nl': 'Dutch',
+        'pl': 'Polish',
+        'tr': 'Turkish',
+        'vi': 'Vietnamese',
+        'th': 'Thai',
+        'id': 'Indonesian',
+        'he': 'Hebrew',
+        'hi': 'Hindi'
+    }
+    return language_names.get(lang_code.lower(), lang_code.upper())
 
 # Serve static files and React app
 app.mount("/assets", StaticFiles(directory="dist/assets"), name="assets")

@@ -44,3 +44,4 @@ Thumbs.db
 
 # Test artifacts
 services/tests/screenshot.png
+hn4-local-dev-key.json

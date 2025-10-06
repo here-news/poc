@@ -1,5 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { ensureUserId, formatUserId, persistUserId } from './userSession'
 
 interface NewsItem {
   id: number
@@ -20,11 +21,23 @@ function HomePage() {
   const [url, setUrl] = useState('')
   const [submitStatus, setSubmitStatus] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [userId, setUserId] = useState('')
   const navigate = useNavigate()
+
+  useEffect(() => {
+    const id = ensureUserId()
+    setUserId(id)
+  }, [])
 
   const handleSubmit = async () => {
     if (!url.trim()) {
       setSubmitStatus('Please enter a URL')
+      setTimeout(() => setSubmitStatus(''), 3000)
+      return
+    }
+
+    if (!userId) {
+      setSubmitStatus('Preparing user session, please try again')
       setTimeout(() => setSubmitStatus(''), 3000)
       return
     }
@@ -37,11 +50,17 @@ function HomePage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'X-User-Id': userId,
         },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url, user_id: userId }),
       })
 
       const data = await response.json()
+
+      if (data.user_id && data.user_id !== userId) {
+        persistUserId(data.user_id)
+        setUserId(data.user_id)
+      }
 
       if (data.task_id) {
         // Redirect to result page with task_id
@@ -63,6 +82,11 @@ function HomePage() {
       {/* Left Pane - News List */}
       <div className="flex-1 overflow-y-auto p-6">
         <h1 className="text-3xl font-bold mb-6 text-gray-800">News Feed</h1>
+        {userId && (
+          <p className="mb-4 text-sm text-gray-500">
+            User ID: <span title={userId}>{formatUserId(userId)}</span>
+          </p>
+        )}
         <div className="space-y-4">
           {mockNews.map((item) => (
             <div key={item.id} className="bg-white p-4 rounded-lg shadow hover:shadow-md transition-shadow">
@@ -79,6 +103,11 @@ function HomePage() {
       {/* Right Pane - URL Submit Form */}
       <div className="w-96 bg-white p-6 shadow-lg">
         <h2 className="text-2xl font-bold mb-4 text-gray-800">Extract URL</h2>
+        {userId && (
+          <div className="mb-4 text-xs text-gray-500 text-right">
+            Session: <span title={userId}>{formatUserId(userId)}</span>
+          </div>
+        )}
         <div className="space-y-4">
           <input
             type="url"
@@ -91,7 +120,7 @@ function HomePage() {
           <button
             className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors disabled:bg-gray-400"
             onClick={handleSubmit}
-            disabled={isSubmitting}
+            disabled={isSubmitting || !userId}
           >
             {isSubmitting ? 'Submitting...' : 'Submit'}
           </button>

@@ -9,19 +9,18 @@ services:
       - .env
     environment:
       - NODE_ENV=production
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/hn4-local-dev-key.json
     volumes:
+      # Mount service account key (never expires)
+      - ./hn4-local-dev-key.json:/app/hn4-local-dev-key.json:ro
       # Optional: mount for development
       - ./static:/app/static
       - ./templates:/app/templates
-      # Cache Playwright browsers across rebuilds
-      - playwright-cache:/root/.cache/ms-playwright
       # Cache pip downloads to speed up rebuilds
       - pip-cache:/root/.cache/pip
     restart: unless-stopped
     container_name: hn4-app
 
 volumes:
-  playwright-cache:
-    driver: local
   pip-cache:
     driver: local

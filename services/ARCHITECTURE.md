@@ -2,6 +2,15 @@
 
 ## Overview
 
+> **Status**
+>
+> The runtime pipeline (extraction, cleaning, entity resolution, semantization,
+> persistence) now lives in the Cloud Run deployment housed at
+> `../here-extraction-service`. This document remains as contract-level
+> documentation for how HN4 interacts with that service (Pub/Sub topics,
+> Firestore documents, GCS artifacts). The Python modules alongside this file
+> are deprecated snapshots preserved for reference only.
+
 The HN4 service pipeline extracts, validates, and semantically analyzes web content through a multi-stage processing chain. The architecture is designed to be **site-agnostic**, working across any news website without hardcoded site-specific logic.
 
 ## System Flow
@@ -12,7 +21,7 @@ User Request (URL)
 server.py (FastAPI)
     ↓
 ┌─────────────────────────────────────────────────────────────┐
-│ Stage 1: Extraction (universal_web_extractor.py)            │
+│ Stage 1: Extraction (Cloud Run worker: universal extractor) │
 │ - Load page with Playwright (anti-bot bypass)               │
 │ - Extract all visible text + metadata                       │
 │ - Capture screenshot for forensic evidence                  │
@@ -21,7 +30,7 @@ server.py (FastAPI)
 └─────────────────────────────────────────────────────────────┘
     ↓
 ┌─────────────────────────────────────────────────────────────┐
-│ Stage 2: Validation & Cleaning (content_validator.py)       │
+│ Stage 2: Validation & Cleaning (Cloud Run worker)           │
 │ - LLM-based content cleaning (GPT-4o-mini)                  │
 │ - Remove navigation, footers, sidebars                      │
 │ - Extract/correct metadata (author, date, title)            │
@@ -30,7 +39,7 @@ server.py (FastAPI)
 └─────────────────────────────────────────────────────────────┘
     ↓
 ┌─────────────────────────────────────────────────────────────┐
-│ Stage 3: Persistence (gcs_persistence.py)                   │
+│ Stage 3: Persistence (Cloud Run worker)                     │
 │ - Generate deterministic UUID from canonical URL            │
 │ - Store artifacts in GCS bucket (here_news)                 │
 │   - screenshot.png (visual evidence)                        │
@@ -41,7 +50,7 @@ server.py (FastAPI)
 └─────────────────────────────────────────────────────────────┘
     ↓
 ┌─────────────────────────────────────────────────────────────┐
-│ Stage 4: Semantic Analysis (semantic_analyzer.py)           │
+│ Stage 4: Semantic Analysis (Cloud Run worker)               │
 │ - LLM-based claim extraction (GPT-4o)                       │
 │ - Extract atomic claims with WHO/WHERE/WHEN entities        │
 │ - Apply 6-layer premise filter (gatekeeper)                 │
@@ -81,7 +90,10 @@ from services.gcs_persistence import initialize_gcs_persistence
 
 ---
 
-### 2. extraction_manager.py
+### 2. extraction_manager.py _(legacy)_
+
+> Legacy module retained for documentation. The live task coordinator runs in
+> Cloud Run within `here-extraction-service`.
 
 **Role**: In-memory task state management
 
@@ -95,12 +107,13 @@ class ExtractionTask:
     screenshot_bytes: bytes   # Binary PNG data (separate from result)
     token_costs: Dict         # Track API usage by stage
     gcs_paths: Dict          # GCS artifact locations
+    user_id: Optional[str]   # Stable user identifier
     created_at: datetime
     completed_at: datetime
 ```
 
 **Methods**:
-- `create_task(url)` - Initialize new extraction
+- `create_task(url, user_id=None)` - Initialize new extraction tied to a user
 - `get_task(task_id)` - Retrieve task state
 - `update_task_status()` - Update progress
 - `set_task_result()` - Store extraction output
@@ -114,7 +127,10 @@ class ExtractionTask:
 
 ---
 
-### 3. universal_web_extractor.py
+### 3. universal_web_extractor.py _(legacy)_
+
+> Legacy reference; the active Playwright-based extractor lives in the Cloud Run
+> service.
 
 **Role**: Universal web page content extraction
 
@@ -172,7 +188,9 @@ Priority:
 
 ---
 
-### 4. content_validator.py
+### 4. content_validator.py _(legacy)_
+
+> Legacy reference; validation now runs inside the Cloud Run workers.
 
 **Role**: LLM-based content cleaning and quality flagging
 
@@ -257,7 +275,9 @@ Pattern 4: Multiple consecutive lines with proper names (USA Today style)
 
 ---
 
-### 5. gcs_persistence.py
+### 5. gcs_persistence.py _(legacy)_
+
+> Legacy reference; persistence now runs inside the Cloud Run workers.
 
 **Role**: Forensic evidence storage in Google Cloud Storage
 
@@ -330,7 +350,9 @@ Benefits:
 
 ---
 
-### 6. semantic_analyzer.py
+### 6. semantic_analyzer.py _(legacy)_
+
+> Legacy reference; semantic analysis now runs inside the Cloud Run workers.
 
 **Role**: Extract atomic claims with entity metadata
 
@@ -502,10 +524,10 @@ Response:
 - **Idempotent uploads** - Re-extracting same article overwrites (no versioning)
 
 ### 4. Layered Quality Control
-- **Stage 1 (Extractor)**: Get everything, minimal filtering
-- **Stage 2 (Validator)**: Clean aggressively, flag issues
-- **Stage 3 (Persistence)**: Store forensic evidence
-- **Stage 4 (Analyzer)**: Rigorous claim gatekeeper
+- **Stage 1 (Extractor)**: Cloud Run worker that captures raw page artifacts
+- **Stage 2 (Validator)**: Cloud Run worker that cleans text and flags issues
+- **Stage 3 (Persistence)**: Cloud Run worker that writes to GCS/Firestore
+- **Stage 4 (Analyzer)**: Cloud Run worker that emits claims/entities
 
 ### 5. Cost Optimization
 - **GPT-4o-mini** for cleaning (cheap, sufficient quality)
