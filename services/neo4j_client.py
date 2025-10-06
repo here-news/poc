@@ -1,9 +1,15 @@
-"""
-Neo4j client for querying story graph database
-"""
+"""Neo4j client for querying story graph database with optional embedding search."""
+
 import os
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
+
+import numpy as np
 from neo4j import GraphDatabase
+
+try:  # Optional dependency
+    from openai import OpenAI  # type: ignore
+except ImportError:  # pragma: no cover
+    OpenAI = None  # type: ignore
 
 
 class Neo4jClient:
@@ -14,6 +20,20 @@ class Neo4jClient:
         self.database = os.getenv('NEO4J_DATABASE', 'neo4j')
         self.driver = None
         self.connected = False
+
+        self.embedding_model = os.getenv('EMBEDDING_MODEL', 'text-embedding-3-small')
+        self.openai_client = None
+
+        openai_key = os.getenv('OPENAI_API_KEY')
+        if openai_key and OpenAI:
+            try:
+                self.openai_client = OpenAI(api_key=openai_key)
+                print("✅ OpenAI client initialised for story search embeddings")
+            except Exception as exc:  # pragma: no cover - network failure
+                print(f"⚠️  Failed to initialise OpenAI client: {exc}")
+                self.openai_client = None
+        elif openai_key and not OpenAI:
+            print("⚠️  openai package not installed - embeddings disabled")
 
         self._connect()
 
@@ -51,26 +71,14 @@ class Neo4jClient:
         self.driver = None
         self.connected = False
 
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
     def get_recent_stories(self, limit: int = 10) -> List[Dict]:
-        """Public helper retained for compatibility with LiveSignals."""
+        """Legacy helper used by homepage widgets."""
         summaries = self.get_story_summaries(limit=limit)
-
-        # Map to legacy structure expected by the UI (health indicator heuristics)
         stories = []
         for summary in summaries:
-            health_indicator = 'unknown'
-            # Simple heuristics: local stories -> healthy, global high entropy -> growing
-            category = summary.get('category')
-            entropy = summary.get('entropy', 0)
-            artifact_count = summary.get('artifact_count', 0)
-
-            if category == 'local':
-                health_indicator = 'healthy'
-            elif entropy and entropy > 0.7:
-                health_indicator = 'growing'
-            elif artifact_count == 0:
-                health_indicator = 'archived'
-
             stories.append({
                 'id': summary.get('id', ''),
                 'title': summary.get('title', 'Untitled Story'),
@@ -78,30 +86,26 @@ class Neo4jClient:
                 'created_at': summary.get('created_at'),
                 'last_updated': summary.get('updated_at'),
                 'timestamp': summary.get('last_updated_human', 'unknown'),
-                'health_indicator': health_indicator,
+                'health_indicator': summary.get('health_indicator', 'unknown'),
                 'claim_count': summary.get('claim_count', 0),
                 'contributor_count': summary.get('people_count', 0)
             })
-
         return stories
 
     def get_story_summaries(self, limit: int = 20) -> List[Dict]:
-        """Fetch enriched story summaries suitable for the homepage chat experience."""
+        """Fetch enriched story summaries suitable for homepage and chat."""
         if not self.connected:
             self._connect()
-
         if not self.connected:
             return []
 
-        query = """
+        cypher = """
         MATCH (story:Story)
-
         OPTIONAL MATCH (story)-[:HAS_ARTIFACT]->(artifact:Artifact)
         OPTIONAL MATCH (story)-[:HAS_CLAIM]->(claim:Claim)
         OPTIONAL MATCH (story)-[:MENTIONS]->(person:Person)
         OPTIONAL MATCH (story)-[:MENTIONS_LOCATION]->(location:Location)
         OPTIONAL MATCH (artifact)-[:MENTIONS_LOCATION]->(artifact_location:Location)
-
         WITH story,
              count(DISTINCT artifact) as artifact_count,
              count(DISTINCT claim) as claim_count,
@@ -109,9 +113,7 @@ class Neo4jClient:
              collect(DISTINCT location) + collect(DISTINCT artifact_location) as all_locations,
              head([a IN collect(DISTINCT artifact) WHERE a.thumbnail_url IS NOT NULL AND a.thumbnail_url <> '' | a.thumbnail_url]) as cover_thumbnail,
              max(artifact.created_at) as last_artifact_date
-
         WHERE artifact_count > 0
-
         RETURN story.id as id,
                story.topic as title,
                story.gist as description,
@@ -130,38 +132,246 @@ class Neo4jClient:
         """
 
         with self.driver.session(database=self.database) as session:
-            result = session.run(query, limit=limit)
+            result = session.run(cypher, limit=limit)
             summaries: List[Dict] = []
-
             for record in result:
-                created_at = self._format_datetime(record.get('created_at'))
-                updated_at = self._format_datetime(record.get('updated_at'))
-                last_activity = self._format_datetime(record.get('last_activity'))
-
-                summaries.append({
-                    'id': record.get('id'),
-                    'title': record.get('title') or 'Untitled Story',
-                    'description': record.get('description') or '',
-                    'artifact_count': record.get('artifact_count', 0),
-                    'claim_count': record.get('claim_count', 0),
-                    'people_count': record.get('people_count', 0),
-                    'locations': record.get('locations') or [],
-                    'confidence': record.get('confidence') or 0.7,
-                    'entropy': record.get('entropy') or 0.5,
-                    'category': self._infer_category(record.get('locations') or []),
-                    'cover_image': record.get('cover_image') or '',
-                    'created_at': created_at,
-                    'updated_at': updated_at,
-                    'last_activity': last_activity,
-                    'last_updated_human': self._format_time_ago(last_activity)
-                })
-
+                summary = self._record_to_summary(record)
+                summaries.append(summary)
             return summaries
+
+    def search_story_summaries(self, query: str, limit: int = 5) -> List[Dict]:
+        """Search stories using substring and optional embedding similarity."""
+        if not query:
+            return []
+        if not self.connected:
+            self._connect()
+        if not self.connected:
+            return []
+
+        trimmed = query.strip()
+        if not trimmed:
+            return []
+
+        substring_matches = self._search_story_summaries_substring(trimmed, limit * 2)
+
+        embedding_matches: List[Dict] = []
+        if self.openai_client:
+            embedding = self._generate_embedding(trimmed)
+            if embedding:
+                embedding_matches = self._search_story_summaries_embedding(embedding, trimmed, max(limit * 5, 25))
+
+        combined: Dict[str, Dict] = {}
+
+        def add(entry: Dict, similarity: float):
+            story_id = entry.get('id')
+            if not story_id:
+                return
+            existing = combined.get(story_id)
+            if existing:
+                if similarity > existing.get('similarity', 0):
+                    merged = {**existing, **entry}
+                    merged['similarity'] = similarity
+                    combined[story_id] = merged
+            else:
+                entry_copy = {**entry}
+                entry_copy['similarity'] = similarity
+                combined[story_id] = entry_copy
+
+        for entry in substring_matches:
+            add(entry, entry.get('similarity', 0.55))
+
+        for entry in embedding_matches:
+            add(entry, entry.get('similarity', 0.0))
+
+        ranked = sorted(combined.values(), key=lambda item: item.get('similarity', 0), reverse=True)
+
+        for summary in ranked:
+            similarity = summary.get('similarity')
+            if similarity is not None:
+                summary['confidence'] = similarity
+                summary['match_score'] = similarity
+
+        return ranked[:limit]
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+    def _search_story_summaries_substring(self, query: str, limit: int) -> List[Dict]:
+        cypher = """
+        MATCH (story:Story)
+        OPTIONAL MATCH (story)-[:HAS_ARTIFACT]->(artifact:Artifact)
+        OPTIONAL MATCH (story)-[:HAS_CLAIM]->(claim:Claim)
+        OPTIONAL MATCH (story)-[:MENTIONS]->(person:Person)
+        OPTIONAL MATCH (story)-[:MENTIONS_LOCATION]->(location:Location)
+        OPTIONAL MATCH (artifact)-[:MENTIONS_LOCATION]->(artifact_location:Location)
+        WITH story,
+             collect(DISTINCT artifact) AS artifacts,
+             collect(DISTINCT claim) AS claims,
+             collect(DISTINCT person) AS people,
+             collect(DISTINCT location) + collect(DISTINCT artifact_location) AS all_locations,
+             max(artifact.created_at) AS last_artifact_date,
+             toLower($query) AS q
+        WITH story, artifacts, claims, people, all_locations, last_artifact_date, q,
+             size(artifacts) AS artifact_count,
+             size(claims) AS claim_count,
+             size(people) AS people_count,
+             head([a IN artifacts WHERE a.thumbnail_url IS NOT NULL AND a.thumbnail_url <> '' | a.thumbnail_url]) AS cover_thumbnail
+        WHERE artifact_count > 0 AND (
+              (story.topic IS NOT NULL AND toLower(story.topic) CONTAINS q)
+           OR (story.gist IS NOT NULL AND toLower(story.gist) CONTAINS q)
+           OR any(a IN artifacts WHERE (a.title IS NOT NULL AND toLower(a.title) CONTAINS q)
+                                   OR (a.description IS NOT NULL AND toLower(a.description) CONTAINS q))
+           OR any(loc IN all_locations WHERE loc.name IS NOT NULL AND toLower(loc.name) CONTAINS q)
+        )
+        WITH story, artifact_count, claim_count, people_count, all_locations, cover_thumbnail,
+             coalesce(last_artifact_date, story.updated_at, story.created_at) AS last_activity
+        RETURN story.id AS id,
+               story.topic AS title,
+               story.gist AS description,
+               artifact_count,
+               claim_count,
+               people_count,
+               [loc IN all_locations WHERE loc.name IS NOT NULL | loc.name] AS locations,
+               story.confidence AS confidence,
+               story.entropy AS entropy,
+               story.created_at AS created_at,
+               story.updated_at AS updated_at,
+               cover_thumbnail AS cover_image,
+               last_activity
+        ORDER BY last_activity DESC
+        LIMIT $limit
+        """
+
+        with self.driver.session(database=self.database) as session:
+            result = session.run(cypher, query=query.lower(), limit=limit)
+            matches: List[Dict] = []
+            for record in result:
+                summary = self._record_to_summary(record)
+                summary['similarity'] = 0.55
+                matches.append(summary)
+            return matches
+
+    def _search_story_summaries_embedding(self, query_embedding: List[float], query_text: str, limit: int) -> List[Dict]:
+        if not self.connected:
+            return []
+
+        cypher = """
+        MATCH (story:Story)
+        WHERE story.embedding IS NOT NULL
+        OPTIONAL MATCH (story)-[:HAS_ARTIFACT]->(artifact:Artifact)
+        OPTIONAL MATCH (story)-[:HAS_CLAIM]->(claim:Claim)
+        OPTIONAL MATCH (story)-[:MENTIONS]->(person:Person)
+        OPTIONAL MATCH (story)-[:MENTIONS_LOCATION]->(location:Location)
+        OPTIONAL MATCH (artifact)-[:MENTIONS_LOCATION]->(artifact_location:Location)
+        WITH story,
+             story.embedding AS embedding,
+             collect(DISTINCT artifact) AS artifacts,
+             collect(DISTINCT claim) AS claims,
+             collect(DISTINCT person) AS people,
+             collect(DISTINCT location) + collect(DISTINCT artifact_location) AS all_locations,
+             max(artifact.created_at) AS last_artifact_date
+        WITH story, embedding, artifacts, claims, people, all_locations, last_artifact_date,
+             size(artifacts) AS artifact_count,
+             size(claims) AS claim_count,
+             size(people) AS people_count,
+             head([a IN artifacts WHERE a.thumbnail_url IS NOT NULL AND a.thumbnail_url <> '' | a.thumbnail_url]) AS cover_thumbnail
+        WHERE artifact_count > 0
+        WITH story, embedding, artifact_count, claim_count, people_count, all_locations, cover_thumbnail,
+             coalesce(last_artifact_date, story.updated_at, story.created_at) AS last_activity
+        RETURN story.id AS id,
+               story.topic AS title,
+               story.gist AS description,
+               artifact_count,
+               claim_count,
+               people_count,
+               [loc IN all_locations WHERE loc.name IS NOT NULL | loc.name] AS locations,
+               story.confidence AS confidence,
+               story.entropy AS entropy,
+               story.created_at AS created_at,
+               story.updated_at AS updated_at,
+               cover_thumbnail AS cover_image,
+               last_activity,
+               embedding
+        ORDER BY last_activity DESC
+        LIMIT $limit
+        """
+
+        matches: List[Dict] = []
+        with self.driver.session(database=self.database) as session:
+            result = session.run(cypher, limit=limit)
+            for record in result:
+                embedding = record.get('embedding')
+                if not embedding:
+                    continue
+                similarity = self._cosine_similarity(query_embedding, embedding)
+                if similarity <= 0:
+                    continue
+                summary = self._record_to_summary(record)
+                summary['similarity'] = similarity
+                summary['matched_query'] = query_text
+                matches.append(summary)
+        return matches
+
+    def _record_to_summary(self, record) -> Dict:
+        created_at = self._format_datetime(record.get('created_at'))
+        updated_at = self._format_datetime(record.get('updated_at'))
+        last_activity = self._format_datetime(record.get('last_activity'))
+
+        summary = {
+            'id': record.get('id'),
+            'title': record.get('title') or 'Untitled Story',
+            'description': record.get('description') or '',
+            'artifact_count': record.get('artifact_count', 0),
+            'claim_count': record.get('claim_count', 0),
+            'people_count': record.get('people_count', 0),
+            'locations': record.get('locations') or [],
+            'confidence': record.get('confidence') or 0.7,
+            'entropy': record.get('entropy') or 0.5,
+            'category': self._infer_category(record.get('locations') or []),
+            'cover_image': record.get('cover_image') or '',
+            'created_at': created_at,
+            'updated_at': updated_at,
+            'last_activity': last_activity,
+            'last_updated_human': self._format_time_ago(last_activity)
+        }
+        summary['health_indicator'] = self._infer_health_indicator(summary)
+        return summary
+
+    # ------------------------------------------------------------------
+    # Utility methods
+    # ------------------------------------------------------------------
+    def _generate_embedding(self, text: str) -> List[float]:
+        if not self.openai_client:
+            return []
+        try:
+            response = self.openai_client.embeddings.create(
+                input=text,
+                model=self.embedding_model
+            )
+            embedding = response.data[0].embedding
+            return embedding
+        except Exception as exc:
+            print(f"⚠️  Failed to generate embedding for story search: {exc}")
+            return []
+
+    def _cosine_similarity(self, vector_a: List[float], vector_b: List[float]) -> float:
+        try:
+            a = np.array(vector_a)
+            b = np.array(vector_b)
+            if a.size == 0 or b.size == 0:
+                return 0.0
+            denom = np.linalg.norm(a) * np.linalg.norm(b)
+            if denom == 0:
+                return 0.0
+            similarity = float(np.dot(a, b) / denom)
+            return similarity
+        except Exception as exc:
+            print(f"⚠️  Cosine similarity failed: {exc}")
+            return 0.0
 
     def _format_datetime(self, timestamp) -> Optional[str]:
         if not timestamp:
             return None
-
         try:
             if hasattr(timestamp, 'isoformat'):
                 return timestamp.isoformat()
@@ -174,109 +384,62 @@ class Neo4jClient:
     def _infer_category(self, locations: List[str]) -> str:
         if not locations:
             return 'global'
-
         us_indicators = {
             'united states', 'usa', 'us', 'america', 'washington', 'new york',
             'california', 'texas', 'florida', 'illinois', 'pennsylvania', 'ohio',
             'georgia', 'north carolina', 'michigan', 'nevada', 'arizona'
         }
-
         for location in locations:
             if any(indicator in location.lower() for indicator in us_indicators):
                 return 'local'
-
         return 'global'
 
-    def search_stories_by_text(self, query_text: str, limit: int = 5) -> List[Dict]:
-        """
-        Search stories by text query (basic substring match)
-
-        TODO: Implement vector similarity search with embeddings
-        """
-        query = """
-        MATCH (s:Story)
-        WHERE toLower(s.title) CONTAINS toLower($query_text)
-           OR toLower(s.description) CONTAINS toLower($query_text)
-        OPTIONAL MATCH (s)-[:HAS_CLAIM]->(c:Claim)
-        OPTIONAL MATCH (s)<-[:CONTRIBUTED_TO]-(u:User)
-        WITH s,
-             count(DISTINCT c) as claim_count,
-             count(DISTINCT u) as contributor_count
-        RETURN s.id as id,
-               s.title as title,
-               s.description as description,
-               s.last_updated as last_updated,
-               s.health_indicator as health_indicator,
-               claim_count,
-               contributor_count
-        ORDER BY s.last_updated DESC
-        LIMIT $limit
-        """
-
-        with self.driver.session(database=self.database) as session:
-            result = session.run(query, query_text=query_text, limit=limit)
-            stories = []
-
-            for record in result:
-                last_updated = record.get('last_updated')
-                time_ago = self._format_time_ago(last_updated) if last_updated else 'unknown'
-
-                stories.append({
-                    'id': record.get('id', ''),
-                    'title': record.get('title', 'Untitled Story'),
-                    'description': record.get('description', ''),
-                    'last_updated': record.get('last_updated'),
-                    'timestamp': time_ago,
-                    'health_indicator': record.get('health_indicator', 'unknown'),
-                    'claim_count': record.get('claim_count', 0),
-                    'contributor_count': record.get('contributor_count', 0),
-                    'match_score': 0.85  # Placeholder for future vector similarity
-                })
-
-            return stories
+    def _infer_health_indicator(self, summary: Dict) -> str:
+        category = summary.get('category')
+        entropy = summary.get('entropy') or 0
+        artifact_count = summary.get('artifact_count') or 0
+        last_updated = summary.get('last_updated_human') or ''
+        if category == 'local':
+            return 'healthy'
+        if entropy > 0.75:
+            return 'growing'
+        if artifact_count == 0:
+            return 'archived'
+        if isinstance(last_updated, str) and ('w' in last_updated or 'd' in last_updated and last_updated.startswith('7')):
+            return 'stale'
+        return 'healthy'
 
     def _format_time_ago(self, timestamp) -> str:
-        """Format timestamp as relative time (e.g., '2h ago')"""
         if not timestamp:
             return 'unknown'
-
         from datetime import datetime, timezone
-
         try:
-            # Handle different timestamp formats
             if isinstance(timestamp, str):
                 dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
             elif hasattr(timestamp, 'to_native'):
-                # Neo4j DateTime object
                 dt = timestamp.to_native()
             else:
                 dt = timestamp
-
-            # Make timezone-aware
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=timezone.utc)
-
             now = datetime.now(timezone.utc)
             diff = now - dt
-
             seconds = int(diff.total_seconds())
-
             if seconds < 60:
                 return 'just now'
-            elif seconds < 3600:
+            if seconds < 3600:
                 minutes = seconds // 60
                 return f'{minutes}m ago'
-            elif seconds < 86400:
+            if seconds < 86400:
                 hours = seconds // 3600
                 return f'{hours}h ago'
-            elif seconds < 604800:
+            if seconds < 604800:
                 days = seconds // 86400
                 return f'{days}d ago'
-            else:
-                weeks = seconds // 604800
-                return f'{weeks}w ago'
-        except Exception as e:
-            print(f"Error formatting timestamp: {e}")
+            weeks = seconds // 604800
+            return f'{weeks}w ago'
+        except Exception as exc:
+            print(f"Error formatting timestamp: {exc}")
             return 'unknown'
 
 

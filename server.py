@@ -31,6 +31,10 @@ class SeedSubmission(BaseModel):
     content: str
     user_id: Optional[str] = None
 
+class StorySearchRequest(BaseModel):
+    query: str
+    limit: Optional[int] = 5
+
 # API endpoints
 @app.get("/api/health")
 async def health_check():
@@ -60,6 +64,33 @@ async def get_stories(limit: int = 10):
         print(f"Error fetching stories from Neo4j: {e}")
         return {
             "stories": [],
+            "categories": {},
+            "total": 0,
+            "error": str(e)
+        }
+
+@app.post("/api/stories/search")
+async def search_stories(payload: StorySearchRequest):
+    try:
+        matches = neo4j_client.search_story_summaries(
+            query=payload.query,
+            limit=payload.limit or 5
+        )
+
+        category_map = {}
+        for story in matches:
+            category = story.get('category', 'global') or 'global'
+            category_map.setdefault(category, []).append(story)
+
+        return {
+            "matches": matches,
+            "categories": category_map,
+            "total": len(matches)
+        }
+    except Exception as e:
+        print(f"Error searching stories: {e}")
+        return {
+            "matches": [],
             "categories": {},
             "total": 0,
             "error": str(e)

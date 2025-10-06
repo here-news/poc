@@ -11,6 +11,7 @@ interface StorySummary {
   locations: string[]
   last_updated_human: string
   cover_image?: string
+  health_indicator?: string
 }
 
 const categoryConfig: Record<string, { label: string; color: string; accent: string }> = {
@@ -24,6 +25,14 @@ const categoryConfig: Record<string, { label: string; color: string; accent: str
     color: 'bg-blue-100 text-blue-700',
     accent: 'text-blue-500'
   }
+}
+
+const healthConfig: Record<string, { label: string; color: string }> = {
+  healthy: { label: 'Active', color: 'bg-emerald-100 text-emerald-600' },
+  growing: { label: 'Growing', color: 'bg-blue-100 text-blue-600' },
+  stale: { label: 'Cooling', color: 'bg-amber-100 text-amber-600' },
+  archived: { label: 'Archived', color: 'bg-slate-100 text-slate-500' },
+  unknown: { label: 'New', color: 'bg-slate-100 text-slate-500' }
 }
 
 function LiveSignals() {
@@ -55,7 +64,8 @@ function LiveSignals() {
           people_count: story.people_count || 0,
           locations: story.locations || [],
           last_updated_human: story.last_updated_human || 'recently',
-          cover_image: story.cover_image
+          cover_image: story.cover_image,
+          health_indicator: story.health_indicator
         }))
 
         setStories(summaries)
@@ -98,6 +108,7 @@ function LiveSignals() {
           ) : (
             stories.map((story) => {
               const category = categoryConfig[story.category] || categoryConfig.global
+              const health = healthConfig[story.health_indicator || 'unknown'] || healthConfig.unknown
 
               return (
                 <article
@@ -112,6 +123,9 @@ function LiveSignals() {
                         </h3>
                         <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${category.color}`}>
                           {category.label}
+                        </span>
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${health.color}`}>
+                          {health.label}
                         </span>
                       </div>
                       {story.description && (
