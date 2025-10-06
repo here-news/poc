@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ensureUserId,
-  formatUserId,
   persistUserId,
   composeUserHeaders
 } from './userSession'
+import UserProfile from './UserProfile'
 
 interface PreviewImage {
   url: string
@@ -356,20 +356,18 @@ function ResultPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-white to-blue-50 p-6">
       <div className="max-w-4xl mx-auto">
-        <button
-          onClick={() => navigate('/')}
-          className="mb-4 text-blue-500 hover:text-blue-600 font-semibold"
-        >
-          ← Back to Home
-        </button>
-
-        {userId && (
-          <div className="mb-4 text-xs text-gray-500">
-            User ID: <span title={userId}>{formatUserId(userId)}</span>
-          </div>
-        )}
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <button
+            onClick={() => navigate('/')}
+            className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 font-semibold"
+          >
+            <span className="text-lg">←</span>
+            <span>Back to Home</span>
+          </button>
+          <UserProfile userId={userId} />
+        </div>
 
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">

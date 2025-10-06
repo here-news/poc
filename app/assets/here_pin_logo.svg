@@ -1,0 +1,323 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   viewBox="0 0 800 400"
+   version="1.1"
+   id="svg89"
+   sodipodi:docname="here_pin_logo.svg"
+   inkscape:version="1.2.2 (b0a8486541, 2022-12-01)"
+   inkscape:export-filename="here_pin_logo.png"
+   inkscape:export-xdpi="96"
+   inkscape:export-ydpi="96"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview91"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     showgrid="false"
+     inkscape:zoom="1.645"
+     inkscape:cx="359.27052"
+     inkscape:cy="205.77508"
+     inkscape:window-width="1966"
+     inkscape:window-height="1083"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="here-text" />
+  <!-- Define gradients and filters for brush effect -->
+  <defs
+     id="defs37">
+    <!-- Smoother brush texture filter -->
+    <filter
+       id="brushTexture"
+       x="-20%"
+       y="-20%"
+       width="140%"
+       height="140%">
+      <feTurbulence
+         type="fractalNoise"
+         baseFrequency="0.015"
+         numOctaves="2"
+         result="turbulence"
+         id="feTurbulence2" />
+      <feColorMatrix
+         in="turbulence"
+         type="saturate"
+         values="0"
+         id="feColorMatrix4" />
+      <feComponentTransfer
+         id="feComponentTransfer8">
+        <feFuncA
+           type="discrete"
+           tableValues="0 .3 .5 .7 .9 1"
+           id="feFuncA6" />
+      </feComponentTransfer>
+      <feGaussianBlur
+         stdDeviation="0.3"
+         id="feGaussianBlur10" />
+      <feComposite
+         operator="over"
+         in2="SourceGraphic"
+         id="feComposite12" />
+    </filter>
+    <!-- Smoother edges filter -->
+    <filter
+       id="smoothEdge"
+       x="-0.048000001"
+       y="-0.12"
+       width="1.096"
+       height="1.24">
+      <feTurbulence
+         type="turbulence"
+         baseFrequency="0.015"
+         numOctaves="1"
+         result="turbulence"
+         seed="1"
+         id="feTurbulence15" />
+      <feDisplacementMap
+         in2="turbulence"
+         in="SourceGraphic"
+         scale="1.5"
+         xChannelSelector="R"
+         yChannelSelector="G"
+         id="feDisplacementMap17" />
+      <feGaussianBlur
+         stdDeviation="0.2"
+         id="feGaussianBlur19" />
+    </filter>
+    <!-- Shadow filter -->
+    <filter
+       id="shadow"
+       x="-0.03815774"
+       y="-0.023256954"
+       width="1.0776094"
+       height="1.1157562">
+      <feGaussianBlur
+         in="SourceAlpha"
+         stdDeviation="2"
+         id="feGaussianBlur22" />
+      <feOffset
+         dx="0"
+         dy="15"
+         result="offsetblur"
+         id="feOffset24" />
+      <feFlood
+         flood-color="#1a2f3a"
+         flood-opacity="0.2"
+         id="feFlood26" />
+      <feComposite
+         in2="offsetblur"
+         operator="in"
+         id="feComposite28" />
+      <feMerge
+         id="feMerge34">
+        <feMergeNode
+           id="feMergeNode30" />
+        <feMergeNode
+           in="SourceGraphic"
+           id="feMergeNode32" />
+      </feMerge>
+    </filter>
+    <filter
+       id="smoothEdge-3"
+       x="-0.006857143"
+       y="-0.12"
+       width="1.0137143"
+       height="1.24">
+      <feTurbulence
+         type="turbulence"
+         baseFrequency="0.015"
+         numOctaves="1"
+         result="turbulence"
+         seed="1"
+         id="feTurbulence15-6" />
+      <feDisplacementMap
+         in2="turbulence"
+         in="SourceGraphic"
+         scale="1.5"
+         xChannelSelector="R"
+         yChannelSelector="G"
+         id="feDisplacementMap17-7" />
+      <feGaussianBlur
+         stdDeviation="0.2"
+         id="feGaussianBlur19-5" />
+    </filter>
+    <filter
+       id="smoothEdge-5"
+       x="-0.013333334"
+       y="-0.12"
+       width="1.0266667"
+       height="1.24">
+      <feTurbulence
+         type="turbulence"
+         baseFrequency="0.015"
+         numOctaves="1"
+         result="turbulence"
+         seed="1"
+         id="feTurbulence15-62" />
+      <feDisplacementMap
+         in2="turbulence"
+         in="SourceGraphic"
+         scale="1.5"
+         xChannelSelector="R"
+         yChannelSelector="G"
+         id="feDisplacementMap17-9" />
+      <feGaussianBlur
+         stdDeviation="0.2"
+         id="feGaussianBlur19-1" />
+    </filter>
+    <filter
+       id="filter512"
+       x="-0.048"
+       y="-0.12"
+       width="1.096"
+       height="1.24">
+      <feTurbulence
+         type="turbulence"
+         baseFrequency="0.015"
+         numOctaves="1"
+         result="turbulence"
+         seed="1"
+         id="feTurbulence506" />
+      <feDisplacementMap
+         in2="turbulence"
+         in="SourceGraphic"
+         scale="1.5"
+         xChannelSelector="R"
+         yChannelSelector="G"
+         id="feDisplacementMap508" />
+      <feGaussianBlur
+         stdDeviation="0.2"
+         id="feGaussianBlur510" />
+    </filter>
+    <filter
+       id="smoothEdge-0"
+       x="-0.016"
+       y="-0.12"
+       width="1.032"
+       height="1.24">
+      <feTurbulence
+         type="turbulence"
+         baseFrequency="0.015"
+         numOctaves="1"
+         result="turbulence"
+         seed="1"
+         id="feTurbulence15-9" />
+      <feDisplacementMap
+         in2="turbulence"
+         in="SourceGraphic"
+         scale="1.5"
+         xChannelSelector="R"
+         yChannelSelector="G"
+         id="feDisplacementMap17-3" />
+      <feGaussianBlur
+         stdDeviation="0.2"
+         id="feGaussianBlur19-6" />
+    </filter>
+    <radialGradient
+       id="nodeGradient"
+       cx="40%"
+       cy="30%">
+      <stop
+         offset="0%"
+         style="stop-color:#2a4f5f;stop-opacity:1"
+         id="stop2361" />
+      <stop
+         offset="100%"
+         style="stop-color:#1a2f3a;stop-opacity:1"
+         id="stop2363" />
+    </radialGradient>
+    <filter
+       id="shadow-3"
+       x="-0.06"
+       y="-0.024"
+       width="1.145"
+       height="1.058">
+      <feGaussianBlur
+         in="SourceAlpha"
+         stdDeviation="3"
+         id="feGaussianBlur2366" />
+      <feOffset
+         dx="3"
+         dy="3"
+         result="offsetblur"
+         id="feOffset2368" />
+      <feFlood
+         flood-color="#000000"
+         flood-opacity="0.2"
+         id="feFlood2370" />
+      <feComposite
+         in2="offsetblur"
+         operator="in"
+         id="feComposite2372" />
+      <feMerge
+         id="feMerge2378">
+        <feMergeNode
+           id="feMergeNode2374" />
+        <feMergeNode
+           in="SourceGraphic"
+           id="feMergeNode2376" />
+      </feMerge>
+    </filter>
+  </defs>
+  <!-- Location pin shape made of horizontal brush strokes -->
+  <!-- HERE text - clean/solid style with better letter spacing -->
+  <g
+     id="here-text"
+     transform="matrix(1.7917207,0,0,1.5226107,241.37774,136.88972)">
+    <!-- H -->
+    <path
+       d="M 0,0 V 110 H 15 V 60 h 30 v 50 H 60 V 0 H 45 V 45 H 15 V 0 Z"
+       fill="#1a2f3a"
+       id="path78" />
+    <!-- E -->
+    <path
+       d="m 75,0 v 110 h 60 V 95 H 90 V 60 h 35 V 45 H 90 V 15 h 45 V 0 Z"
+       fill="#1a2f3a"
+       id="path80" />
+    <!-- R -->
+    <path
+       d="m 150,0 v 110 h 15 V 60 h 10 l 25,50 h 18 L 190,58 Q 205,55 205,30 205,0 180,0 Z m 15,15 h 15 q 10,0 10,15 0,15 -10,15 h -15 z"
+       fill="#1a2f3a"
+       id="path82" />
+    <!-- E -->
+    <path
+       d="m 225,0 v 110 h 60 V 95 H 240 V 60 h 35 V 45 H 240 V 15 h 45 V 0 Z"
+       fill="#1a2f3a"
+       id="path84" />
+    <!-- Simple shadow at base -->
+    <ellipse
+       cx="-67.224541"
+       cy="114.31313"
+       rx="27.529875"
+       ry="4.4690676"
+       fill="#000000"
+       opacity="0.15"
+       id="ellipse2383"
+       style="stroke-width:0.640397;fill:#3f3f3f;fill-opacity:1;opacity:0.60137844" />
+    <!-- Edges (lines) -->
+    <!-- Nodes (dots) -->
+    <text
+       xml:space="preserve"
+       style="font-size:194.891px;fill:#008080;stroke:#000000;stroke-width:15.4543;stroke-linejoin:round;stroke-dasharray:15.4543, 15.4543;stroke-dashoffset:0"
+       x="-136.50272"
+       y="64.541046"
+       id="text3679"
+       transform="scale(0.94630612,1.0567405)"><tspan
+         sodipodi:role="line"
+         id="tspan3677"
+         style="font-size:194.891px;stroke-width:15.4543;stroke-linejoin:round;stroke-dasharray:15.4543, 15.4543;stroke-dashoffset:0"
+         x="-136.50272"
+         y="64.541046"><tspan
+   style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:194.891px;font-family:FreeSerif;-inkscape-font-specification:'FreeSerif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;stroke:none;stroke-linejoin:round;stroke-dasharray:15.4543, 15.4543;stroke-dashoffset:0"
+   id="tspan3731">φ</tspan> </tspan></text>
+  </g>
+  <!-- Shadow ellipse under pin -->
+</svg>

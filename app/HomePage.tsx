@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ensureUserId, formatUserId, persistUserId } from './userSession'
+import UserProfile from './UserProfile'
+import logoAsset from './assets/here_pin_logo.svg'
 
 interface NewsItem {
   id: number
@@ -78,58 +80,96 @@ function HomePage() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-100">
-      {/* Left Pane - News List */}
-      <div className="flex-1 overflow-y-auto p-6">
-        <h1 className="text-3xl font-bold mb-6 text-gray-800">News Feed</h1>
-        {userId && (
-          <p className="mb-4 text-sm text-gray-500">
-            User ID: <span title={userId}>{formatUserId(userId)}</span>
-          </p>
-        )}
-        <div className="space-y-4">
-          {mockNews.map((item) => (
-            <div key={item.id} className="bg-white p-4 rounded-lg shadow hover:shadow-md transition-shadow">
-              <h2 className="text-xl font-semibold text-gray-800 mb-2">{item.title}</h2>
-              <div className="flex justify-between text-sm text-gray-600">
-                <span>{item.source}</span>
-                <span>{item.timestamp}</span>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+      <div className="max-w-6xl mx-auto px-6 py-8">
+        <header className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative h-14 sm:h-16">
+            <img
+              src={logoAsset}
+              alt="Here Pin Logo"
+              className="h-full w-auto drop-shadow-sm"
+            />
+          </div>
+          <div className="self-start sm:self-auto">
+            <UserProfile userId={userId} />
+          </div>
+        </header>
+
+        <main className="mt-10 grid gap-10 lg:grid-cols-[2fr_1fr]">
+          <section className="space-y-6">
+            <div className="bg-white/70 backdrop-blur-sm border border-white/60 rounded-3xl p-6 shadow-sm">
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div>
+                  <h2 className="text-xl font-semibold text-slate-800">Live Story Signals</h2>
+                  <p className="text-sm text-slate-500">
+                    Quick scan of what's trending across monitored domains.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 space-y-4">
+                {mockNews.map((item) => (
+                  <article
+                    key={item.id}
+                    className="group rounded-2xl border border-slate-200 bg-white/90 p-5 transition shadow-sm hover:shadow-md"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h3 className="text-lg font-semibold text-slate-800 group-hover:text-blue-600 transition-colors">
+                          {item.title}
+                        </h3>
+                        <p className="text-sm text-slate-500 mt-1">
+                          {item.source}
+                        </p>
+                      </div>
+                      <span className="text-xs font-medium text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full">
+                        {item.timestamp}
+                      </span>
+                    </div>
+                  </article>
+                ))}
               </div>
             </div>
-          ))}
-        </div>
-      </div>
+          </section>
 
-      {/* Right Pane - URL Submit Form */}
-      <div className="w-96 bg-white p-6 shadow-lg">
-        <h2 className="text-2xl font-bold mb-4 text-gray-800">Extract URL</h2>
-        {userId && (
-          <div className="mb-4 text-xs text-gray-500 text-right">
-            Session: <span title={userId}>{formatUserId(userId)}</span>
-          </div>
-        )}
-        <div className="space-y-4">
-          <input
-            type="url"
-            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Enter URL to extract..."
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            disabled={isSubmitting}
-          />
-          <button
-            className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors disabled:bg-gray-400"
-            onClick={handleSubmit}
-            disabled={isSubmitting || !userId}
-          >
-            {isSubmitting ? 'Submitting...' : 'Submit'}
-          </button>
-          {submitStatus && (
-            <div className={`text-center p-2 rounded ${submitStatus.includes('Error') ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
-              {submitStatus}
+          <aside className="lg:sticky lg:top-10">
+            <div className="bg-white border border-white/60 rounded-3xl shadow-md p-6">
+              <h2 className="text-xl font-semibold text-slate-800">Start a Trace</h2>
+              <p className="text-sm text-slate-500 mt-1">
+                Drop a URL to extract the story, validate the content, and semantize claims.
+              </p>
+
+              <div className="mt-6 space-y-4">
+                <input
+                  type="url"
+                  className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Paste a link to investigate..."
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  disabled={isSubmitting}
+                />
+                <button
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition disabled:bg-slate-300 disabled:text-slate-500"
+                  onClick={handleSubmit}
+                  disabled={isSubmitting || !userId}
+                >
+                  {isSubmitting ? 'Submitting...' : 'Launch Extraction'}
+                </button>
+                {submitStatus && (
+                  <div className={`text-center text-sm p-3 rounded-xl ${submitStatus.includes('Error') ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-blue-50 text-blue-700 border border-blue-100'}`}>
+                    {submitStatus}
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 text-xs text-slate-400 space-y-1">
+                <div>• Clean & valid content unlocks semantization.</div>
+                <div>• Track token usage per stage in the task view.</div>
+                <div>• Sessions persist locally for continuity.</div>
+              </div>
             </div>
-          )}
-        </div>
+          </aside>
+        </main>
       </div>
     </div>
   )

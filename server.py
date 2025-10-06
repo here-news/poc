@@ -9,6 +9,7 @@ from typing import Optional
 
 from services.task_store import task_store, TaskStatus
 from services.pubsub_publisher import pubsub_publisher
+from services.neo4j_client import neo4j_client
 
 app = FastAPI()
 
@@ -26,10 +27,106 @@ class URLSubmission(BaseModel):
     url: str
     user_id: Optional[str] = None
 
+class SeedSubmission(BaseModel):
+    content: str
+    user_id: Optional[str] = None
+
 # API endpoints
 @app.get("/api/health")
 async def health_check():
     return {"status": "ok"}
+
+@app.get("/api/stories")
+async def get_stories(limit: int = 10):
+    """
+    Get recent stories from Neo4j graph database
+
+    Returns list of story nodes with metadata
+    """
+    try:
+        summaries = neo4j_client.get_story_summaries(limit=limit)
+
+        category_map = {}
+        for story in summaries:
+            category = story.get('category', 'global') or 'global'
+            category_map.setdefault(category, []).append(story)
+
+        return {
+            "stories": summaries,
+            "categories": category_map,
+            "total": len(summaries)
+        }
+    except Exception as e:
+        print(f"Error fetching stories from Neo4j: {e}")
+        return {
+            "stories": [],
+            "categories": {},
+            "total": 0,
+            "error": str(e)
+        }
+
+@app.post("/api/seed")
+async def seed_thread(submission: SeedSubmission, request: Request):
+    """
+    Seed a thread - parse input, extract URLs, and trigger extraction if needed
+
+    Flow:
+    1. Parse content to detect URLs
+    2. If URL found:
+       - Create extraction task
+       - Publish to Pub/Sub (Cloud Run will generate iFramely preview)
+       - Return task_id for polling
+    3. If text-only:
+       - Return empty task_id
+       - Frontend should search Neo4j for matches
+
+    Returns immediately - frontend polls /api/task/{id} for preview updates
+    """
+    import re
+
+    user_id = submission.user_id or request.headers.get('x-user-id')
+    content = submission.content.strip()
+
+    # Simple URL detection
+    url_pattern = r'(https?://[^\s]+)'
+    urls = re.findall(url_pattern, content)
+
+    # Parse input type
+    if not urls:
+        # Text-only seed
+        return {
+            "seed_id": f"seed_{int(__import__('time').time() * 1000)}",
+            "user_id": user_id,
+            "type": "text_only",
+            "text": content,
+            "urls": [],
+            "task_id": None
+        }
+
+    # URL detected - trigger extraction
+    url = urls[0]  # Take first URL
+    text_only = re.sub(url_pattern, '', content).strip()
+
+    # Create extraction task
+    task_id = task_store.create_task(url, user_id=user_id)
+
+    # Publish to Pub/Sub for Cloud Run worker to process
+    # Cloud Run will:
+    # 1. Call iFramely to get quick preview
+    # 2. Write preview_meta to Firestore
+    # 3. Continue with full extraction
+    pubsub_publisher.publish_extraction_job(task_id, url)
+
+    return {
+        "seed_id": f"seed_{int(__import__('time').time() * 1000)}",
+        "user_id": user_id,
+        "type": "url_only" if not text_only else "mixed",
+        "text": text_only,
+        "urls": urls,
+        "task_id": task_id,
+        "status": "submitted",
+        "message": "Extraction job published to Cloud Run"
+    }
 
 @app.post("/api/extract")
 async def extract_url(submission: URLSubmission, request: Request):
@@ -61,12 +158,17 @@ async def get_task_status(task_id: str):
         "task_id": task.task_id,
         "url": task.url,
         "status": task.status,
+        "current_stage": task.current_stage,
         "created_at": task.created_at,
         "completed_at": task.completed_at,
         "token_costs": task.token_costs,
         "gcs_paths": task.gcs_paths,
         "user_id": task.user_id
     }
+
+    # Include iFramely preview metadata if available (fast preview)
+    if task.preview_meta:
+        response["preview_meta"] = task.preview_meta
 
     if task.status == TaskStatus.COMPLETED:
         response["result"] = task.result
@@ -164,12 +266,46 @@ async def get_task_preview(task_id: str):
     if not task:
         return {"error": "Task not found"}, 404
 
+    # If task has iFramely preview but not yet completed, return early preview
     if task.status != TaskStatus.COMPLETED:
-        return {
-            "task_id": task_id,
-            "status": task.status,
-            "preview_available": False
-        }
+        if task.preview_meta:
+            # Return iFramely preview data
+            return {
+                "task_id": task_id,
+                "status": task.status,
+                "current_stage": task.current_stage,
+                "preview_available": True,
+                "preview_source": "iframely",
+                "title": task.preview_meta.get("title", ""),
+                "description": task.preview_meta.get("description", ""),
+                "preview_image": {
+                    "url": task.preview_meta.get("thumbnail_url", ""),
+                    "secure_url": task.preview_meta.get("thumbnail_url", ""),
+                    "width": None,
+                    "height": None
+                },
+                "url": task.preview_meta.get("canonical_url", task.url),
+                "domain": task.url.split('/')[2] if '://' in task.url else "",
+                "author": {
+                    "name": task.preview_meta.get("author", ""),
+                },
+                "publisher": {
+                    "name": task.preview_meta.get("site_name", ""),
+                },
+                "metadata": {
+                    "publish_date": task.preview_meta.get("published_date", ""),
+                },
+                "processing": {
+                    "response_time_ms": task.preview_meta.get("response_time_ms", 0)
+                }
+            }
+        else:
+            return {
+                "task_id": task_id,
+                "status": task.status,
+                "current_stage": task.current_stage,
+                "preview_available": False
+            }
 
     result = task.result or {}
 
