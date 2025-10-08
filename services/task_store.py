@@ -5,7 +5,7 @@ Replaces in-memory ExtractionManager with persistent storage
 import os
 import uuid
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Dict, Optional, Any, List
 from enum import Enum
 from google.cloud import firestore
 from google.api_core.exceptions import NotFound
@@ -16,6 +16,7 @@ class TaskStatus(str, Enum):
     PROCESSING = "processing"
     COMPLETED = "completed"
     FAILED = "failed"
+    BLOCKED = "blocked"
 
 
 class ExtractionTask:
@@ -142,7 +143,7 @@ class TaskStore:
         if stage:
             update_data["current_stage"] = stage
 
-        if status in [TaskStatus.COMPLETED, TaskStatus.FAILED]:
+        if status in [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.BLOCKED]:
             update_data["completed_at"] = datetime.now().isoformat()
 
         self.collection.document(task_id).update(update_data)
@@ -208,6 +209,36 @@ class TaskStore:
             "updated_at": firestore.SERVER_TIMESTAMP
         })
 
+    def mark_task_blocked(
+        self,
+        task_id: str,
+        reason: str,
+        *,
+        markers: Optional[List[str]] = None,
+        result_overrides: Optional[Dict[str, Any]] = None,
+        semantic_data: Optional[Dict[str, Any]] = None
+    ):
+        """Mark a task as blocked by site defenses and persist optional metadata."""
+        update_data: Dict[str, Any] = {
+            "status": TaskStatus.BLOCKED,
+            "current_stage": "blocked",
+            "completed_at": datetime.now().isoformat(),
+            "updated_at": firestore.SERVER_TIMESTAMP,
+            "error": reason
+        }
+
+        if reason:
+            update_data["result.blocked_reason"] = reason
+        if markers is not None:
+            update_data["result.blocked_markers"] = markers
+        if result_overrides:
+            for key, value in result_overrides.items():
+                update_data[f"result.{key}"] = value
+        if semantic_data is not None:
+            update_data["semantic_data"] = semantic_data
+
+        self.collection.document(task_id).update(update_data)
+
     def list_tasks(self, limit: int = 100, status: Optional[TaskStatus] = None):
         """
         List tasks (for debugging/admin)
@@ -223,6 +254,51 @@ class TaskStore:
 
         docs = query.stream()
         return [ExtractionTask(doc.to_dict()) for doc in docs]
+
+    def find_recent_task_by_url(self, url: str, max_age_hours: int = 24) -> Optional[ExtractionTask]:
+        """
+        Find a recent completed task for the same URL (cache lookup)
+
+        Args:
+            url: URL to search for
+            max_age_hours: Maximum age of task to consider (default 24 hours)
+
+        Returns:
+            Most recent completed task if found, None otherwise
+        """
+        from datetime import datetime, timedelta
+
+        # Calculate cutoff timestamp
+        cutoff = datetime.utcnow() - timedelta(hours=max_age_hours)
+
+        # Query by URL only (avoid complex index requirement)
+        # Then filter by status and date in Python
+        query = (
+            self.collection
+            .where("url", "==", url)
+            .order_by("created_at", direction=firestore.Query.DESCENDING)
+            .limit(10)  # Get recent 10 tasks for this URL
+        )
+
+        docs = list(query.stream())
+
+        # Filter in Python for completed tasks within time window
+        for doc in docs:
+            task = ExtractionTask(doc.to_dict())
+
+            # Check status
+            if task.status != TaskStatus.COMPLETED:
+                continue
+
+            # Check age (handle both datetime and string formats)
+            if isinstance(task.created_at, datetime):
+                if task.created_at >= cutoff:
+                    return task
+            else:
+                # If created_at is string or missing, return first completed task
+                return task
+
+        return None
 
 
 # Global task store instance

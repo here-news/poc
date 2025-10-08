@@ -101,7 +101,10 @@ class Neo4jClient:
 
         cypher = """
         MATCH (story:Story)
-        OPTIONAL MATCH (story)-[:HAS_ARTIFACT]->(artifact:Artifact)
+        // Match all artifact types (Page, File, Image, Video) using base Artifact label
+        // For now only Page exists, but this is future-proof
+        OPTIONAL MATCH (story)-[:HAS_ARTIFACT]->(artifact)
+        WHERE artifact:Page OR artifact:Artifact
         OPTIONAL MATCH (story)-[:HAS_CLAIM]->(claim:Claim)
         OPTIONAL MATCH (story)-[:MENTIONS]->(person:Person)
         OPTIONAL MATCH (story)-[:MENTIONS_LOCATION]->(location:Location)
@@ -113,7 +116,6 @@ class Neo4jClient:
              collect(DISTINCT location) + collect(DISTINCT artifact_location) as all_locations,
              head([a IN collect(DISTINCT artifact) WHERE a.thumbnail_url IS NOT NULL AND a.thumbnail_url <> '' | a.thumbnail_url]) as cover_thumbnail,
              max(artifact.created_at) as last_artifact_date
-        WHERE artifact_count > 0
         RETURN story.id as id,
                story.topic as title,
                story.gist as description,
@@ -441,6 +443,149 @@ class Neo4jClient:
         except Exception as exc:
             print(f"Error formatting timestamp: {exc}")
             return 'unknown'
+
+    def get_story_by_id(self, story_id: str) -> Optional[Dict]:
+        """Get a single story by ID with all metadata."""
+        if not self.connected:
+            self._connect()
+        if not self.connected:
+            return None
+
+        cypher = """
+        MATCH (story:Story {id: $story_id})
+        // Match all artifact types (Page, File, Image, Video)
+        OPTIONAL MATCH (story)-[:HAS_ARTIFACT]->(artifact)
+        WHERE artifact:Page OR artifact:Artifact
+        OPTIONAL MATCH (story)-[:HAS_CLAIM]->(claim:Claim)
+        OPTIONAL MATCH (story)-[:MENTIONS]->(person:Person)
+        OPTIONAL MATCH (story)-[:MENTIONS_LOCATION]->(location:Location)
+        OPTIONAL MATCH (artifact)-[:MENTIONS_LOCATION]->(artifact_location:Location)
+        WITH story,
+             count(DISTINCT artifact) as artifact_count,
+             count(DISTINCT claim) as claim_count,
+             count(DISTINCT person) as people_count,
+             collect(DISTINCT location) + collect(DISTINCT artifact_location) as all_locations,
+             head([a IN collect(DISTINCT artifact) WHERE a.thumbnail_url IS NOT NULL AND a.thumbnail_url <> '' | a.thumbnail_url]) as cover_thumbnail,
+             max(artifact.created_at) as last_artifact_date
+        RETURN story.id as id,
+               story.topic as title,
+               story.gist as description,
+               artifact_count,
+               claim_count,
+               people_count,
+               [loc in all_locations WHERE loc.name IS NOT NULL | loc.name] as locations,
+               story.confidence as confidence,
+               story.entropy as entropy,
+               story.created_at as created_at,
+               story.updated_at as updated_at,
+               coalesce(cover_thumbnail, '') as cover_image,
+               coalesce(last_artifact_date, story.updated_at, story.created_at) as last_activity
+        """
+
+        with self.driver.session(database=self.database) as session:
+            result = session.run(cypher, story_id=story_id)
+            record = result.single()
+            if not record:
+                return None
+            return self._record_to_summary(record)
+
+    def get_story_graph(self, story_id: str) -> Optional[Dict]:
+        """Get the graph structure for a story showing story -> claims -> artifacts."""
+        if not self.connected:
+            self._connect()
+        if not self.connected:
+            return None
+
+        # Split query to avoid nested aggregation
+        cypher = """
+        MATCH (story:Story {id: $story_id})
+        OPTIONAL MATCH (story)-[:HAS_CLAIM]->(claim:Claim)
+        OPTIONAL MATCH (story)-[:HAS_ARTIFACT]->(artifact:Artifact)
+        RETURN story,
+               collect(DISTINCT claim) as claims,
+               collect(DISTINCT artifact) as artifacts
+        """
+
+        with self.driver.session(database=self.database) as session:
+            result = session.run(cypher, story_id=story_id)
+            record = result.single()
+
+            if not record:
+                return None
+
+            story_node = record.get('story')
+            claims = record.get('claims', [])
+            artifacts = record.get('artifacts', [])
+
+            nodes = []
+            edges = []
+
+            # Add story node
+            if story_node:
+                story_id_val = story_node.get('id')
+                nodes.append({
+                    'id': story_id_val,
+                    'type': 'story',
+                    'label': story_node.get('topic', 'Untitled Story'),
+                    'description': story_node.get('gist', '')
+                })
+
+                # Add claim nodes
+                for claim in claims:
+                    if claim:
+                        claim_id = claim.get('id') or str(claim.id) if hasattr(claim, 'id') else None
+                        if not claim_id:
+                            continue
+
+                        nodes.append({
+                            'id': claim_id,
+                            'type': 'claim',
+                            'label': (claim.get('statement', 'Claim') or 'Claim')[:50],
+                            'description': claim.get('statement', ''),
+                            'metadata': {
+                                'confidence': claim.get('confidence'),
+                                'status': claim.get('status')
+                            }
+                        })
+
+                        edges.append({
+                            'source': story_id_val,
+                            'target': claim_id,
+                            'type': 'HAS_CLAIM',
+                            'label': 'has claim'
+                        })
+
+                # Add artifact nodes
+                for artifact in artifacts:
+                    if artifact:
+                        artifact_id = artifact.get('id') or str(artifact.id) if hasattr(artifact, 'id') else None
+                        if not artifact_id:
+                            continue
+
+                        nodes.append({
+                            'id': artifact_id,
+                            'type': 'artifact',
+                            'label': (artifact.get('title', 'Artifact') or 'Artifact')[:40],
+                            'description': artifact.get('description', ''),
+                            'metadata': {
+                                'url': artifact.get('url'),
+                                'domain': artifact.get('domain')
+                            }
+                        })
+
+                        edges.append({
+                            'source': story_id_val,
+                            'target': artifact_id,
+                            'type': 'HAS_ARTIFACT',
+                            'label': 'has artifact'
+                        })
+
+            return {
+                'story_id': story_id,
+                'story_title': story_node.get('topic', 'Untitled Story') if story_node else 'Unknown',
+                'nodes': nodes,
+                'edges': edges
+            }
 
 
 # Singleton instance

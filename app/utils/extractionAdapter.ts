@@ -58,10 +58,18 @@ export function hasPreviewData(taskResponse: any): boolean {
 
 /**
  * Extract preview from task response (handles both preview_meta and full result)
+ *
+ * Thumbnail fallback chain:
+ * 1. screenshot_url (from extraction - shows actual content)
+ * 2. preview_meta.thumbnail_url (from iFramely - fast metadata)
+ * 3. og_metadata.image (from Open Graph - unreliable)
+ * 4. Domain favicon (always available)
  */
 export function getPreviewFromTask(taskResponse: any): URLPreview | null {
   // Check for preview_meta first (quick iFramely stage)
   if (taskResponse.preview_meta) {
+    const domain = taskResponse.preview_meta.domain || new URL(taskResponse.url).hostname
+
     return {
       url: taskResponse.url,
       title: taskResponse.preview_meta.title || '',
@@ -69,38 +77,80 @@ export function getPreviewFromTask(taskResponse: any): URLPreview | null {
       thumbnail: taskResponse.preview_meta.thumbnail_url || taskResponse.preview_meta.thumbnail,
       siteName: taskResponse.preview_meta.site_name || taskResponse.preview_meta.site,
       author: taskResponse.preview_meta.author,
-      favicon: `https://www.google.com/s2/favicons?domain=${taskResponse.preview_meta.domain || new URL(taskResponse.url).hostname}&sz=32`
+      favicon: `https://www.google.com/s2/favicons?domain=${domain}&sz=32`
     }
   }
 
   // Fallback to full extraction result
-  if (taskResponse.result && taskResponse.result.og_metadata) {
+  if (taskResponse.result) {
     const result = taskResponse.result
     const ogMeta = result.og_metadata || {}
+    const domain = result.domain || new URL(taskResponse.url).hostname
+
+    // Thumbnail fallback chain
+    let thumbnail = undefined
+
+    // 1. Try screenshot_url (best - shows actual content)
+    if (result.screenshot_url) {
+      thumbnail = result.screenshot_url
+    }
+    // 2. Try og_metadata.image (unreliable but worth trying)
+    else if (ogMeta.image?.url || ogMeta.image?.secure_url) {
+      thumbnail = ogMeta.image?.url || ogMeta.image?.secure_url
+    }
+    // 3. Fall back to favicon (always available, not ideal but better than nothing)
+    // Note: We don't set thumbnail to favicon here, just use the favicon field
 
     return {
       url: result.canonical_url || result.url || taskResponse.url,
       title: result.title || ogMeta.title || '',
       description: result.meta_description || ogMeta.description || '',
-      thumbnail: ogMeta.image?.url || ogMeta.image?.secure_url,
+      thumbnail: thumbnail,
       siteName: ogMeta.site_name || result.domain,
       author: result.author,
-      favicon: `https://www.google.com/s2/favicons?domain=${result.domain}&sz=32`
-    }
-  }
-
-  // Last resort: minimal data from task
-  if (taskResponse.result && taskResponse.result.title) {
-    return {
-      url: taskResponse.url,
-      title: taskResponse.result.title,
-      description: taskResponse.result.meta_description || '',
-      thumbnail: undefined,
-      siteName: taskResponse.result.domain,
-      author: taskResponse.result.author,
-      favicon: `https://www.google.com/s2/favicons?domain=${taskResponse.result.domain}&sz=32`
+      favicon: `https://www.google.com/s2/favicons?domain=${domain}&sz=32`
     }
   }
 
   return null
+}
+
+/**
+ * Check cache for URL (calls extraction service /check endpoint)
+ * Returns cached task_id if available, null otherwise
+ */
+export async function checkCachedUrl(url: string): Promise<{ task_id: string; preview: URLPreview } | null> {
+  try {
+    // Call server-side endpoint that proxies to extraction service /check
+    const response = await fetch(`/api/check?url=${encodeURIComponent(url)}`)
+
+    if (!response.ok) {
+      return null
+    }
+
+    const data = await response.json()
+
+    if (!data.cache_hit) {
+      return null
+    }
+
+    // Convert cached result to preview format
+    const preview = getPreviewFromTask({
+      url: url,
+      result: data.result,
+      semantic_data: data.semantic_data
+    })
+
+    if (!preview) {
+      return null
+    }
+
+    return {
+      task_id: data.task_id,
+      preview
+    }
+  } catch (error) {
+    console.error('Cache check failed:', error)
+    return null
+  }
 }

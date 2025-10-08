@@ -40,6 +40,31 @@ class StorySearchRequest(BaseModel):
 async def health_check():
     return {"status": "ok"}
 
+@app.get("/api/stories/{story_id}")
+async def get_story_by_id(story_id: str):
+    """
+    Get a single story by ID with full metadata
+
+    Returns:
+        Story summary with counts, locations, confidence, etc.
+    """
+    try:
+        story = neo4j_client.get_story_by_id(story_id)
+
+        if not story:
+            return {"error": f"Story {story_id} not found"}, 404
+
+        return {
+            "success": True,
+            "story": story
+        }
+    except Exception as e:
+        print(f"Error fetching story {story_id}: {e}")
+        return {
+            "success": False,
+            "error": str(e)
+        }, 500
+
 @app.get("/api/stories")
 async def get_stories(limit: int = 10):
     """
@@ -96,6 +121,36 @@ async def search_stories(payload: StorySearchRequest):
             "error": str(e)
         }
 
+@app.get("/api/check")
+async def check_cached_url(url: str):
+    """
+    Check if URL has a recent cached extraction result (lightweight cache lookup)
+
+    Returns:
+        - 200 with cached data if found (within 24 hours)
+        - 404 if no cache available
+
+    This endpoint provides instant results for previously extracted URLs,
+    avoiding the need to create a new task and wait for extraction.
+    """
+    # Check for recent completed task with same URL
+    existing_task = task_store.find_recent_task_by_url(url, max_age_hours=24)
+
+    if existing_task and existing_task.status == TaskStatus.COMPLETED and existing_task.result:
+        word_count = existing_task.result.get("word_count", 0)
+        if word_count > 50:  # Only return if it has real content
+            print(f"💾 Cache hit for {url} (task {existing_task.task_id})")
+            return {
+                "cache_hit": True,
+                "task_id": existing_task.task_id,
+                "url": existing_task.url,
+                "result": existing_task.result,
+                "semantic_data": existing_task.semantic_data,
+                "created_at": existing_task.created_at
+            }
+
+    return {"cache_hit": False, "message": "No cached result available"}
+
 @app.post("/api/seed")
 async def seed_thread(submission: SeedSubmission, request: Request):
     """
@@ -104,7 +159,8 @@ async def seed_thread(submission: SeedSubmission, request: Request):
     Flow:
     1. Parse content to detect URLs
     2. If URL found:
-       - Create extraction task
+       - Check cache first (instant if hit)
+       - Create extraction task if needed
        - Publish to Pub/Sub (Cloud Run will generate iFramely preview)
        - Return task_id for polling
     3. If text-only:
@@ -203,8 +259,23 @@ async def get_task_status(task_id: str):
 
     if task.status == TaskStatus.COMPLETED:
         response["result"] = task.result
+        # Include semantic data if available
+        if task.semantic_data:
+            response["semantic_data"] = task.semantic_data
+    elif task.status == TaskStatus.BLOCKED:
+        response["result"] = task.result
+        response["blocked"] = {
+            "reason": task.result.get("blocked_reason") or task.error or "Blocked by site defenses",
+            "markers": task.result.get("blocked_markers", [])
+        }
+        if task.error:
+            response["error"] = task.error
     elif task.status == TaskStatus.FAILED:
         response["error"] = task.error
+
+    # TODO: Add story_match field once extraction service supports it
+    # This will be populated by the extraction service after semantization
+    # response["story_match"] = task.story_match if hasattr(task, 'story_match') else None
 
     return response
 
@@ -215,6 +286,9 @@ async def clean_task_content(task_id: str):
 
     if not task:
         return {"error": "Task not found"}, 404
+
+    if task.status == TaskStatus.BLOCKED:
+        return {"error": "Task was blocked by site defenses and cannot be cleaned"}, 400
 
     if task.status != TaskStatus.COMPLETED:
         return {"error": "Task not completed yet"}, 400
@@ -243,6 +317,9 @@ async def resolve_task_entities(task_id: str):
     if not task:
         return {"error": "Task not found"}, 404
 
+    if task.status == TaskStatus.BLOCKED:
+        return {"error": "Task was blocked by site defenses and cannot be resolved"}, 400
+
     if task.status != TaskStatus.COMPLETED:
         return {"error": "Task not completed yet"}, 400
 
@@ -265,6 +342,9 @@ async def semantize_task_content(task_id: str):
 
     if not task:
         return {"error": "Task not found"}, 404
+
+    if task.status == TaskStatus.BLOCKED:
+        return {"error": "Task was blocked by site defenses and cannot be semantized"}, 400
 
     if task.status != TaskStatus.COMPLETED:
         return {"error": "Task not completed yet"}, 400
@@ -296,6 +376,18 @@ async def get_task_preview(task_id: str):
 
     if not task:
         return {"error": "Task not found"}, 404
+
+    if task.status == TaskStatus.BLOCKED:
+        return {
+            "task_id": task_id,
+            "status": task.status,
+            "current_stage": task.current_stage,
+            "preview_available": False,
+            "blocked": {
+                "reason": task.result.get("blocked_reason") if task.result else task.error,
+                "markers": task.result.get("blocked_markers", []) if task.result else []
+            }
+        }
 
     # If task has iFramely preview but not yet completed, return early preview
     if task.status != TaskStatus.COMPLETED:
@@ -477,6 +569,59 @@ async def debug_task_metadata(task_id: str):
             "domain": result.get('domain', '')
         }
     }
+
+@app.get("/api/story/{story_id}")
+async def get_story_details(story_id: str):
+    """
+    Get detailed information about a specific story
+
+    Returns story metadata, metrics, and current summary
+    """
+    try:
+        story = neo4j_client.get_story_by_id(story_id)
+
+        if not story:
+            return {"error": "Story not found"}, 404
+
+        return {
+            "id": story.get('id'),
+            "title": story.get('title'),
+            "description": story.get('description'),
+            "category": story.get('category', 'global'),
+            "artifact_count": story.get('artifact_count', 0),
+            "claim_count": story.get('claim_count', 0),
+            "people_count": story.get('people_count', 0),
+            "locations": story.get('locations', []),
+            "last_updated_human": story.get('last_updated_human', 'recently'),
+            "cover_image": story.get('cover_image'),
+            "health_indicator": story.get('health_indicator'),
+            "entropy": story.get('entropy', 0.45),
+            "verified_claims": story.get('verified_claims', story.get('claim_count', 0)),
+            "total_claims": story.get('total_claims', story.get('claim_count', 0) * 2),
+            "confidence": story.get('confidence', 72),
+            "revision": story.get('revision', 'v0.45')
+        }
+    except Exception as e:
+        print(f"Error fetching story {story_id}: {e}")
+        return {"error": str(e)}, 500
+
+@app.get("/api/story/{story_id}/graph")
+async def get_story_graph(story_id: str):
+    """
+    Get the evidence graph for a story showing story -> claims -> artifacts
+
+    Returns nodes and edges for visualization
+    """
+    try:
+        graph_data = neo4j_client.get_story_graph(story_id)
+
+        if not graph_data:
+            return {"error": "Story graph not found"}, 404
+
+        return graph_data
+    except Exception as e:
+        print(f"Error fetching story graph {story_id}: {e}")
+        return {"error": str(e)}, 500
 
 def _get_language_name(lang_code: str) -> str:
     """Convert ISO 639-1 code to readable language name"""
