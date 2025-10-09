@@ -21,6 +21,7 @@ interface StoryDetails {
   verified_claims?: number
   total_claims?: number
   confidence?: number
+  coherence_score?: number
   revision?: string
 }
 
@@ -234,11 +235,32 @@ function StoryPage() {
               </div>
 
               {/* Full Story Content */}
-              {story.content && (
-                <div className="mt-6 prose prose-slate max-w-none">
-                  <h2 className="text-xl font-semibold text-slate-900 mb-4">📰 Full Story</h2>
-                  <div className="text-slate-700 leading-relaxed whitespace-pre-line">
-                    {story.content}
+              {story.content && story.content.length > 100 && (
+                <div className="mt-8 border-t border-slate-200 pt-8">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-2xl font-bold text-slate-900">📰 Full Story</h2>
+                    {story.coherence_score && (
+                      <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-full">
+                        <span className="text-xs font-semibold text-blue-700">Coherence</span>
+                        <div className="w-16 h-2 bg-slate-200 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-blue-500 to-purple-500"
+                            style={{ width: `${(story.coherence_score * 100).toFixed(0)}%` }}
+                          />
+                        </div>
+                        <span className="text-sm font-bold text-slate-900">{(story.coherence_score * 100).toFixed(0)}%</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="prose prose-lg prose-slate max-w-none">
+                    <div className="text-slate-700 leading-relaxed space-y-4 whitespace-pre-line">
+                      {story.content}
+                    </div>
+                  </div>
+                  <div className="mt-6 flex items-center gap-4 text-sm text-slate-600">
+                    <span>📊 Synthesized from {story.artifact_count} sources</span>
+                    <span>•</span>
+                    <span>✓ {story.claim_count} verified claims</span>
                   </div>
                 </div>
               )}
