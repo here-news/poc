@@ -12,14 +12,14 @@ function SubmissionResult({ submission }: SubmissionResultProps) {
       case 'pending':
         return {
           icon: '⏱️',
-          text: 'Pending...',
+          text: 'Queued...',
           color: 'text-slate-600',
           bg: 'bg-slate-50'
         }
       case 'extracting':
         return {
-          icon: '🔄',
-          text: 'Extracting content...',
+          icon: '🔍',
+          text: 'Matching stories...',
           color: 'text-blue-600',
           bg: 'bg-blue-50'
         }
@@ -28,7 +28,7 @@ function SubmissionResult({ submission }: SubmissionResultProps) {
           if (submission.story_match.is_new) {
             return {
               icon: '✨',
-              text: `Created new investigation`,
+              text: `No match found, new story emerging...`,
               color: 'text-green-600',
               bg: 'bg-green-50'
             }
@@ -36,7 +36,7 @@ function SubmissionResult({ submission }: SubmissionResultProps) {
             const matchPercent = Math.round((submission.story_match.match_score || 0) * 100)
             return {
               icon: '🔗',
-              text: `Added to existing investigation (${matchPercent}% match)`,
+              text: `Found related story (${matchPercent}% match)`,
               color: 'text-purple-600',
               bg: 'bg-purple-50'
             }
@@ -77,9 +77,18 @@ function SubmissionResult({ submission }: SubmissionResultProps) {
           <div className={`font-semibold ${statusDisplay.color}`}>
             {statusDisplay.text}
           </div>
-          {submission.story_match && (
-            <div className="text-sm font-medium text-slate-700 mt-1 truncate">
-              {submission.story_match.matched_story_title}
+          {submission.story_match && !submission.story_match.is_new && (
+            <div className="text-sm font-medium text-slate-700 mt-1">
+              <div className="truncate">Story: {submission.story_match.matched_story_title}</div>
+              <div className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
+                <span>👁️</span>
+                <span>Visible on homepage</span>
+              </div>
+            </div>
+          )}
+          {submission.story_match && submission.story_match.is_new && (
+            <div className="text-xs text-slate-500 mt-1">
+              Story will appear on homepage shortly...
             </div>
           )}
         </div>
@@ -116,19 +125,31 @@ function SubmissionResult({ submission }: SubmissionResultProps) {
         </div>
       )}
 
-      {/* Story Match Stats */}
-      {submission.story_match && submission.status === 'completed' && (
+      {/* Story Match Info */}
+      {submission.story_match && submission.status === 'completed' && !submission.story_match.is_new && (
         <div className="flex gap-3 mt-3 text-xs text-slate-600">
-          <span>📊 1+ artifacts</span>
-          <span>✓ Claims extracted</span>
-          <span>👥 Contributors welcome</span>
+          <span>📊 Story thread</span>
+          <span>✓ Article added</span>
+          <span>👥 Join investigation</span>
+        </div>
+      )}
+      {submission.story_match && submission.status === 'completed' && submission.story_match.is_new && (
+        <div className="flex gap-3 mt-3 text-xs text-green-600">
+          <span>✨ New story created</span>
+          <span>📊 First artifact</span>
+          <span>👥 Be the first contributor</span>
         </div>
       )}
 
-      {/* Error Message */}
+      {/* Status Message */}
       {submission.error_message && (
         <div className="mt-2 text-sm text-slate-600 italic">
           {submission.error_message}
+        </div>
+      )}
+      {submission.status === 'completed' && !submission.story_match && !submission.error_message && (
+        <div className="mt-2 text-sm text-amber-600 italic">
+          Story matching temporarily unavailable - article saved successfully
         </div>
       )}
 
