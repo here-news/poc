@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Here.News Truth Engine Machine</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0a0e27 0%, #151935 50%, #0a0e27 100%);
+            font-family: 'Inter', -apple-system, sans-serif;
+            overflow-x: auto;
+            min-height: 100vh;
+            position: relative;
+        }
+        
+        .container {
+            width: 100%;
+            min-width: 1400px;
+            height: 100vh;
+            min-height: 900px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* Animated background grid */
+        .grid-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: gridMove 20s linear infinite;
+            opacity: 0.3;
+        }
+        
+        @keyframes gridMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50px, 50px); }
+        }
+        
+        /* Main machine container */
+        .machine {
+            position: absolute;
+            width: 1200px;
+            height: 800px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        
+        /* Layer sections */
+        .layer {
+            position: absolute;
+            border: 2px solid rgba(0, 255, 255, 0.3);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            background: rgba(0, 20, 40, 0.6);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.2);
+        }
+        
+        .layer-title {
+            position: absolute;
+            top: -15px;
+            left: 30px;
+            background: linear-gradient(135deg, #00ffff, #0088ff);
+            color: #0a0e27;
+            padding: 5px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+        }
+        
+        /* Input Layer - Bottom */
+        .input-layer {
+            bottom: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 1000px;
+            height: 150px;
+        }
+        
+        /* Processing Layer - Middle */
+        .processing-layer {
+            top: 300px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 900px;
+            height: 200px;
+        }
+        
+        /* Convergence Core - Center */
+        .convergence-core {
+            top: 150px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            height: 120px;
+            background: radial-gradient(circle, rgba(0, 255, 255, 0.3) 0%, rgba(0, 136, 255, 0.1) 100%);
+            animation: corePulse 3s ease-in-out infinite;
+        }
+        
+        @keyframes corePulse {
+            0%, 100% { box-shadow: 0 0 30px rgba(0, 255, 255, 0.3); }
+            50% { box-shadow: 0 0 60px rgba(0, 255, 255, 0.6); }
+        }
+        
+        /* Governance Layer - Top */
+        .governance-layer {
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 600px;
+            height: 100px;
+        }
+        
+        /* Role nodes */
+        .role-node {
+            position: absolute;
+            background: linear-gradient(135deg, rgba(0, 255, 255, 0.2), rgba(0, 136, 255, 0.2));
+            border: 2px solid rgba(0, 255, 255, 0.6);
+            border-radius: 10px;
+            padding: 8px 12px;
+            font-size: 11px;
+            color: #00ffff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+        }
+        
+        .role-node:hover {
+            transform: scale(1.1);
+            background: linear-gradient(135deg, rgba(0, 255, 255, 0.4), rgba(0, 136, 255, 0.4));
+            box-shadow: 0 0 25px rgba(0, 255, 255, 0.5);
+            z-index: 10;
+        }
+        
+        .role-icon {
+            font-size: 20px;
+            margin-bottom: 4px;
+        }
+        
+        /* Data flows */
+        .flow-line {
+            position: absolute;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00ffff, transparent);
+            transform-origin: left center;
+            animation: flowPulse 2s linear infinite;
+        }
+        
+        @keyframes flowPulse {
+            0% { opacity: 0.3; }
+            50% { opacity: 1; }
+            100% { opacity: 0.3; }
+        }
+        
+        /* Particle system */
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: #00ffff;
+            border-radius: 50%;
+            box-shadow: 0 0 6px #00ffff;
+            pointer-events: none;
+        }
+        
+        /* Entropy meter */
+        .entropy-meter {
+            position: absolute;
+            right: 30px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 60px;
+            height: 300px;
+            background: rgba(0, 20, 40, 0.8);
+            border: 2px solid rgba(0, 255, 255, 0.5);
+            border-radius: 30px;
+            padding: 10px;
+        }
+        
+        .entropy-fill {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            right: 10px;
+            background: linear-gradient(to top, #ff0000, #ffff00, #00ff00);
+            border-radius: 20px;
+            height: 40%;
+            animation: entropyChange 5s ease-in-out infinite;
+        }
+        
+        @keyframes entropyChange {
+            0%, 100% { height: 60%; }
+            50% { height: 30%; }
+        }
+        
+        .entropy-label {
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #00ffff;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+        
+        /* Info panel */
+        .info-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 200px;
+            background: rgba(0, 20, 40, 0.9);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            color: #00ffff;
+            font-size: 12px;
+        }
+        
+        .info-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .stat {
+            margin: 8px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .stat-value {
+            font-weight: bold;
+            color: #00ff88;
+        }
+        
+        /* Central processor animation */
+        .processor {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80px;
+            height: 80px;
+            background: radial-gradient(circle, #00ffff 0%, transparent 70%);
+            border-radius: 50%;
+            animation: processorSpin 4s linear infinite;
+        }
+        
+        @keyframes processorSpin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+        
+        .processor::before,
+        .processor::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 100px;
+            height: 100px;
+            border: 2px solid rgba(0, 255, 255, 0.3);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            animation: processorRing 3s ease-in-out infinite;
+        }
+        
+        .processor::after {
+            width: 120px;
+            height: 120px;
+            animation-delay: 0.5s;
+        }
+        
+        @keyframes processorRing {
+            0%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="grid-bg"></div>
+        
+        <!-- Info Panel -->
+        <div class="info-panel">
+            <div class="info-title">Truth Engine</div>
+            <div class="stat">
+                <span>Active Nodes:</span>
+                <span class="stat-value" id="nodeCount">247</span>
+            </div>
+            <div class="stat">
+                <span>Coherence:</span>
+                <span class="stat-value" id="coherence">73%</span>
+            </div>
+            <div class="stat">
+                <span>Stories/hr:</span>
+                <span class="stat-value" id="stories">142</span>
+            </div>
+            <div class="stat">
+                <span>Entropy ΔH:</span>
+                <span class="stat-value" id="entropy">-0.34</span>
+            </div>
+        </div>
+        
+        <!-- Main Machine -->
+        <div class="machine">
+            
+            <!-- Input Layer (Base Contributors) -->
+            <div class="layer input-layer">
+                <div class="layer-title">Input Layer</div>
+                
+                <div class="role-node" style="left: 20px; top: 30px;">
+                    <div class="role-icon">👁️</div>
+                    <div>Witnesses</div>
+                </div>
+                
+                <div class="role-node" style="left: 120px; top: 50px;">
+                    <div class="role-icon">🔍</div>
+                    <div>Sleuths</div>
+                </div>
+                
+                <div class="role-node" style="left: 220px; top: 30px;">
+                    <div class="role-icon">🗣️</div>
+                    <div>Whistleblowers</div>
+                </div>
+                
+                <div class="role-node" style="left: 350px; top: 50px;">
+                    <div class="role-icon">📰</div>
+                    <div>Citizen Journalists</div>
+                </div>
+                
+                <div class="role-node" style="left: 500px; top: 30px;">
+                    <div class="role-icon">✊</div>
+                    <div>Activists</div>
+                </div>
+                
+                <div class="role-node" style="left: 600px; top: 50px;">
+                    <div class="role-icon">📸</div>
+                    <div>Freelancers</div>
+                </div>
+                
+                <div class="role-node" style="left: 720px; top: 30px;">
+                    <div class="role-icon">🌐</div>
+                    <div>Fixers</div>
+                </div>
+                
+                <div class="role-node" style="left: 820px; top: 50px;">
+                    <div class="role-icon">👥</div>
+                    <div>Readers</div>
+                </div>
+                
+                <div class="role-node" style="left: 900px; top: 30px;">
+                    <div class="role-icon">💰</div>
+                    <div>Tippers</div>
+                </div>
+            </div>
+            
+            <!-- Processing Layer (Knowledge Engineers) -->
+            <div class="layer processing-layer">
+                <div class="layer-title">Processing Layer</div>
+                
+                <div class="role-node" style="left: 50px; top: 40px;">
+                    <div class="role-icon">✅</div>
+                    <div>Verifiers</div>
+                </div>
+                
+                <div class="role-node" style="left: 180px; top: 60px;">
+                    <div class="role-icon">⚖️</div>
+                    <div>Steelmen</div>
+                </div>
+                
+                <div class="role-node" style="left: 300px; top: 40px;">
+                    <div class="role-icon">📚</div>
+                    <div>Curators</div>
+                </div>
+                
+                <div class="role-node" style="left: 420px; top: 60px;">
+                    <div class="role-icon">🌍</div>
+                    <div>Translators</div>
+                </div>
+                
+                <div class="role-node" style="left: 550px; top: 40px;">
+                    <div class="role-icon">💾</div>
+                    <div>Preservers</div>
+                </div>
+                
+                <div class="role-node" style="left: 680px; top: 60px;">
+                    <div class="role-icon">🎭</div>
+                    <div>Narrative Engineers</div>
+                </div>
+            </div>
+            
+            <!-- Convergence Core -->
+            <div class="layer convergence-core">
+                <div class="layer-title">Convergence Engine</div>
+                <div class="processor"></div>
+            </div>
+            
+            <!-- Governance Layer -->
+            <div class="layer governance-layer">
+                <div class="layer-title">Governance</div>
+                
+                <div class="role-node" style="left: 20px; top: 30px;">
+                    <div class="role-icon">🏛️</div>
+                    <div>Newsrooms</div>
+                </div>
+                
+                <div class="role-node" style="left: 140px; top: 30px;">
+                    <div class="role-icon">🎓</div>
+                    <div>Universities</div>
+                </div>
+                
+                <div class="role-node" style="left: 260px; top: 30px;">
+                    <div class="role-icon">🤝</div>
+                    <div>NGOs</div>
+                </div>
+                
+                <div class="role-node" style="left: 350px; top: 30px;">
+                    <div class="role-icon">⚖️</div>
+                    <div>Legal Orgs</div>
+                </div>
+                
+                <div class="role-node" style="left: 460px; top: 30px;">
+                    <div class="role-icon">🔍</div>
+                    <div>Auditors</div>
+                </div>
+            </div>
+            
+        </div>
+        
+        <!-- Entropy Meter -->
+        <div class="entropy-meter">
+            <div class="entropy-label">Entropy ΔH</div>
+            <div class="entropy-fill"></div>
+        </div>
+        
+    </div>
+    
+    <script>
+        // Create flowing particles
+        function createParticle() {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            document.querySelector('.machine').appendChild(particle);
+            
+            // Random starting position from input layer
+            const startX = Math.random() * 1000;
+            const startY = 750;
+            
+            particle.style.left = startX + 'px';
+            particle.style.top = startY + 'px';
+            
+            // Animate upward through layers
+            let y = startY;
+            let x = startX;
+            let targetX = 600; // Center convergence
+            
+            const animate = () => {
+                y -= 2;
+                x += (targetX - x) * 0.02;
+                
+                particle.style.left = x + 'px';
+                particle.style.top = y + 'px';
+                
+                if (y > 150) {
+                    requestAnimationFrame(animate);
+                } else {
+                    particle.remove();
+                }
+            };
+            
+            requestAnimationFrame(animate);
+        }
+        
+        // Create particles periodically
+        setInterval(createParticle, 300);
+        
+        // Animate stats
+        function animateStats() {
+            const nodeCount = document.getElementById('nodeCount');
+            const coherence = document.getElementById('coherence');
+            const stories = document.getElementById('stories');
+            const entropy = document.getElementById('entropy');
+            
+            setInterval(() => {
+                nodeCount.textContent = Math.floor(240 + Math.random() * 20);
+                coherence.textContent = Math.floor(70 + Math.random() * 10) + '%';
+                stories.textContent = Math.floor(130 + Math.random() * 30);
+                entropy.textContent = (-0.5 + Math.random() * 0.3).toFixed(2);
+            }, 3000);
+        }
+        
+        animateStats();
+        
+        // Create connection lines
+        function createFlowLines() {
+            const machine = document.querySelector('.machine');
+            
+            // Input to Processing
+            for (let i = 0; i < 5; i++) {
+                const line = document.createElement('div');
+                line.className = 'flow-line';
+                line.style.width = '100px';
+                line.style.left = (100 + i * 200) + 'px';
+                line.style.top = '650px';
+                line.style.transform = 'rotate(-60deg)';
+                line.style.animationDelay = (i * 0.3) + 's';
+                machine.appendChild(line);
+            }
+            
+            // Processing to Core
+            for (let i = 0; i < 3; i++) {
+                const line = document.createElement('div');
+                line.className = 'flow-line';
+                line.style.width = '80px';
+                line.style.left = (400 + i * 100) + 'px';
+                line.style.top = '380px';
+                line.style.transform = 'rotate(-45deg)';
+                line.style.animationDelay = (i * 0.4) + 's';
+                machine.appendChild(line);
+            }
+            
+            // Core to Governance
+            for (let i = 0; i < 2; i++) {
+                const line = document.createElement('div');
+                line.className = 'flow-line';
+                line.style.width = '60px';
+                line.style.left = (570 + i * 60) + 'px';
+                line.style.top = '200px';
+                line.style.transform = 'rotate(-30deg)';
+                line.style.animationDelay = (i * 0.5) + 's';
+                machine.appendChild(line);
+            }
+        }
+        
+        createFlowLines();
+        
+        // Add hover interactions
+        document.querySelectorAll('.role-node').forEach(node => {
+            node.addEventListener('mouseenter', function() {
+                // Create pulse effect
+                const pulse = document.createElement('div');
+                pulse.style.position = 'absolute';
+                pulse.style.top = '50%';
+                pulse.style.left = '50%';
+                pulse.style.width = '100%';
+                pulse.style.height = '100%';
+                pulse.style.border = '2px solid #00ffff';
+                pulse.style.borderRadius = '10px';
+                pulse.style.transform = 'translate(-50%, -50%)';
+                pulse.style.pointerEvents = 'none';
+                pulse.style.animation = 'expandPulse 0.5s ease-out';
+                this.appendChild(pulse);
+                
+                setTimeout(() => pulse.remove(), 500);
+            });
+        });
+        
+        // Add expand pulse animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes expandPulse {
+                0% {
+                    transform: translate(-50%, -50%) scale(1);
+                    opacity: 1;
+                }
+                100% {
+                    transform: translate(-50%, -50%) scale(1.5);
+                    opacity: 0;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>

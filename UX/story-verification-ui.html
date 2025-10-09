@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Here.News - Community Story Verification</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            color: #e0e0e0;
+            min-height: 100vh;
+            position: relative;
+            margin: 0;
+            background: 
+                /* Crime scene tape pattern */
+                repeating-linear-gradient(
+                    45deg,
+                    #0f0f1e,
+                    #0f0f1e 30px,
+                    #1a1a2e 30px,
+                    #1a1a2e 60px
+                );
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                /* Red alert gradient for crime story */
+                radial-gradient(ellipse at top left, rgba(255, 0, 0, 0.2) 0%, transparent 40%),
+                radial-gradient(ellipse at bottom right, rgba(255, 0, 100, 0.1) 0%, transparent 40%),
+                /* Grid overlay */
+                linear-gradient(rgba(100, 255, 218, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(100, 255, 218, 0.02) 1px, transparent 1px),
+                /* Base dark gradient */
+                linear-gradient(135deg, rgba(15, 15, 30, 0.95) 0%, rgba(26, 26, 46, 0.9) 100%);
+            background-size: 
+                100% 100%,
+                100% 100%,
+                50px 50px,
+                50px 50px,
+                100% 100%;
+            z-index: -1;
+        }
+        
+        /* Add a subtle animation to the background */
+        @keyframes backgroundPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.95; }
+        }
+        
+        body::after {
+            content: 'DEVELOPING STORY • DEVELOPING STORY • DEVELOPING STORY • ';
+            position: fixed;
+            top: 50%;
+            left: -50%;
+            right: -50%;
+            transform: translateY(-50%) rotate(-45deg);
+            font-size: 200px;
+            font-weight: bold;
+            color: rgba(255, 0, 0, 0.02);
+            white-space: nowrap;
+            pointer-events: none;
+            z-index: -1;
+            animation: backgroundPulse 4s infinite;
+        }
+        
+        .app-header {
+            background: rgba(26, 26, 46, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(100, 255, 218, 0.2);
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            background: linear-gradient(90deg, #64ffda, #00bfa5);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 2rem;
+        }
+        
+        /* Main Story Panel */
+        .story-panel {
+            background: rgba(26, 26, 46, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(100, 255, 218, 0.1);
+            border-radius: 12px;
+            padding: 2rem;
+        }
+        
+        .story-header {
+            margin-bottom: 2rem;
+        }
+        
+        /* Combined Status and Entropy Container */
+        .story-status-container {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .story-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(255, 193, 7, 0.2);
+            border: 1px solid rgba(255, 193, 7, 0.5);
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        
+        .entropy-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem 1rem;
+            background: rgba(100, 255, 218, 0.1);
+            border: 1px solid rgba(100, 255, 218, 0.3);
+            border-radius: 20px;
+        }
+        
+        .entropy-label {
+            font-size: 0.85rem;
+            color: #64ffda;
+            font-weight: 500;
+        }
+        
+        .entropy-bar {
+            width: 100px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .entropy-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff88, #ffaa00, #ff4444);
+            width: 45%;
+            transition: width 0.5s ease;
+        }
+        
+        .entropy-value {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: #fff;
+        }
+        
+        .pulse {
+            width: 8px;
+            height: 8px;
+            background: #ffc107;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+        
+        .story-title {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            line-height: 1.3;
+        }
+        
+        .story-meta {
+            display: flex;
+            gap: 2rem;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(100, 255, 218, 0.1);
+        }
+        
+        .meta-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        
+        .meta-label {
+            font-size: 0.75rem;
+            color: #64ffda;
+            text-transform: uppercase;
+        }
+        
+        .meta-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        
+        /* Story Summary Section */
+        .story-summary {
+            background: linear-gradient(135deg, rgba(100, 255, 218, 0.08) 0%, rgba(100, 255, 218, 0.02) 100%);
+            border: 1px solid rgba(100, 255, 218, 0.2);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .summary-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .summary-title {
+            font-size: 1.1rem;
+            color: #64ffda;
+            margin: 0;
+        }
+        
+        .revision-badge {
+            background: linear-gradient(135deg, #64ffda, #00bfa5);
+            color: #0f0f1e;
+            padding: 0.25rem 0.75rem;
+            border-radius: 15px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .summary-content {
+            display: grid;
+            grid-template-columns: 1fr 280px;
+            gap: 1.5rem;
+            align-items: start;
+        }
+        
+        .summary-text {
+            flex: 1;
+        }
+        
+        .summary-lead {
+            font-size: 1.05rem;
+            line-height: 1.6;
+            margin-bottom: 1rem;
+            color: #fff;
+        }
+        
+        .summary-details {
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin-bottom: 1rem;
+            color: #e0e0e0;
+            opacity: 0.9;
+        }
+        
+        .summary-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        
+        .meta-chip {
+            padding: 0.35rem 0.75rem;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(100, 255, 218, 0.2);
+            border-radius: 20px;
+            font-size: 0.85rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+        
+        .summary-image {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid rgba(100, 255, 218, 0.3);
+            background: rgba(0, 0, 0, 0.5);
+        }
+        
+        .summary-image img {
+            width: 100%;
+            height: 160px;
+            object-fit: cover;
+            display: block;
+            filter: brightness(0.9);
+            transition: all 0.3s;
+        }
+        
+        .summary-image:hover img {
+            filter: brightness(1);
+            transform: scale(1.05);
+        }
+        
+        .image-source {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+            color: #64ffda;
+            border-top-left-radius: 6px;
+        }
+        
+        /* Claims Section */
+        .claims-section {
+            margin: 2rem 0;
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .section-title {
+            font-size: 1.2rem;
+            color: #64ffda;
+        }
+        
+        .claim-card {
+            background: rgba(100, 255, 218, 0.05);
+            border: 1px solid rgba(100, 255, 218, 0.2);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .claim-card:hover {
+            transform: translateX(5px);
+            border-color: rgba(100, 255, 218, 0.4);
+        }
+        
+        .claim-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 0.75rem;
+        }
+        
+        .claim-confidence {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 0.5rem;
+            background: rgba(0, 255, 136, 0.2);
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+        
+        .confidence-high { background: rgba(0, 255, 136, 0.2); color: #00ff88; }
+        .confidence-medium { background: rgba(255, 170, 0, 0.2); color: #ffaa00; }
+        .confidence-low { background: rgba(255, 68, 68, 0.2); color: #ff4444; }
+        
+        .claim-text {
+            margin-bottom: 0.75rem;
+            line-height: 1.5;
+        }
+        
+        .claim-sources {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        
+        .source-chip {
+            padding: 0.25rem 0.5rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            font-size: 0.75rem;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        
+        .source-chip:hover {
+            background: rgba(100, 255, 218, 0.2);
+        }
+        
+        /* Community Panel */
+        .community-panel {
+            position: sticky;
+            top: 100px;
+            height: fit-content;
+        }
+        
+        .submit-evidence {
+            background: rgba(26, 26, 46, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(100, 255, 218, 0.1);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .panel-title {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            color: #64ffda;
+        }
+        
+        .evidence-type-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .tab-btn {
+            flex: 1;
+            padding: 0.5rem;
+            background: rgba(100, 255, 218, 0.1);
+            border: 1px solid rgba(100, 255, 218, 0.2);
+            border-radius: 6px;
+            color: #64ffda;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .tab-btn.active {
+            background: rgba(100, 255, 218, 0.3);
+            border-color: #64ffda;
+        }
+        
+        .input-group {
+            margin-bottom: 1rem;
+        }
+        
+        .input-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            color: #aaa;
+        }
+        
+        .input-field {
+            width: 100%;
+            padding: 0.75rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(100, 255, 218, 0.2);
+            border-radius: 6px;
+            color: #e0e0e0;
+            transition: all 0.3s;
+        }
+        
+        .input-field:focus {
+            outline: none;
+            border-color: #64ffda;
+            background: rgba(100, 255, 218, 0.05);
+        }
+        
+        .submit-btn {
+            width: 100%;
+            padding: 0.75rem;
+            background: linear-gradient(135deg, #64ffda, #00bfa5);
+            border: none;
+            border-radius: 6px;
+            color: #0f0f1e;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(100, 255, 218, 0.3);
+        }
+        
+        /* Activity Feed */
+        .activity-feed {
+            background: rgba(26, 26, 46, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(100, 255, 218, 0.1);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+        
+        .activity-item {
+            display: flex;
+            gap: 0.75rem;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid rgba(100, 255, 218, 0.1);
+        }
+        
+        .activity-icon {
+            width: 32px;
+            height: 32px;
+            background: rgba(100, 255, 218, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        
+        .activity-content {
+            flex: 1;
+        }
+        
+        .activity-user {
+            font-weight: 600;
+            color: #64ffda;
+        }
+        
+        .activity-action {
+            font-size: 0.9rem;
+            margin: 0.25rem 0;
+        }
+        
+        .activity-time {
+            font-size: 0.75rem;
+            color: #888;
+        }
+        
+        /* Floating Action Button */
+        .fab-container {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            align-items: flex-end;
+        }
+        
+        .fab {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, #64ffda, #00bfa5);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(100, 255, 218, 0.3);
+            transition: all 0.3s;
+        }
+        
+        .fab:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 30px rgba(100, 255, 218, 0.5);
+        }
+        
+        .fab-label {
+            background: rgba(26, 26, 46, 0.95);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            white-space: nowrap;
+            font-size: 0.9rem;
+        }
+        
+        /* Revision Animation */
+        @keyframes revisionHighlight {
+            0% { background: rgba(100, 255, 218, 0.3); }
+            100% { background: transparent; }
+        }
+        
+        .revision-highlight {
+            animation: revisionHighlight 2s ease;
+        }
+        
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+            
+            .community-panel {
+                position: relative;
+                top: 0;
+            }
+            
+            .summary-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .summary-image {
+                max-width: 100%;
+                height: 200px;
+            }
+            
+            .summary-image img {
+                height: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="app-header">
+        <div class="header-content">
+            <div class="logo">Here.News</div>
+        </div>
+    </header>
+    
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Story Panel -->
+        <div class="story-panel">
+            <div class="story-header">
+                <!-- Combined Status and Entropy -->
+                <div class="story-status-container">
+                    <div class="story-status">
+                        <div class="pulse"></div>
+                        <span>DEVELOPING STORY</span>
+                    </div>
+                    <div class="entropy-indicator">
+                        <span class="entropy-label">Entropy</span>
+                        <div class="entropy-bar">
+                            <div class="entropy-fill"></div>
+                        </div>
+                        <span class="entropy-value">0.45</span>
+                    </div>
+                </div>
+                
+                <h1 class="story-title">15-Year-Old Girl Celeste Rivas Found Dead in Rapper D4vd's Tesla</h1>
+                
+                <div class="story-meta">
+                    <div class="meta-item">
+                        <span class="meta-label">Verified Claims</span>
+                        <span class="meta-value">8 / 20</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">Contributors</span>
+                        <span class="meta-value">147</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">Last Updated</span>
+                        <span class="meta-value">2 min ago</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">Confidence</span>
+                        <span class="meta-value" style="color: #ffaa00;">72%</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Story Summary Section -->
+            <div class="story-summary">
+                <div class="summary-header">
+                    <h2 class="summary-title">Current Story Summary</h2>
+                    <span class="revision-badge">v0.45</span>
+                </div>
+                <div class="summary-content">
+                    <div class="summary-text">
+                        <p class="summary-lead">
+                            On <strong>September 8, 2025</strong>, the decomposing body of <strong>15-year-old Celeste Rivas</strong> was discovered in the trunk of a towed Tesla in Los Angeles, California. The vehicle is registered to <strong>20-year-old rapper D4vd</strong> (David Anthony Burke).
+                        </p>
+                        <p class="summary-details">
+                            The Los Angeles County Medical Examiner officially identified the victim, who had been reported missing from Lake Elsinore since March/April 2024, when she was 13 years old. A tattoo reading "Shhh" on her finger aided in the identification. The Tesla, bearing Texas plates, had reportedly been parked in the Hollywood Hills area before being towed to an impound lot where the discovery was made. D4vd is reportedly cooperating with investigators.
+                        </p>
+                        <div class="summary-meta">
+                            <span class="meta-chip">📍 Hollywood Hills, LA</span>
+                            <span class="meta-chip">🚗 Tesla (Texas plates)</span>
+                            <span class="meta-chip">📅 Missing since March 2024</span>
+                            <span class="meta-chip">✓ 8 verified facts</span>
+                        </div>
+                    </div>
+                    <div class="summary-image">
+                        <img src="https://imagez.tmz.com/image/18/16by9/2025/09/17/18ef4ff8d65b456b9ff9b353fed49d70_xl.jpg" alt="Story evidence" />
+                        <span class="image-source">Source: TMZ</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- High Confidence Claims -->
+            <div class="claims-section">
+                <div class="section-header">
+                    <h2 class="section-title">✅ High Confidence Claims</h2>
+                    <span style="font-size: 0.85rem; color: #888;">Multi-source verified</span>
+                </div>
+                
+                <div class="claim-card">
+                    <div class="claim-header">
+                        <div class="claim-confidence confidence-high">
+                            <span>⬆</span> 95% confidence
+                        </div>
+                    </div>
+                    <div class="claim-text">
+                        The body was confirmed to be that of <strong>Celeste Rivas</strong>, aged 15 at the time of discovery, identified by the Los Angeles County Medical Examiner.
+                    </div>
+                    <div class="claim-sources">
+                        <div class="source-chip">ABC News</div>
+                        <div class="source-chip">France24</div>
+                        <div class="source-chip">KBTX</div>
+                        <div class="source-chip">TMZ</div>
+                        <div class="source-chip">+3 community</div>
+                    </div>
+                </div>
+                
+                <div class="claim-card">
+                    <div class="claim-header">
+                        <div class="claim-confidence confidence-high">
+                            <span>⬆</span> 92% confidence
+                        </div>
+                    </div>
+                    <div class="claim-text">
+                        The Tesla in which the body was found was registered to 20-year-old rapper <strong>D4vd</strong> (real name: David Anthony Burke).
+                    </div>
+                    <div class="claim-sources">
+                        <div class="source-chip">ABC News</div>
+                        <div class="source-chip">KBTX</div>
+                        <div class="source-chip">Police Report</div>
+                        <div class="source-chip">+5 community</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Medium Confidence Claims -->
+            <div class="claims-section">
+                <div class="section-header">
+                    <h2 class="section-title">⚠️ Under Verification</h2>
+                    <span style="font-size: 0.85rem; color: #888;">Pending additional sources</span>
+                </div>
+                
+                <div class="claim-card">
+                    <div class="claim-header">
+                        <div class="claim-confidence confidence-medium">
+                            <span>↔</span> 65% confidence
+                        </div>
+                    </div>
+                    <div class="claim-text">
+                        The Tesla was reportedly parked in the Hollywood Hills area for about a month before being towed.
+                    </div>
+                    <div class="claim-sources">
+                        <div class="source-chip">France24</div>
+                        <div class="source-chip">Anonymous tip</div>
+                        <div class="source-chip">📍 Needs verification</div>
+                    </div>
+                </div>
+                
+                <div class="claim-card revision-highlight">
+                    <div class="claim-header">
+                        <div class="claim-confidence confidence-low">
+                            <span>⬇</span> 35% confidence
+                        </div>
+                    </div>
+                    <div class="claim-text">
+                        Body was dismembered (conflicting reports - only mentioned by one source).
+                    </div>
+                    <div class="claim-sources">
+                        <div class="source-chip">France24</div>
+                        <div class="source-chip">⚠️ Unconfirmed</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Community Panel -->
+        <div class="community-panel">
+            <!-- Submit Evidence -->
+            <div class="submit-evidence">
+                <h3 class="panel-title">🔍 Submit Evidence</h3>
+                
+                <div class="evidence-type-tabs">
+                    <button class="tab-btn active">URL</button>
+                    <button class="tab-btn">Report</button>
+                    <button class="tab-btn">Witness</button>
+                </div>
+                
+                <div class="input-group">
+                    <label class="input-label">Source URL</label>
+                    <input type="url" class="input-field" placeholder="https://example.com/article">
+                </div>
+                
+                <div class="input-group">
+                    <label class="input-label">Claim to verify/refute</label>
+                    <select class="input-field">
+                        <option>Select a claim...</option>
+                        <option>Vehicle ownership</option>
+                        <option>Timeline of discovery</option>
+                        <option>Body condition</option>
+                        <option>Missing person timeline</option>
+                    </select>
+                </div>
+                
+                <div class="input-group">
+                    <label class="input-label">Evidence summary</label>
+                    <textarea class="input-field" rows="3" placeholder="Briefly describe what this source confirms or refutes..."></textarea>
+                </div>
+                
+                <button class="submit-btn">Submit Evidence</button>
+            </div>
+            
+            <!-- Activity Feed -->
+            <div class="activity-feed">
+                <h3 class="panel-title">📊 Live Activity</h3>
+                
+                <div class="activity-item">
+                    <div class="activity-icon">📰</div>
+                    <div class="activity-content">
+                        <div><span class="activity-user">@investigator_42</span></div>
+                        <div class="activity-action">Added LA Times article confirming vehicle registration</div>
+                        <div class="activity-time">2 minutes ago</div>
+                    </div>
+                </div>
+                
+                <div class="activity-item">
+                    <div class="activity-icon">✅</div>
+                    <div class="activity-content">
+                        <div><span class="activity-user">System</span></div>
+                        <div class="activity-action">Claim verified: "Tesla had Texas plates" (4 sources)</div>
+                        <div class="activity-time">5 minutes ago</div>
+                    </div>
+                </div>
+                
+                <div class="activity-item">
+                    <div class="activity-icon">⚠️</div>
+                    <div class="activity-content">
+                        <div><span class="activity-user">@fact_checker</span></div>
+                        <div class="activity-action">Disputed claim about dismemberment - needs medical examiner report</div>
+                        <div class="activity-time">8 minutes ago</div>
+                    </div>
+                </div>
+                
+                <div class="activity-item">
+                    <div class="activity-icon">🔄</div>
+                    <div class="activity-content">
+                        <div><span class="activity-user">AI System</span></div>
+                        <div class="activity-action">Story auto-revised: Entropy decreased from 0.52 to 0.45</div>
+                        <div class="activity-time">12 minutes ago</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Floating Action Buttons -->
+    <div class="fab-container">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <span class="fab-label">View Timeline</span>
+            <div class="fab">📈</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <span class="fab-label">Suggest Revision</span>
+            <div class="fab">✏️</div>
+        </div>
+    </div>
+    
+    <script>
+        // Simulate real-time updates
+        function simulateUpdate() {
+            // Animate entropy change
+            const entropyFill = document.querySelector('.entropy-fill');
+            const currentWidth = parseFloat(entropyFill.style.width) || 45;
+            const newWidth = Math.max(20, Math.min(80, currentWidth + (Math.random() - 0.5) * 10));
+            entropyFill.style.width = newWidth + '%';
+            
+            // Update entropy value
+            const entropyValue = document.querySelector('.entropy-value');
+            entropyValue.textContent = (newWidth / 100).toFixed(2);
+            
+            // Update revision number
+            const revisionBadge = document.querySelector('.revision-badge');
+            const currentVersion = parseFloat(revisionBadge.textContent.replace('v', '')) || 0.45;
+            revisionBadge.textContent = 'v' + (currentVersion + 0.01).toFixed(2);
+            
+            // Highlight a random claim card
+            const cards = document.querySelectorAll('.claim-card');
+            const randomCard = cards[Math.floor(Math.random() * cards.length)];
+            randomCard.classList.add('revision-highlight');
+            setTimeout(() => randomCard.classList.remove('revision-highlight'), 2000);
+        }
+        
+        // Tab switching
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+        
+        // Simulate updates every 10 seconds
+        setInterval(simulateUpdate, 10000);
+    </script>
+</body>
+</html>

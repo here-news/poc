@@ -32,7 +32,7 @@ function UserProfile({ userId }: UserProfileProps) {
         {initials}
       </div>
       <div className="text-right">
-        <div className="text-xs uppercase text-gray-400 tracking-wide">Session</div>
+        <div className="text-xs uppercase text-gray-400 tracking-wide">User</div>
         <div className="text-sm font-semibold text-gray-700" title={userId}>
           {shortId}
         </div>

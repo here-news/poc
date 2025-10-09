@@ -8,6 +8,7 @@ interface StoryDetails {
   id: string
   title: string
   description: string
+  content?: string
   category: string
   artifact_count: number
   claim_count: number
@@ -62,6 +63,7 @@ function StoryPage() {
           ...data.story,
           // Ensure all required fields have defaults
           description: data.story.description || data.story.gist || 'No description available',
+          content: data.story.content,
           locations: data.story.locations || [],
           artifact_count: data.story.artifact_count || 0,
           claim_count: data.story.claim_count || 0,
@@ -123,74 +125,93 @@ function StoryPage() {
 
         <main className="mt-8 grid lg:grid-cols-[1fr_320px] gap-8">
           {/* Story Header */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
-            {/* Status Bar */}
-            <div className="flex items-center gap-4 flex-wrap mb-6">
-              <div className="flex items-center gap-2 px-4 py-2 bg-amber-100 border border-amber-300 rounded-full">
-                <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
-                <span className="text-sm font-semibold text-amber-800">DEVELOPING STORY</span>
-              </div>
-
-              <div className="flex items-center gap-3 px-4 py-2 bg-blue-50 border border-blue-200 rounded-full">
-                <span className="text-xs text-blue-700 font-medium">Entropy</span>
-                <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-green-500 via-yellow-500 to-red-500 transition-all duration-500"
-                    style={{ width: entropyBarWidth }}
-                  />
-                </div>
-                <span className="text-sm font-semibold text-slate-800">{entropy.toFixed(2)}</span>
-              </div>
-
-              <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-full font-semibold text-sm hover:shadow-lg hover:shadow-green-500/30 transition-all">
-                <span>💚</span>
-                <span>Support</span>
-              </button>
-
-              {story.revision && (
-                <div className="px-3 py-1 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-full font-semibold text-sm">
-                  {story.revision}
-                </div>
-              )}
-            </div>
-
-            {/* Title */}
-            <h1 className="text-3xl font-bold mb-6 leading-tight text-slate-900">{story.title}</h1>
-
-            {/* Metrics */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pb-6 border-b border-slate-200">
-              <div>
-                <div className="text-xs text-blue-600 uppercase mb-1 font-semibold">Verified Claims</div>
-                <div className="text-xl font-semibold text-slate-900">
-                  {story.verified_claims || story.claim_count} / {story.total_claims || story.claim_count * 2}
+          <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+            {/* Hero Image Banner */}
+            {story.cover_image && (
+              <div className="relative w-full h-64 bg-gradient-to-br from-blue-100 to-purple-100">
+                <img
+                  src={story.cover_image}
+                  alt="Story evidence"
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+                <div className="absolute bottom-4 left-6 right-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="px-2 py-1 bg-white/90 backdrop-blur-sm rounded text-xs font-medium text-slate-700">
+                      📸 Evidence Photo
+                    </span>
+                  </div>
                 </div>
               </div>
-              <div>
-                <div className="text-xs text-blue-600 uppercase mb-1 font-semibold">Contributors</div>
-                <div className="text-xl font-semibold text-slate-900">{story.people_count}</div>
-              </div>
-              <div>
-                <div className="text-xs text-blue-600 uppercase mb-1 font-semibold">Last Updated</div>
-                <div className="text-xl font-semibold text-slate-900">{story.last_updated_human}</div>
-              </div>
-              <div>
-                <div className="text-xs text-blue-600 uppercase mb-1 font-semibold">Confidence</div>
-                <div className="text-xl font-semibold text-amber-600">{confidence}%</div>
-              </div>
-            </div>
+            )}
 
-            {/* Story Summary */}
-            <div className="mt-6 bg-gradient-to-br from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-blue-700">Current Story Summary</h2>
+            <div className="p-8">
+              {/* Status Bar */}
+              <div className="flex items-center gap-4 flex-wrap mb-6">
+                <div className="flex items-center gap-2 px-4 py-2 bg-amber-100 border border-amber-300 rounded-full">
+                  <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+                  <span className="text-sm font-semibold text-amber-800">DEVELOPING STORY</span>
+                </div>
+
+                <div className="flex items-center gap-3 px-4 py-2 bg-blue-50 border border-blue-200 rounded-full">
+                  <span className="text-xs text-blue-700 font-medium">Entropy</span>
+                  <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-green-500 via-yellow-500 to-red-500 transition-all duration-500"
+                      style={{ width: entropyBarWidth }}
+                    />
+                  </div>
+                  <span className="text-sm font-semibold text-slate-800">{entropy.toFixed(2)}</span>
+                </div>
+
+                <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-full font-semibold text-sm hover:shadow-lg hover:shadow-green-500/30 transition-all">
+                  <span>💚</span>
+                  <span>Support</span>
+                </button>
+
                 {story.revision && (
-                  <span className="px-3 py-1 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-full font-semibold text-sm">
+                  <div className="px-3 py-1 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-full font-semibold text-sm">
                     {story.revision}
-                  </span>
+                  </div>
                 )}
               </div>
 
-              <div className="grid md:grid-cols-[1fr_280px] gap-6">
+              {/* Title */}
+              <h1 className="text-3xl font-bold mb-6 leading-tight text-slate-900">{story.title}</h1>
+
+              {/* Metrics */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pb-6 border-b border-slate-200">
+                <div>
+                  <div className="text-xs text-blue-600 uppercase mb-1 font-semibold">Verified Claims</div>
+                  <div className="text-xl font-semibold text-slate-900">
+                    {story.verified_claims || story.claim_count} / {story.total_claims || story.claim_count * 2}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs text-blue-600 uppercase mb-1 font-semibold">Contributors</div>
+                  <div className="text-xl font-semibold text-slate-900">{story.people_count}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-blue-600 uppercase mb-1 font-semibold">Last Updated</div>
+                  <div className="text-xl font-semibold text-slate-900">{story.last_updated_human}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-blue-600 uppercase mb-1 font-semibold">Confidence</div>
+                  <div className="text-xl font-semibold text-amber-600">{confidence}%</div>
+                </div>
+              </div>
+
+              {/* Story Summary */}
+              <div className="mt-6 bg-gradient-to-br from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold text-blue-700">Current Story Summary</h2>
+                  {story.revision && (
+                    <span className="px-3 py-1 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-full font-semibold text-sm">
+                      {story.revision}
+                    </span>
+                  )}
+                </div>
+
                 <div>
                   <p className="text-base leading-relaxed mb-4 text-slate-800">
                     {story.description}
@@ -210,22 +231,18 @@ function StoryPage() {
                     </span>
                   </div>
                 </div>
-
-                {story.cover_image && (
-                  <div className="relative rounded-lg overflow-hidden border-2 border-blue-200 bg-slate-50">
-                    <img
-                      src={story.cover_image}
-                      alt="Story evidence"
-                      className="w-full h-40 object-cover"
-                    />
-                    <span className="absolute bottom-0 right-0 bg-white/95 px-2 py-1 text-xs text-blue-600 font-medium">
-                      Evidence
-                    </span>
-                  </div>
-                )}
               </div>
-            </div>
 
+              {/* Full Story Content */}
+              {story.content && (
+                <div className="mt-6 prose prose-slate max-w-none">
+                  <h2 className="text-xl font-semibold text-slate-900 mb-4">📰 Full Story</h2>
+                  <div className="text-slate-700 leading-relaxed whitespace-pre-line">
+                    {story.content}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Main Content - Story Details */}

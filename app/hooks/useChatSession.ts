@@ -1,11 +1,7 @@
 import { useState, useCallback, useRef } from 'react'
-import { ChatMessage, ParsedInput, StoryMatch, URLPreview } from '../types/chat'
+import { ChatMessage, ParsedInput, URLPreview } from '../types/chat'
 import { parseInput } from '../utils/inputParser'
-import { getPreviewFromTask } from '../utils/extractionAdapter'
-import {
-  generateTextOnlyChatFlow,
-  generateUrlChatFlow
-} from '../utils/mockData'
+import { getPreviewFromTask, checkCachedUrl } from '../utils/extractionAdapter'
 
 interface UseChatSessionReturn {
   messages: ChatMessage[]
@@ -39,136 +35,6 @@ export function useChatSession(userId: string): UseChatSessionReturn {
     setMessages((prev) => [...prev, ...messagesToAdd])
   }, [])
 
-  const buildStoryMatchesMessage = useCallback((query: string, matches: StoryMatch[]): ChatMessage => ({
-    id: `msg_${Date.now()}_matches`,
-    role: 'system',
-    timestamp: new Date(),
-    content: {
-      type: 'story_matches',
-      data: {
-        matches,
-        query,
-        totalFound: matches.length
-      }
-    }
-  }), [])
-
-  const buildActionPromptMessage = useCallback((matches: StoryMatch[], query: string): ChatMessage => ({
-    id: `msg_${Date.now()}_actions`,
-    role: 'system',
-    timestamp: new Date(),
-    content: {
-      type: 'action_prompt',
-      data: {
-        prompt: {
-          type: 'join_or_create',
-          message: matches.length
-            ? `Found ${matches.length} related ${matches.length === 1 ? 'thread' : 'threads'} for “${query}”.` 
-            : `No matching threads yet for “${query}”. Start a new investigation?`,
-          actions: matches.length
-            ? [
-                {
-                  id: 'add_to_existing',
-                  label: 'Add to Existing Thread',
-                  variant: 'secondary'
-                },
-                {
-                  id: 'create_new',
-                  label: 'Start New Investigation',
-                  variant: 'primary',
-                  route: '/build/new'
-                }
-              ]
-            : [
-                {
-                  id: 'create_new',
-                  label: 'Create New Thread',
-                  variant: 'primary',
-                  route: '/build/new'
-                },
-                {
-                  id: 'refine_search',
-                  label: 'Refine Search',
-                  variant: 'secondary'
-                }
-              ]
-        }
-      }
-    }
-  }), [])
-
-  const mapSearchResultToMatch = useCallback((result: any): StoryMatch => {
-    const scoreCandidate = typeof result.match_score === 'number'
-      ? result.match_score
-      : typeof result.confidence === 'number'
-        ? result.confidence
-        : undefined
-
-    const normalizedScore = typeof scoreCandidate === 'number'
-      ? Math.min(1, Math.max(0, scoreCandidate))
-      : undefined
-
-    return {
-      id: result.id,
-      title: result.title,
-      description: result.description,
-      healthIndicator: (result.health_indicator || 'healthy') as StoryMatch['healthIndicator'],
-      lastUpdated: result.last_updated_human || 'recently',
-      matchScore: normalizedScore,
-      contributorCount: result.people_count,
-      claimCount: result.claim_count
-    }
-  }, [])
-
-  const fetchStoryMatches = useCallback(async (query: string, fallbackType: 'text' | 'url', parsed: ParsedInput) => {
-    const trimmedQuery = query.trim() || parsed.text.trim() || parsed.originalInput.trim()
-    if (!trimmedQuery) {
-      const fallbackUrl = parsed.urls[0] || parsed.originalInput || 'https://example.com'
-      const fallbackFlow = fallbackType === 'text'
-        ? generateTextOnlyChatFlow(parsed.text)
-        : generateUrlChatFlow(fallbackUrl)
-
-      pushSystemMessages(fallbackFlow.slice(1))
-      setIsTyping(false)
-      return
-    }
-
-    try {
-      setTypingMessage('Searching related threads...')
-      const response = await fetch('/api/stories/search', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ query: trimmedQuery, limit: 5 })
-      })
-
-      const data = await response.json()
-      const matches: StoryMatch[] = (data.matches || []).map(mapSearchResultToMatch)
-
-      if (matches.length === 0) {
-        pushSystemMessages([
-          buildStoryMatchesMessage(trimmedQuery, matches),
-          buildActionPromptMessage(matches, trimmedQuery)
-        ])
-      } else {
-        pushSystemMessages([
-          buildStoryMatchesMessage(trimmedQuery, matches),
-          buildActionPromptMessage(matches, trimmedQuery)
-        ])
-      }
-    } catch (error) {
-      console.error('Story search error:', error)
-      const fallbackUrl = parsed.urls[0] || trimmedQuery || parsed.originalInput || 'https://example.com'
-      const fallback = fallbackType === 'text'
-        ? generateTextOnlyChatFlow(parsed.text)
-        : generateUrlChatFlow(fallbackUrl)
-      pushSystemMessages(fallback.slice(1))
-    } finally {
-      setIsTyping(false)
-    }
-  }, [buildActionPromptMessage, buildStoryMatchesMessage, mapSearchResultToMatch, pushSystemMessages])
-
   const submitMessage = useCallback(async (input: string) => {
     // Clear any existing polling
     if (pollingIntervalRef.current) {
@@ -199,7 +65,56 @@ export function useChatSession(userId: string): UseChatSessionReturn {
     setTypingMessage('Analyzing...')
 
     try {
-      // Call /api/seed endpoint
+      // OPTIMIZATION: Check cache first if URL detected
+      if (parsed.urls && parsed.urls.length > 0) {
+        const url = parsed.urls[0]
+        setTypingMessage('Checking cache...')
+
+        const cached = await checkCachedUrl(url)
+
+        if (cached) {
+          console.log('💾 Cache hit - using existing task:', cached.task_id)
+
+          // Update user message with cached preview immediately
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === userMessageId
+                ? {
+                    ...msg,
+                    content: {
+                      ...msg.content,
+                      data: {
+                        ...msg.content.data,
+                        urlPreviews: [cached.preview]
+                      }
+                    }
+                  }
+                : msg
+            )
+          )
+
+          // Show cache hit message
+          const cacheMessage: ChatMessage = {
+            id: `msg_${Date.now()}_cached`,
+            role: 'system',
+            timestamp: new Date(),
+            content: {
+              type: 'text',
+              data: {
+                text: '✅ Using cached extraction. Story matching will be available soon.'
+              }
+            }
+          }
+          pushSystemMessages([cacheMessage])
+          setIsTyping(false)
+
+          return  // Done - no need to create new task
+        }
+
+        console.log('❌ Cache miss - creating new extraction task')
+      }
+
+      // Call /api/seed endpoint (creates new task if needed)
       const response = await fetch('/api/seed', {
         method: 'POST',
         headers: {
@@ -230,7 +145,9 @@ export function useChatSession(userId: string): UseChatSessionReturn {
             const taskResponse = await fetch(`/api/task/${seedResponse.task_id}`)
             const taskData = await taskResponse.json()
 
-            // Check for preview_meta (iFramely stage)
+            console.log(`[Poll ${pollAttempts}] Task status:`, taskData.status, 'has story_match:', !!taskData.story_match)
+
+            // Check for preview_meta (iFramely stage - fast ~200ms)
             if (taskData.preview_meta && !previewReceived) {
               previewReceived = true
 
@@ -256,31 +173,114 @@ export function useChatSession(userId: string): UseChatSessionReturn {
                 )
               }
 
-              if (!activeTaskMatchesRef.current[seedResponse.task_id]) {
-                activeTaskMatchesRef.current[seedResponse.task_id] = true
-                await fetchStoryMatches(
-                  preview?.title || preview?.description || seedResponse.urls?.[0] || parsed.text,
-                  'url',
-                  parsed
-                )
-              }
+              // Preview received - story matching will happen when extraction completes
+              setTypingMessage('Extracting content...')
             }
 
-            // Full extraction complete - stop polling
-            if (taskData.status === 'completed' || taskData.status === 'failed') {
+            // Check for story match when extraction completes
+            if (taskData.status === 'completed' && taskData.story_match) {
+              const storyMatch = taskData.story_match
+
+              // Clear polling
               if (pollingIntervalRef.current) {
                 clearInterval(pollingIntervalRef.current)
                 pollingIntervalRef.current = null
               }
 
-              if (!activeTaskMatchesRef.current[seedResponse.task_id]) {
-                activeTaskMatchesRef.current[seedResponse.task_id] = true
-                await fetchStoryMatches(
-                  taskData.result?.title || parsed.text || seedResponse.urls?.[0],
-                  'url',
-                  parsed
-                )
+              // Handle story match result
+              // Backend has already decided and linked the article
+              // Just show result and navigate - no user choice needed
+
+              let successMessage: ChatMessage
+
+              if (storyMatch.is_new) {
+                // New story created
+                successMessage = {
+                  id: `msg_${Date.now()}_story_created`,
+                  role: 'system',
+                  timestamp: new Date(),
+                  content: {
+                    type: 'text',
+                    data: {
+                      text: `✨ Created new investigation: **${storyMatch.matched_story_title || 'Untitled Story'}**`
+                    }
+                  }
+                }
+              } else {
+                // Added to existing story
+                const matchPercent = Math.round((storyMatch.match_score || 0) * 100)
+                successMessage = {
+                  id: `msg_${Date.now()}_story_matched`,
+                  role: 'system',
+                  timestamp: new Date(),
+                  content: {
+                    type: 'text',
+                    data: {
+                      text: `🔗 Added to existing investigation (${matchPercent}% match): **${storyMatch.matched_story_title || 'Story'}**`
+                    }
+                  }
+                }
               }
+
+              pushSystemMessages([successMessage])
+              setIsTyping(false)
+
+              // Auto-navigate to story page after 2s
+              setTimeout(() => {
+                window.location.href = `/story/${storyMatch.story_id}`
+              }, 2000)
+
+              return // Exit polling
+            }
+
+            // Fallback: completed but no story_match (old extraction or error)
+            if (taskData.status === 'completed' && !taskData.story_match) {
+              if (pollingIntervalRef.current) {
+                clearInterval(pollingIntervalRef.current)
+                pollingIntervalRef.current = null
+              }
+
+              console.warn('Extraction completed but no story_match available')
+              console.log('Task response:', JSON.stringify(taskData, null, 2))
+
+              // Just show extraction complete message - no manual search
+              const completionMessage: ChatMessage = {
+                id: `msg_${Date.now()}_extraction_complete`,
+                role: 'system',
+                timestamp: new Date(),
+                content: {
+                  type: 'text',
+                  data: {
+                    text: `✅ Article extracted successfully. Story matching will be available soon.`
+                  }
+                }
+              }
+              pushSystemMessages([completionMessage])
+              setIsTyping(false)
+            }
+
+            // Handle failures
+            if (taskData.status === 'failed' || taskData.status === 'blocked') {
+              if (pollingIntervalRef.current) {
+                clearInterval(pollingIntervalRef.current)
+                pollingIntervalRef.current = null
+              }
+
+              const errorMessage: ChatMessage = {
+                id: `msg_${Date.now()}`,
+                role: 'system',
+                timestamp: new Date(),
+                content: {
+                  type: 'text',
+                  data: {
+                    text: taskData.status === 'blocked'
+                      ? '⚠️ Unable to access this article (paywall or blocked)'
+                      : '❌ Extraction failed. Please try a different article.'
+                  }
+                }
+              }
+              pushSystemMessages([errorMessage])
+              setIsTyping(false)
             }
 
             // Timeout after max attempts
@@ -296,8 +296,20 @@ export function useChatSession(userId: string): UseChatSessionReturn {
           }
         }, 1000)  // Poll every second
       } else {
-        // Text-only seed (no URL)
-        await fetchStoryMatches(parsed.text || parsed.originalInput, 'text', parsed)
+        // Text-only seed (no URL) - just acknowledge
+        const textMessage: ChatMessage = {
+          id: `msg_${Date.now()}_text`,
+          role: 'system',
+          timestamp: new Date(),
+          content: {
+            type: 'text',
+            data: {
+              text: '💬 Message received. Try submitting a news article URL for analysis.'
+            }
+          }
+        }
+        pushSystemMessages([textMessage])
+        setIsTyping(false)
       }
     } catch (error) {
       console.error('Seed submission error:', error)
@@ -315,7 +327,7 @@ export function useChatSession(userId: string): UseChatSessionReturn {
       }
       setMessages((prev) => [...prev, errorMessage])
     }
-  }, [fetchStoryMatches, userId, pushSystemMessages])
+  }, [userId, pushSystemMessages])
 
   const handleAction = useCallback((actionId: string, route?: string) => {
     console.log('Action clicked:', actionId, route)
@@ -342,12 +354,12 @@ export function useChatSession(userId: string): UseChatSessionReturn {
 
   const handleJoinStory = useCallback((storyId: string) => {
     console.log('Join story:', storyId)
-    alert(`Would join story: ${storyId}`)
+    window.location.href = `/story/${storyId}`
   }, [])
 
   const handleViewStory = useCallback((storyId: string) => {
     console.log('View story:', storyId)
-    alert(`Would view story: ${storyId}`)
+    window.location.href = `/story/${storyId}`
   }, [])
 
   const clearChat = useCallback(() => {

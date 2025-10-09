@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COVID-19 Origin Truth Emergence Tree</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        #container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #1a202c;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #4a5568;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+        
+        #tree-svg {
+            width: 100%;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        
+        .node {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .node:hover {
+            filter: brightness(1.2);
+        }
+        
+        .node-artifact {
+            fill: #9ca3af;
+            stroke: #6b7280;
+            stroke-width: 2px;
+        }
+        
+        .node-claim {
+            fill: #3b82f6;
+            stroke: #2563eb;
+            stroke-width: 2px;
+        }
+        
+        .node-thread {
+            fill: #10b981;
+            stroke: #059669;
+            stroke-width: 3px;
+        }
+        
+        .node-story {
+            fill: #1f2937;
+            stroke: #111827;
+            stroke-width: 4px;
+        }
+        
+        .node-resolution {
+            fill: #f59e0b;
+            stroke: #d97706;
+            stroke-width: 2px;
+        }
+        
+        .link {
+            fill: none;
+            stroke-opacity: 0.6;
+        }
+        
+        .link-supports {
+            stroke: #10b981;
+            stroke-width: 2px;
+        }
+        
+        .link-evidences {
+            stroke: #9ca3af;
+            stroke-width: 1px;
+            stroke-dasharray: 3,3;
+        }
+        
+        .link-contradicts {
+            stroke: #ef4444;
+            stroke-width: 2px;
+            stroke-dasharray: 5,5;
+        }
+        
+        .link-contains {
+            stroke: #6b7280;
+            stroke-width: 3px;
+        }
+        
+        .link-resolution {
+            stroke: #f59e0b;
+            stroke-width: 2px;
+        }
+        
+        .node-label {
+            font-size: 11px;
+            font-weight: 600;
+            pointer-events: none;
+            user-select: none;
+        }
+        
+        .legend {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin: 20px 0;
+            padding: 15px;
+            background: #f7fafc;
+            border-radius: 10px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .legend-circle {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid;
+        }
+        
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+            max-width: 300px;
+            z-index: 1000;
+        }
+        
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            margin: 0 5px;
+            transition: transform 0.2s;
+        }
+        
+        button:hover {
+            transform: scale(1.05);
+        }
+        
+        .timeline-info {
+            background: #edf2f7;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        
+        .confidence-bar {
+            display: inline-block;
+            height: 8px;
+            background: linear-gradient(90deg, #ef4444, #f59e0b, #10b981);
+            border-radius: 4px;
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <h1>🌳 COVID-19 Origin: Truth Emergence Tree</h1>
+        <div class="subtitle">Visualizing how evidence converges into competing theories over time</div>
+        
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-circle" style="background: #9ca3af; border-color: #6b7280;"></div>
+                <span>Artifact (Evidence)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-circle" style="background: #3b82f6; border-color: #2563eb;"></div>
+                <span>Claim</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-circle" style="background: #10b981; border-color: #059669;"></div>
+                <span>Thread (Theory)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-circle" style="background: #1f2937; border-color: #111827;"></div>
+                <span>Story (Root)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-circle" style="background: #f59e0b; border-color: #d97706;"></div>
+                <span>Resolution</span>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button onclick="expandAll()">Expand All</button>
+            <button onclick="collapseToThreads()">Show Threads Only</button>
+            <button onclick="highlightContradictions()">Show Contradictions</button>
+            <button onclick="showTimeline()">Timeline View</button>
+        </div>
+        
+        <svg id="tree-svg"></svg>
+        <div class="tooltip"></div>
+        
+        <div class="timeline-info">
+            <h3>Key Convergence Points:</h3>
+            <ul>
+                <li><strong>March 2020:</strong> Engineering hypothesis rejected (genomic analysis)</li>
+                <li><strong>July 2022:</strong> Market epicenter confirmed (spatial/lineage studies)</li>
+                <li><strong>Aug 2022:</strong> Zoonosis gains strong support (provisional resolution)</li>
+                <li><strong>Jan 2025:</strong> CIA assessment adds uncertainty (low confidence)</li>
+            </ul>
+            <p><strong>Current State:</strong> "Coherent with reservations" - Zoonotic spillover leading theory, lab-related still developing</p>
+        </div>
+    </div>
+
+    <script>
+        // Parse the data
+        const data = {
+            nodes: [
+                // Story (Root)
+                {id: "S1", type: "story", title: "COVID-19 Origin", level: 0},
+                
+                // Threads
+                {id: "Tz", type: "thread", title: "Zoonotic Spillover", level: 1, parent: "S1", state: "coherent"},
+                {id: "Tl", type: "thread", title: "Lab-related Incident", level: 1, parent: "S1", state: "developing"},
+                {id: "Te", type: "thread", title: "Engineered Virus", level: 1, parent: "S1", state: "archived"},
+                {id: "Tm", type: "thread", title: "Market Epicenter", level: 1, parent: "S1", state: "coherent"},
+                
+                // Key Claims
+                {id: "C1", type: "claim", text: "Genome shows no engineering", level: 2, parent: "Tz", confidence: 0.9},
+                {id: "C2", type: "claim", text: "Cases cluster around market", level: 2, parent: "Tz", confidence: 0.7},
+                {id: "C3", type: "claim", text: "Two spillovers at market", level: 2, parent: "Tz", confidence: 0.85},
+                {id: "C4", type: "claim", text: "Animal stalls positive", level: 2, parent: "Tz", confidence: 0.7},
+                {id: "C5", type: "claim", text: "No lab evidence", level: 2, parent: "Tz", confidence: 0.75},
+                {id: "C6", type: "claim", text: "WHO: lab unlikely", level: 2, parent: "Tz", confidence: 0.6},
+                {id: "C7", type: "claim", text: "WIV staff ill Nov 2019", level: 2, parent: "Tl", confidence: 0.4},
+                {id: "C8", type: "claim", text: "Virus was engineered", level: 2, parent: "Te", confidence: 0.2},
+                {id: "C9", type: "claim", text: "CIA: research-related likely", level: 2, parent: "Tl", confidence: 0.35},
+                {id: "C10", type: "claim", text: "Market was epicenter", level: 2, parent: "Tm", confidence: 0.85},
+                {id: "C12", type: "claim", text: "Related bat viruses found", level: 2, parent: "Tz", confidence: 0.7},
+                
+                // Key Artifacts
+                {id: "A02", type: "artifact", title: "Nature: no engineering", level: 3, parent: "C1", date: "2020-03"},
+                {id: "A03", type: "artifact", title: "Cases near market", level: 3, parent: "C2", date: "2020-02"},
+                {id: "A07", type: "artifact", title: "Science: market mapping", level: 3, parent: "C10", date: "2022-07"},
+                {id: "A08", type: "artifact", title: "Science: two lineages", level: 3, parent: "C3", date: "2022-07"},
+                {id: "A05", type: "artifact", title: "WHO-China study", level: 3, parent: "C6", date: "2021-03"},
+                {id: "A06", type: "artifact", title: "Intel: WIV illness", level: 3, parent: "C7", date: "2021-05"},
+                {id: "A11", type: "artifact", title: "CIA assessment", level: 3, parent: "C9", date: "2025-01"},
+                {id: "A12", type: "artifact", title: "Market swabs positive", level: 3, parent: "C4", date: "2020-01"},
+                {id: "A13", type: "artifact", title: "Bat viruses found", level: 3, parent: "C12", date: "2021-11"},
+                
+                // Resolutions
+                {id: "R_eng", type: "resolution", title: "Engineering rejected", level: 1.5, parent: "Te", status: "final"},
+                {id: "R_market", type: "resolution", title: "Market confirmed", level: 1.5, parent: "Tm", status: "final"},
+                {id: "R_core", type: "resolution", title: "Zoonosis leading", level: 0.5, parent: "S1", status: "provisional"}
+            ]
+        };
+
+        // Set up dimensions
+        const width = 1200;
+        const height = 800;
+        const margin = {top: 40, right: 120, bottom: 40, left: 120};
+
+        // Create SVG
+        const svg = d3.select("#tree-svg")
+            .attr("viewBox", `0 0 ${width} ${height}`)
+            .attr("preserveAspectRatio", "xMidYMid meet");
+
+        // Create group for zoom
+        const g = svg.append("g")
+            .attr("transform", `translate(${margin.left},${margin.top})`);
+
+        // Create tree layout
+        const treeLayout = d3.tree()
+            .size([width - margin.left - margin.right, height - margin.top - margin.bottom - 100]);
+
+        // Convert flat data to hierarchy
+        const stratify = d3.stratify()
+            .id(d => d.id)
+            .parentId(d => d.parent);
+
+        const root = stratify(data.nodes);
+        
+        // Generate tree
+        treeLayout(root);
+
+        // Create links
+        const links = g.selectAll(".link")
+            .data(root.links())
+            .enter().append("path")
+            .attr("class", d => {
+                const target = d.target.data;
+                if (target.type === "resolution") return "link link-resolution";
+                if (target.type === "claim") return "link link-supports";
+                if (target.type === "artifact") return "link link-evidences";
+                return "link link-contains";
+            })
+            .attr("d", d3.linkVertical()
+                .x(d => d.x)
+                .y(d => d.y));
+
+        // Create nodes
+        const nodes = g.selectAll(".node")
+            .data(root.descendants())
+            .enter().append("g")
+            .attr("class", "node")
+            .attr("transform", d => `translate(${d.x},${d.y})`);
+
+        // Add circles for nodes
+        nodes.append("circle")
+            .attr("r", d => {
+                if (d.data.type === "story") return 20;
+                if (d.data.type === "thread") return 15;
+                if (d.data.type === "resolution") return 12;
+                if (d.data.type === "claim") return 10;
+                return 8;
+            })
+            .attr("class", d => `node-${d.data.type}`)
+            .on("mouseover", showTooltip)
+            .on("mouseout", hideTooltip);
+
+        // Add labels
+        nodes.append("text")
+            .attr("class", "node-label")
+            .attr("dy", d => d.data.type === "story" ? -25 : d.children ? -18 : 18)
+            .attr("text-anchor", "middle")
+            .text(d => {
+                if (d.data.title) return d.data.title;
+                if (d.data.text) return d.data.text.length > 25 ? 
+                    d.data.text.substring(0, 25) + "..." : d.data.text;
+                return d.data.id;
+            });
+
+        // Add confidence indicators for claims
+        nodes.filter(d => d.data.type === "claim" && d.data.confidence)
+            .append("rect")
+            .attr("x", -20)
+            .attr("y", 12)
+            .attr("width", 40)
+            .attr("height", 4)
+            .attr("fill", d => {
+                const conf = d.data.confidence;
+                if (conf > 0.7) return "#10b981";
+                if (conf > 0.4) return "#f59e0b";
+                return "#ef4444";
+            })
+            .attr("rx", 2);
+
+        // Tooltip functions
+        const tooltip = d3.select(".tooltip");
+
+        function showTooltip(event, d) {
+            let content = `<strong>${d.data.type.toUpperCase()}</strong><br/>`;
+            content += d.data.title || d.data.text || d.data.id;
+            
+            if (d.data.confidence) {
+                content += `<br/>Confidence: ${(d.data.confidence * 100).toFixed(0)}%`;
+            }
+            if (d.data.state) {
+                content += `<br/>State: ${d.data.state}`;
+            }
+            if (d.data.date) {
+                content += `<br/>Date: ${d.data.date}`;
+            }
+            if (d.data.status) {
+                content += `<br/>Status: ${d.data.status}`;
+            }
+            
+            tooltip.html(content)
+                .style("opacity", 1)
+                .style("left", (event.pageX + 10) + "px")
+                .style("top", (event.pageY - 10) + "px");
+        }
+
+        function hideTooltip() {
+            tooltip.style("opacity", 0);
+        }
+
+        // Control functions
+        function expandAll() {
+            nodes.style("opacity", 1);
+            links.style("opacity", 1);
+        }
+
+        function collapseToThreads() {
+            nodes.style("opacity", d => d.depth <= 1 ? 1 : 0.2);
+            links.style("opacity", d => d.target.depth <= 1 ? 1 : 0.1);
+        }
+
+        function highlightContradictions() {
+            // Highlight lab vs zoonosis contradiction
+            nodes.style("opacity", d => {
+                if (["Tz", "Tl", "C7", "C9", "C1", "C2", "C3", "C5"].includes(d.data.id)) {
+                    return 1;
+                }
+                return 0.3;
+            });
+            
+            // Add visual contradiction indicators
+            g.append("path")
+                .attr("class", "link link-contradicts")
+                .attr("d", "M 300,200 Q 600,300 900,200")
+                .style("stroke", "#ef4444")
+                .style("stroke-width", 3)
+                .style("fill", "none")
+                .style("stroke-dasharray", "5,5");
+        }
+
+        function showTimeline() {
+            // Animate nodes based on date
+            nodes.transition()
+                .duration(2000)
+                .delay((d, i) => {
+                    const dateMap = {
+                        "2020-01": 0, "2020-02": 100, "2020-03": 200,
+                        "2021-03": 600, "2021-05": 700, "2021-11": 900,
+                        "2022-07": 1200, "2022-08": 1300,
+                        "2025-01": 1800
+                    };
+                    return dateMap[d.data.date] || i * 50;
+                })
+                .style("opacity", 0)
+                .transition()
+                .duration(500)
+                .style("opacity", 1);
+        }
+
+        // Add zoom behavior
+        const zoom = d3.zoom()
+            .scaleExtent([0.5, 3])
+            .on("zoom", (event) => {
+                g.attr("transform", event.transform);
+            });
+
+        svg.call(zoom);
+    </script>
+</body>
+</html>

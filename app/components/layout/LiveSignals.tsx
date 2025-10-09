@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 
 interface StorySummary {
   id: string
@@ -111,13 +112,25 @@ function LiveSignals() {
               const health = healthConfig[story.health_indicator || 'unknown'] || healthConfig.unknown
 
               return (
-                <article
+                <Link
                   key={story.id}
-                  className="group rounded-2xl border border-slate-200 bg-white/90 p-5 transition shadow-sm hover:shadow-md"
+                  to={`/story/${story.id}`}
+                  className="block group rounded-2xl border border-slate-200 bg-white/90 p-5 transition shadow-sm hover:shadow-md hover:border-blue-300"
                 >
                   <div className="flex items-start gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
+                    {/* Thumbnail Image */}
+                    {story.cover_image && (
+                      <div className="w-28 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-slate-100">
+                        <img
+                          src={story.cover_image}
+                          alt=""
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      </div>
+                    )}
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <h3 className="text-lg font-semibold text-slate-800 group-hover:text-blue-600 transition-colors">
                           {story.title}
                         </h3>
@@ -150,11 +163,11 @@ function LiveSignals() {
                         </div>
                       )}
                     </div>
-                    <span className="text-xs font-medium text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full whitespace-nowrap">
+                    <span className="text-xs font-medium text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full whitespace-nowrap self-start">
                       {story.last_updated_human}
                     </span>
                   </div>
-                </article>
+                </Link>
               )
             })
           )}

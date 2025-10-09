@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Force Graph - Entropic Story Model</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        }
+        #container {
+            width: 100vw;
+            height: 100vh;
+        }
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 300px;
+            backdrop-filter: blur(10px);
+        }
+        #info h2 {
+            margin: 0 0 10px 0;
+            font-size: 18px;
+            color: #FFD93D;
+        }
+        #info p {
+            margin: 5px 0;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        .legend {
+            margin-top: 15px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+            font-size: 11px;
+        }
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 10px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+        #controls p {
+            margin: 5px 0;
+            font-size: 11px;
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+    <div id="info">
+        <h2>Entropic Story Model</h2>
+        <p>Interactive 3D force-directed graph showing how data artifacts cluster into narrative structures.</p>
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background: #FFD93D; box-shadow: 0 0 15px #FFD93D;"></div>
+                <span>Frames (top level)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #6BCF7F; box-shadow: 0 0 15px #6BCF7F;"></div>
+                <span>Stories (mid level)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #A7C7E7; box-shadow: 0 0 15px #A7C7E7;"></div>
+                <span>Threads (connected)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #F4D03F; box-shadow: 0 0 10px #F4D03F;"></div>
+                <span>Artifacts (data points)</span>
+            </div>
+        </div>
+    </div>
+    <div id="controls">
+        <p><strong>Controls:</strong></p>
+        <p>🖱️ Drag to rotate | Scroll to zoom</p>
+        <p>Click nodes to highlight connections</p>
+    </div>
+
+    <script>
+        // Scene setup
+        const container = document.getElementById('container');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0x1a1a2e, 1);
+        container.appendChild(renderer.domElement);
+        
+        camera.position.set(0, 0, 400);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+        
+        const pointLight1 = new THREE.PointLight(0xFFD93D, 1, 1000);
+        pointLight1.position.set(200, 200, 200);
+        scene.add(pointLight1);
+        
+        const pointLight2 = new THREE.PointLight(0x6BCF7F, 0.8, 1000);
+        pointLight2.position.set(-200, -200, 200);
+        scene.add(pointLight2);
+
+        // Data structure - realistic entropic model
+        const graphData = {
+            nodes: [
+                // FRAMES (level 0) - highest abstraction
+                { id: 'climate', label: 'CLIMATE', level: 0, size: 16, color: 0xFFD93D },
+                { id: 'politics', label: 'POLITICS', level: 0, size: 16, color: 0xFFD93D },
+                { id: 'health', label: 'HEALTH', level: 0, size: 16, color: 0xFFD93D },
+                
+                // STORIES (level 1) - narrative clusters
+                { id: 'hurricane_milton', label: 'Hurricane Milton', level: 1, size: 13, color: 0x6BCF7F },
+                { id: 'election_2024', label: 'Election 2024', level: 1, size: 13, color: 0x6BCF7F },
+                { id: 'flu_outbreak', label: 'Flu Outbreak', level: 1, size: 12, color: 0x6BCF7F },
+                { id: 'wildfire_season', label: 'Wildfire Season', level: 1, size: 12, color: 0x6BCF7F },
+                
+                // THREADS (level 2) - claim clusters
+                { id: 'evacuation_orders', label: 'Evacuation Orders', level: 2, size: 9, color: 0xA7C7E7 },
+                { id: 'power_outages', label: 'Power Outages', level: 2, size: 9, color: 0xA7C7E7 },
+                { id: 'ballot_counting', label: 'Ballot Counting', level: 2, size: 9, color: 0xA7C7E7 },
+                { id: 'polling_data', label: 'Polling Data', level: 2, size: 9, color: 0xA7C7E7 },
+                { id: 'hospital_capacity', label: 'Hospital Capacity', level: 2, size: 8, color: 0xA7C7E7 },
+                { id: 'vaccination_rates', label: 'Vaccination Rates', level: 2, size: 8, color: 0xA7C7E7 },
+                { id: 'fire_containment', label: 'Fire Containment', level: 2, size: 8, color: 0xA7C7E7 },
+                { id: 'air_quality', label: 'Air Quality', level: 2, size: 8, color: 0xA7C7E7 },
+            ],
+            links: [
+                // Frames to Stories (stories can share frames)
+                { source: 'climate', target: 'hurricane_milton', strength: 2 },
+                { source: 'climate', target: 'wildfire_season', strength: 2 },
+                { source: 'politics', target: 'election_2024', strength: 2 },
+                { source: 'health', target: 'flu_outbreak', strength: 2 },
+                { source: 'health', target: 'hurricane_milton', strength: 1.2 }, // health concerns from hurricane
+                
+                // Stories to Threads (threads belong to stories)
+                { source: 'hurricane_milton', target: 'evacuation_orders', strength: 1.8 },
+                { source: 'hurricane_milton', target: 'power_outages', strength: 1.8 },
+                { source: 'election_2024', target: 'ballot_counting', strength: 1.8 },
+                { source: 'election_2024', target: 'polling_data', strength: 1.6 },
+                { source: 'flu_outbreak', target: 'hospital_capacity', strength: 1.8 },
+                { source: 'flu_outbreak', target: 'vaccination_rates', strength: 1.6 },
+                { source: 'wildfire_season', target: 'fire_containment', strength: 1.8 },
+                { source: 'wildfire_season', target: 'air_quality', strength: 1.6 },
+                { source: 'wildfire_season', target: 'evacuation_orders', strength: 1.4 }, // shared thread
+            ]
+        };
+
+        // ARTIFACTS (level 4) - raw data sources
+        const artifacts = [
+            // Hurricane-related artifacts
+            { type: 'satellite', topic: 'evacuation_orders', label: 'Satellite Image', count: 3 },
+            { type: 'document', topic: 'evacuation_orders', label: 'Emergency Order', count: 2 },
+            { type: 'data', topic: 'power_outages', label: 'Outage Map Data', count: 4 },
+            { type: 'image', topic: 'power_outages', label: 'Damage Photo', count: 5 },
+            
+            // Election-related artifacts
+            { type: 'data', topic: 'ballot_counting', label: 'Vote Tallies', count: 6 },
+            { type: 'document', topic: 'ballot_counting', label: 'County Report', count: 3 },
+            { type: 'data', topic: 'polling_data', label: 'Poll Results', count: 4 },
+            { type: 'document', topic: 'polling_data', label: 'Survey PDF', count: 2 },
+            
+            // Health-related artifacts
+            { type: 'data', topic: 'hospital_capacity', label: 'Bed Count Data', count: 3 },
+            { type: 'document', topic: 'hospital_capacity', label: 'Hospital Report', count: 2 },
+            { type: 'data', topic: 'vaccination_rates', label: 'Vaccination Data', count: 4 },
+            { type: 'image', topic: 'vaccination_rates', label: 'Clinic Photo', count: 2 },
+            
+            // Wildfire-related artifacts
+            { type: 'satellite', topic: 'fire_containment', label: 'Fire Map', count: 3 },
+            { type: 'data', topic: 'fire_containment', label: 'Containment %', count: 3 },
+            { type: 'data', topic: 'air_quality', label: 'AQI Readings', count: 5 },
+            { type: 'image', topic: 'air_quality', label: 'Smoke Photo', count: 3 },
+        ];
+
+        const artifactColors = {
+            'image': 0xF4D03F,
+            'document': 0xE8B44F,
+            'data': 0xFFA500,
+            'satellite': 0xFFD700
+        };
+
+        let artifactId = 0;
+        let claimId = 0;
+
+        artifacts.forEach(artifact => {
+            // Create artifact node
+            const artNode = {
+                id: `artifact_${artifactId}`,
+                label: artifact.label,
+                level: 4,
+                size: 5,
+                color: artifactColors[artifact.type],
+                type: artifact.type
+            };
+            graphData.nodes.push(artNode);
+
+            // Create multiple claims from this artifact
+            for (let i = 0; i < artifact.count; i++) {
+                const claimNode = {
+                    id: `claim_${claimId}`,
+                    label: `Claim ${claimId}`,
+                    level: 3,
+                    size: 6,
+                    color: 0xDC8F5F
+                };
+                graphData.nodes.push(claimNode);
+
+                // Connect claim to artifact
+                graphData.links.push({
+                    source: `artifact_${artifactId}`,
+                    target: `claim_${claimId}`,
+                    strength: 1.2
+                });
+
+                // Connect claim to thread
+                graphData.links.push({
+                    source: artifact.topic,
+                    target: `claim_${claimId}`,
+                    strength: 1.0
+                });
+
+                claimId++;
+            }
+
+            artifactId++;
+        });
+
+        // Create node objects
+        const nodeObjects = {};
+        const nodeMeshes = [];
+        
+        graphData.nodes.forEach(node => {
+            const geometry = new THREE.SphereGeometry(node.size, 32, 32);
+            const material = new THREE.MeshPhongMaterial({
+                color: node.color,
+                emissive: node.color,
+                emissiveIntensity: 0.3,
+                shininess: 100
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            
+            // Initial random position
+            mesh.position.set(
+                (Math.random() - 0.5) * 400,
+                (Math.random() - 0.5) * 400,
+                (Math.random() - 0.5) * 400
+            );
+            
+            mesh.userData = node;
+            nodeObjects[node.id] = mesh;
+            nodeMeshes.push(mesh);
+            scene.add(mesh);
+            
+            // Add glow effect for larger nodes
+            if (node.size > 8) {
+                const glowGeometry = new THREE.SphereGeometry(node.size * 1.3, 32, 32);
+                const glowMaterial = new THREE.MeshBasicMaterial({
+                    color: node.color,
+                    transparent: true,
+                    opacity: 0.2
+                });
+                const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+                mesh.add(glow);
+            }
+        });
+
+        // Create link lines
+        const linkLines = [];
+        graphData.links.forEach(link => {
+            const material = new THREE.LineBasicMaterial({
+                color: 0x555555,
+                transparent: true,
+                opacity: 0.3
+            });
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(6);
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const line = new THREE.Line(geometry, material);
+            line.userData = { source: link.source, target: link.target };
+            linkLines.push(line);
+            scene.add(line);
+        });
+
+        // Force simulation
+        const simulation = d3.forceSimulation(graphData.nodes)
+            .force('link', d3.forceLink(graphData.links)
+                .id(d => d.id)
+                .distance(d => 50 + (4 - Math.min(3, Math.abs(d.source.level - d.target.level))) * 20)
+                .strength(d => d.strength || 0.5))
+            .force('charge', d3.forceManyBody()
+                .strength(d => d.level === 3 ? -20 : -100)
+                .distanceMax(300))
+            .force('collision', d3.forceCollide().radius(d => d.size * 2))
+            .force('levelSeparation', () => {
+                graphData.nodes.forEach(node => {
+                    // Vertical separation by level
+                    const targetY = (node.level - 1.5) * 100;
+                    node.vy = (node.vy || 0) + (targetY - (node.y || 0)) * 0.01;
+                    
+                    // Z-axis positioning for 3D depth
+                    node.z = node.z || 0;
+                    const targetZ = (Math.random() - 0.5) * 50;
+                    node.vz = (node.vz || 0) * 0.95 + (targetZ - node.z) * 0.005;
+                    node.z += node.vz || 0;
+                });
+            });
+
+        // Mouse interaction
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let selectedNode = null;
+
+        renderer.domElement.addEventListener('click', (event) => {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(nodeMeshes);
+            
+            if (intersects.length > 0) {
+                const clickedNode = intersects[0].object;
+                selectedNode = selectedNode === clickedNode ? null : clickedNode;
+                
+                // Highlight connected nodes
+                nodeMeshes.forEach(mesh => {
+                    mesh.material.emissiveIntensity = 0.3;
+                    mesh.material.opacity = selectedNode ? 0.3 : 1;
+                    mesh.material.transparent = !!selectedNode;
+                });
+                
+                linkLines.forEach(line => {
+                    line.material.opacity = 0.3;
+                });
+                
+                if (selectedNode) {
+                    selectedNode.material.emissiveIntensity = 0.8;
+                    selectedNode.material.opacity = 1;
+                    
+                    const nodeId = selectedNode.userData.id;
+                    linkLines.forEach(line => {
+                        if (line.userData.source === nodeId || line.userData.target === nodeId) {
+                            line.material.opacity = 0.8;
+                            const connectedId = line.userData.source === nodeId ? 
+                                line.userData.target : line.userData.source;
+                            const connectedMesh = nodeObjects[connectedId];
+                            if (connectedMesh) {
+                                connectedMesh.material.emissiveIntensity = 0.6;
+                                connectedMesh.material.opacity = 1;
+                            }
+                        }
+                    });
+                }
+            }
+        });
+
+        // Camera controls
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+        
+        renderer.domElement.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            previousMousePosition = { x: e.clientX, y: e.clientY };
+        });
+        
+        renderer.domElement.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                const deltaX = e.clientX - previousMousePosition.x;
+                const deltaY = e.clientY - previousMousePosition.y;
+                
+                camera.position.x += deltaX * 0.5;
+                camera.position.y -= deltaY * 0.5;
+                camera.lookAt(0, 0, 0);
+                
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            }
+        });
+        
+        renderer.domElement.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+        
+        renderer.domElement.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const zoomSpeed = 0.1;
+            const direction = e.deltaY > 0 ? 1 : -1;
+            camera.position.z += direction * zoomSpeed * 20;
+            camera.position.z = Math.max(100, Math.min(800, camera.position.z));
+        });
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            simulation.tick();
+            
+            // Update node positions
+            graphData.nodes.forEach(node => {
+                const mesh = nodeObjects[node.id];
+                if (mesh) {
+                    mesh.position.set(node.x || 0, node.y || 0, node.z || 0);
+                }
+            });
+            
+            // Update link positions
+            linkLines.forEach(line => {
+                const sourceNode = nodeObjects[line.userData.source];
+                const targetNode = nodeObjects[line.userData.target];
+                if (sourceNode && targetNode) {
+                    const positions = line.geometry.attributes.position.array;
+                    positions[0] = sourceNode.position.x;
+                    positions[1] = sourceNode.position.y;
+                    positions[2] = sourceNode.position.z;
+                    positions[3] = targetNode.position.x;
+                    positions[4] = targetNode.position.y;
+                    positions[5] = targetNode.position.z;
+                    line.geometry.attributes.position.needsUpdate = true;
+                }
+            });
+            
+            // Rotate scene slightly
+            scene.rotation.y += 0.0005;
+            
+            renderer.render(scene, camera);
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>
