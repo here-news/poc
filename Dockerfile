@@ -45,8 +45,8 @@ COPY services/ ./services/
 # Copy GCS credentials
 COPY sage-striker-294302-b89a8b7e205b.json ./
 
-# Expose port 9494
-EXPOSE 9494
+# Expose port 7272
+EXPOSE 7272
 
 # Start the FastAPI server
 CMD ["python", "server.py"]
