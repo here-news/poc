@@ -1,10 +1,10 @@
 version: '3.8'
 
 services:
-  hn4-app:
+  webapp:
     build: .
     ports:
-      - "9494:9494"
+      - "7272:7272"
     env_file:
       - .env
     environment:
@@ -19,7 +19,7 @@ services:
       # Cache pip downloads to speed up rebuilds
       - pip-cache:/root/.cache/pip
     restart: unless-stopped
-    container_name: hn4-app
+    container_name: webapp
 
 volumes:
   pip-cache:
