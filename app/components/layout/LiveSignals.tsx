@@ -40,20 +40,41 @@ function LiveSignals() {
   const [stories, setStories] = useState<StorySummary[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
+  const [newStoriesCount, setNewStoriesCount] = useState(0)
 
+  // Auto-refresh every 30 seconds
   useEffect(() => {
-    fetchStories()
+    console.log('[LiveSignals] Component mounted, starting auto-refresh')
+    fetchStories() // Initial fetch
+
+    const interval = setInterval(() => {
+      console.log('[LiveSignals] Auto-refresh triggered (30s interval)')
+      fetchStories(true) // Background refresh
+    }, 30000) // 30 seconds
+
+    return () => {
+      console.log('[LiveSignals] Component unmounted, clearing interval')
+      clearInterval(interval)
+    }
   }, [])
 
-  const fetchStories = async () => {
+  const fetchStories = async (isBackground = false) => {
     try {
-      setLoading(true)
+      // Only show loading spinner on initial load, not background refreshes
+      if (!isBackground) {
+        setLoading(true)
+      } else {
+        setIsRefreshing(true)
+      }
+
       const response = await fetch('/api/stories?limit=12')
       const data = await response.json()
 
       if (data.error) {
         setError(data.error)
-        setStories([])
+        if (!isBackground) setStories([])
       } else {
         const summaries: StorySummary[] = (data.stories || []).map((story: any) => ({
           id: story.id,
@@ -69,14 +90,30 @@ function LiveSignals() {
           health_indicator: story.health_indicator
         }))
 
+        // Detect new stories (check if any IDs are different)
+        if (isBackground && stories.length > 0) {
+          const existingIds = new Set(stories.map(s => s.id))
+          const newStories = summaries.filter(s => !existingIds.has(s.id))
+          if (newStories.length > 0) {
+            setNewStoriesCount(newStories.length)
+            // Clear notification after 5 seconds
+            setTimeout(() => setNewStoriesCount(0), 5000)
+          }
+        }
+
         setStories(summaries)
+        setLastRefresh(new Date())
+        setError(null)
       }
     } catch (err) {
       console.error('Error fetching stories:', err)
-      setError('Failed to load stories')
-      setStories([])
+      if (!isBackground) {
+        setError('Failed to load stories')
+        setStories([])
+      }
     } finally {
       setLoading(false)
+      setIsRefreshing(false)
     }
   }
 
@@ -88,7 +125,44 @@ function LiveSignals() {
             <h2 className="text-xl font-semibold text-slate-800">Recent Threads</h2>
             <p className="text-sm text-slate-500">
               Active story threads from the community
+              {isRefreshing && (
+                <span className="ml-2 inline-flex items-center gap-1 text-blue-600">
+                  <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Updating...
+                </span>
+              )}
             </p>
+          </div>
+
+          {/* Manual Refresh Button + New Stories Badge */}
+          <div className="flex items-center gap-2">
+            {newStoriesCount > 0 && (
+              <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-100 text-emerald-700 text-sm font-medium rounded-full animate-pulse">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clipRule="evenodd" />
+                </svg>
+                {newStoriesCount} new {newStoriesCount === 1 ? 'story' : 'stories'}
+              </span>
+            )}
+            <button
+              onClick={() => fetchStories(true)}
+              disabled={isRefreshing}
+              className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Refresh stories"
+            >
+              <svg
+                className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Refresh
+            </button>
           </div>
         </div>
 

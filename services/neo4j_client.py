@@ -128,9 +128,9 @@ class Neo4jClient:
                story.confidence as confidence,
                story.entropy as entropy,
                story.created_at as created_at,
-               story.updated_at as updated_at,
+               story.last_updated as updated_at,
                coalesce(cover_thumbnail, '') as cover_image,
-               coalesce(last_artifact_date, story.updated_at, story.created_at) as last_activity
+               coalesce(story.last_updated, last_artifact_date, story.created_at) as last_activity
         ORDER BY last_activity DESC
         LIMIT $limit
         """
