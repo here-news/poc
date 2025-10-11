@@ -24,7 +24,7 @@ The webapp has been successfully synchronized with the updated backend service. 
 
 ## 1. Backend API Endpoints Analysis
 
-### Available Endpoints (from `/media/im3/plus/lab4/re_news/here-extraction-service/main.py`)
+### Available Endpoints (from `/media/im3/plus/lab4/re_news/story-engine-here/main.py`)
 
 #### Health & Debug
 | Endpoint | Method | Purpose | Webapp Usage |
@@ -410,9 +410,9 @@ curl http://localhost:9494/api/task/{task_id}
 
 | File | Purpose |
 |------|---------|
-| `/media/im3/plus/lab4/re_news/here-extraction-service/API.md` | Backend API documentation |
-| `/media/im3/plus/lab4/re_news/here-extraction-service/NEO4J_SCHEMA.md` | Neo4j schema reference |
-| `/media/im3/plus/lab4/re_news/here-extraction-service/.env.template` | Backend configuration template |
+| `/media/im3/plus/lab4/re_news/story-engine-here/API.md` | Backend API documentation |
+| `/media/im3/plus/lab4/re_news/story-engine-here/NEO4J_SCHEMA.md` | Neo4j schema reference |
+| `/media/im3/plus/lab4/re_news/story-engine-here/.env.template` | Backend configuration template |
 
 ---
 

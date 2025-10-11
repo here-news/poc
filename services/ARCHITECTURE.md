@@ -6,7 +6,7 @@
 >
 > The runtime pipeline (extraction, cleaning, entity resolution, semantization,
 > persistence) now lives in the Cloud Run deployment housed at
-> `../here-extraction-service`. This document remains as contract-level
+> `../story-engine-here`. This document remains as contract-level
 > documentation for how HN4 interacts with that service (Pub/Sub topics,
 > Firestore documents, GCS artifacts). The Python modules alongside this file
 > are deprecated snapshots preserved for reference only.

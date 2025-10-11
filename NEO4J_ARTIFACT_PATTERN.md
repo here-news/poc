@@ -43,7 +43,7 @@ RETURN count(image)
 
 ### 1. Update Extraction Service Schema
 
-**File**: `here-extraction-service/NEO4J_SCHEMA.md`
+**File**: `story-engine-here/NEO4J_SCHEMA.md`
 
 ```markdown
 ### Artifact (Base Label)
@@ -55,7 +55,7 @@ Web articles/documents
 
 ### 2. Update Page Creation in Extraction Service
 
-**File**: `here-extraction-service/services/neo4j_store.py`
+**File**: `story-engine-here/services/neo4j_store.py`
 
 ```python
 # OLD
@@ -133,7 +133,7 @@ SET p:Artifact
 RETURN count(p)
 
 // 2. Update extraction service to create Page:Artifact
-// File: here-extraction-service/services/neo4j_store.py
+// File: story-engine-here/services/neo4j_store.py
 ```
 
 ### Phase 2: Update Web App Query (Now)
