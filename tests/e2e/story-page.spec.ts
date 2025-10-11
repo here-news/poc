@@ -70,3 +70,4 @@ test.describe('Story page', () => {
     await expect(page.getByRole('heading', { name: 'Story Chat' })).not.toBeVisible()
   })
 })
+

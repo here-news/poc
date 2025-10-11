@@ -137,3 +137,4 @@ test.describe('Result page', () => {
     await expect(blockedPreview).toHaveCount(0)
   })
 })
+

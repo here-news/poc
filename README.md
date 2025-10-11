@@ -3,10 +3,11 @@
 A prototype web content extractor with AI-powered content validation and cleaning.
 
 > **Migration notice:** The live extraction/cleaning/entity-resolution pipeline now
-> runs inside the Cloud Run project in `../here-extraction-service`. This repo
-> focuses on the FastAPI gateway, Firestore task coordination, and the React
-> frontend. The Python modules under `services/` (other than `task_store.py` and
-> `pubsub_publisher.py`) are legacy snapshots kept for reference only.
+> runs inside the Cloud Run project in `../here-extraction-service` (deployed as
+> `story-engine-here`). This repo focuses on the FastAPI gateway, Firestore task
+> coordination, and the React frontend. The Python modules under `services/` (other
+> than `task_store.py` and `pubsub_publisher.py`) are legacy snapshots kept for
+> reference only.
 
 ## Features
 
@@ -22,10 +23,11 @@ A prototype web content extractor with AI-powered content validation and cleanin
 
 - **Backend**: FastAPI (Python) on port 9494, publishing jobs to Pub/Sub topics
 - **Frontend**: React + Vite + Tailwind CSS
-- **Pipeline**: Cloud Run workers in `here-extraction-service` (Playwright
+- **Pipeline**: Cloud Run service `story-engine-here` at
+  `https://story-engine-here-179431661561.us-central1.run.app` (Playwright
   extraction, GPT-4o cleaning, entity resolution, semantic analysis)
-- **Persistence**: Firestore for task tracking, GCS for artifacts (managed by
-  Cloud Run workers)
+- **Persistence**: Firestore for task tracking, Neo4j for knowledge graph, GCS for
+  artifacts (managed by Cloud Run workers)
 
 ## Quick Start
 

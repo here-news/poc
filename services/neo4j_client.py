@@ -449,7 +449,7 @@ class Neo4jClient:
             return 'unknown'
 
     def get_story_by_id(self, story_id: str) -> Optional[Dict]:
-        """Get a single story by ID with all metadata."""
+        """Get a single story by ID with all metadata, artifacts, and relationships."""
         if not self.connected:
             self._connect()
         if not self.connected:
@@ -462,13 +462,33 @@ class Neo4jClient:
         WHERE artifact:Page OR artifact:Artifact
         OPTIONAL MATCH (story)-[:HAS_CLAIM]->(claim:Claim)
         OPTIONAL MATCH (story)-[:MENTIONS]->(person:Person)
+        OPTIONAL MATCH (story)-[:MENTIONS_ORG]->(org:Organization)
         OPTIONAL MATCH (story)-[:MENTIONS_LOCATION]->(location:Location)
         OPTIONAL MATCH (artifact)-[:MENTIONS_LOCATION]->(artifact_location:Location)
+        OPTIONAL MATCH (story)-[rel:RELATED_TO]->(related_story:Story)
         WITH story,
              count(DISTINCT artifact) as artifact_count,
              count(DISTINCT claim) as claim_count,
              count(DISTINCT person) as people_count,
+             count(DISTINCT org) as org_count,
+             count(DISTINCT location) + count(DISTINCT artifact_location) as location_count,
              collect(DISTINCT location) + collect(DISTINCT artifact_location) as all_locations,
+             collect(DISTINCT {
+                url: artifact.url,
+                title: artifact.title,
+                domain: artifact.domain,
+                thumbnail_url: artifact.thumbnail_url,
+                created_at: artifact.created_at
+             }) as artifacts,
+             collect(DISTINCT {
+                id: related_story.id,
+                title: coalesce(related_story.title, related_story.topic),
+                match_score: rel.score_event,
+                relationship_type: rel.reason
+             }) as related_stories,
+             collect(DISTINCT person) as people,
+             collect(DISTINCT org) as organizations,
+             collect(DISTINCT location) + collect(DISTINCT artifact_location) as entity_locations,
              head([a IN collect(DISTINCT artifact) WHERE a.thumbnail_url IS NOT NULL AND a.thumbnail_url <> '' | a.thumbnail_url]) as cover_thumbnail,
              max(artifact.created_at) as last_artifact_date
         RETURN story.id as id,
@@ -479,7 +499,14 @@ class Neo4jClient:
                artifact_count,
                claim_count,
                people_count,
+               org_count,
+               location_count,
                [loc in all_locations WHERE loc.name IS NOT NULL | loc.name] as locations,
+               [a in artifacts WHERE a.url IS NOT NULL] as artifacts,
+               [r in related_stories WHERE r.id IS NOT NULL] as related_stories,
+               [p in people WHERE p.id IS NOT NULL | {id: p.id, name: p.name}] as people_entities,
+               [o in organizations WHERE o.id IS NOT NULL | {id: o.id, name: o.name}] as org_entities,
+               [l in entity_locations WHERE l.id IS NOT NULL | {id: l.id, name: l.name}] as location_entities,
                story.confidence as confidence,
                story.entropy as entropy,
                story.created_at as created_at,
@@ -493,7 +520,19 @@ class Neo4jClient:
             record = result.single()
             if not record:
                 return None
-            return self._record_to_summary(record)
+
+            # Convert to dict and add entity structure
+            story_dict = self._record_to_summary(record)
+            story_dict['artifacts'] = record.get('artifacts', [])
+            story_dict['related_stories'] = record.get('related_stories', [])
+            story_dict['org_count'] = record.get('org_count', 0)
+            story_dict['location_count'] = record.get('location_count', 0)
+            story_dict['entities'] = {
+                'people': record.get('people_entities', []),
+                'organizations': record.get('org_entities', []),
+                'locations': record.get('location_entities', [])
+            }
+            return story_dict
 
     def get_story_graph(self, story_id: str) -> Optional[Dict]:
         """Get the graph structure for a story showing story -> claims -> artifacts."""
