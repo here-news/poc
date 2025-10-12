@@ -623,6 +623,28 @@ async def get_story_graph(story_id: str):
         print(f"Error fetching story graph {story_id}: {e}")
         return {"error": str(e)}, 500
 
+@app.get("/api/entity")
+async def get_entity_by_name(name: str):
+    """
+    Get entity details by canonical name
+
+    Query params:
+        name: Entity canonical name (e.g., "Sam Altman", "OpenAI")
+
+    Returns:
+        Entity metadata including type, description, Wikidata QID, confidence
+    """
+    try:
+        entity = neo4j_client.get_entity_by_name(name)
+
+        if not entity:
+            return {"error": f"Entity '{name}' not found"}, 404
+
+        return entity
+    except Exception as e:
+        print(f"Error fetching entity '{name}': {e}")
+        return {"error": str(e)}, 500
+
 def _get_language_name(lang_code: str) -> str:
     """Convert ISO 639-1 code to readable language name"""
     language_names = {

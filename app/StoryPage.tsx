@@ -45,10 +45,10 @@ interface StoryDetails {
   }
 }
 
-// Helper function to render content with entity links
+// Helper function to render content with entity links and tooltips
 function renderContentWithEntityLinks(content: string): JSX.Element {
-  // Pattern: [Entity Name](entity://TYPE:ID)
-  const entityPattern = /\[([^\]]+)\]\(entity:\/\/([^:]+):([^)]+)\)/g
+  // Pattern: [[Entity Name]] - new markup format from story synthesis
+  const entityPattern = /\[\[([^\]]+)\]\]/g
   const parts: (string | JSX.Element)[] = []
   let lastIndex = 0
   let match
@@ -59,19 +59,13 @@ function renderContentWithEntityLinks(content: string): JSX.Element {
       parts.push(content.substring(lastIndex, match.index))
     }
 
-    // Add entity link
+    // Add entity link with hover tooltip
     const entityName = match[1]
-    const entityType = match[2]
-    const entityId = match[3]
     parts.push(
-      <a
-        key={`${entityType}-${entityId}-${match.index}`}
-        href={`/entity/${entityType}/${entityId}`}
-        className="text-blue-600 hover:text-blue-700 underline decoration-blue-300 hover:decoration-blue-500 font-medium"
-        title={`${entityType}: ${entityName}`}
-      >
-        {entityName}
-      </a>
+      <EntityLink
+        key={`entity-${match.index}`}
+        entityName={entityName}
+      />
     )
 
     lastIndex = match.index + match[0].length
@@ -83,6 +77,139 @@ function renderContentWithEntityLinks(content: string): JSX.Element {
   }
 
   return <>{parts}</>
+}
+
+// Entity link component with hover tooltip
+function EntityLink({ entityName }: { entityName: string }) {
+  const [showTooltip, setShowTooltip] = useState(false)
+  const [entityData, setEntityData] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+
+  const fetchEntityData = async () => {
+    if (entityData || loading) return
+
+    setLoading(true)
+    try {
+      const response = await fetch(`/api/entity?name=${encodeURIComponent(entityName)}`)
+      if (response.ok) {
+        const data = await response.json()
+        setEntityData(data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch entity:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleMouseEnter = () => {
+    setShowTooltip(true)
+    fetchEntityData()
+  }
+
+  const handleMouseLeave = () => {
+    setShowTooltip(false)
+  }
+
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'Person': return 'bg-blue-100 text-blue-700'
+      case 'Organization': return 'bg-orange-100 text-orange-700'
+      case 'Location': return 'bg-green-100 text-green-700'
+      default: return 'bg-gray-100 text-gray-700'
+    }
+  }
+
+  return (
+    <span className="relative inline-block">
+      <span
+        className="text-blue-600 hover:text-blue-700 border-b border-blue-300 border-dotted cursor-pointer transition-colors"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
+        {entityName}
+      </span>
+
+      {showTooltip && (
+        <div className="absolute z-50 w-80 p-4 bg-white border border-slate-300 rounded-lg shadow-xl mt-2 left-1/2 transform -translate-x-1/2">
+          {/* Arrow */}
+          <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-8 border-r-8 border-b-8 border-transparent border-b-slate-300" />
+
+          {loading && (
+            <div className="text-sm text-slate-500 italic">Loading...</div>
+          )}
+
+          {!loading && entityData && (
+            <>
+              {/* Thumbnail Image or Media Logo */}
+              {entityData.wikidata_thumbnail ? (
+                <div className="mb-3 flex justify-center">
+                  <img
+                    src={entityData.wikidata_thumbnail}
+                    alt={entityData.canonical_name}
+                    className="w-32 h-32 object-cover rounded-lg border border-slate-200"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none'
+                    }}
+                  />
+                </div>
+              ) : entityData.entity_type === 'Organization' && entityData.context?.domain ? (
+                <div className="mb-3 flex justify-center">
+                  <div className="w-32 h-32 flex items-center justify-center bg-slate-50 rounded-lg border border-slate-200">
+                    <img
+                      src={`https://www.google.com/s2/favicons?domain=${entityData.context.domain}&sz=128`}
+                      alt={entityData.canonical_name}
+                      className="w-20 h-20"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none'
+                      }}
+                    />
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="font-semibold text-slate-900 mb-2">{entityData.canonical_name}</div>
+              <div className={`inline-block px-2 py-1 rounded-full text-xs font-semibold mb-3 ${getTypeColor(entityData.entity_type)}`}>
+                {entityData.entity_type}
+              </div>
+
+              {entityData.description && (
+                <p className="text-sm text-slate-700 mb-3 leading-relaxed">
+                  {entityData.description}
+                </p>
+              )}
+
+              {entityData.wikidata_qid && (
+                <div className="flex items-center gap-3 pt-3 border-t border-slate-200">
+                  <a
+                    href={`https://www.wikidata.org/wiki/${entityData.wikidata_qid}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-blue-600 hover:text-blue-700 hover:underline"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    🔗 View on Wikidata
+                  </a>
+                </div>
+              )}
+
+              {entityData.confidence && (
+                <div className="text-xs text-slate-500 mt-2">
+                  Confidence: {Math.round(entityData.confidence * 100)}%
+                </div>
+              )}
+            </>
+          )}
+
+          {!loading && !entityData && (
+            <div className="text-sm text-slate-500">
+              Entity information unavailable
+            </div>
+          )}
+        </div>
+      )}
+    </span>
+  )
 }
 
 function StoryPage() {
@@ -329,26 +456,49 @@ function StoryPage() {
               )}
 
               {/* Sources Section */}
-              {story.artifacts && story.artifacts.length > 0 && (
-                <div className="mt-8 border-t border-slate-200 pt-8">
-                  <h2 className="text-2xl font-bold text-slate-900 mb-6">📚 Sources ({story.artifacts.length})</h2>
-                  <div className="space-y-3">
-                    {story.artifacts.map((artifact, idx) => (
-                      <a
-                        key={artifact.url}
-                        href={artifact.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-4 p-4 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors group"
-                      >
-                        <img
-                          src={`https://www.google.com/s2/favicons?domain=${artifact.domain}&sz=32`}
-                          alt={artifact.domain}
-                          className="w-6 h-6 flex-shrink-0"
-                          onError={(e) => {
-                            e.currentTarget.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>'
-                          }}
-                        />
+              {story.artifacts && story.artifacts.length > 0 && (() => {
+                // Deduplicate artifacts by URL, preferring normalized domain without www.
+                const uniqueArtifacts = story.artifacts.reduce((acc, artifact) => {
+                  const existing = acc.find(a => a.url === artifact.url)
+                  if (!existing) {
+                    acc.push(artifact)
+                  } else {
+                    // If duplicate found, prefer the one without www. prefix
+                    if (artifact.domain && !artifact.domain.startsWith('www.') && existing.domain?.startsWith('www.')) {
+                      const index = acc.indexOf(existing)
+                      acc[index] = artifact
+                    }
+                  }
+                  return acc
+                }, [] as typeof story.artifacts)
+
+                return (
+                  <div className="mt-8 border-t border-slate-200 pt-8">
+                    <h2 className="text-2xl font-bold text-slate-900 mb-6">📚 Sources ({uniqueArtifacts.length})</h2>
+                    <div className="space-y-3">
+                      {uniqueArtifacts.map((artifact, idx) => (
+                        <a
+                          key={artifact.url}
+                          href={artifact.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-4 p-4 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors group"
+                        >
+                        {artifact.domain && artifact.domain !== 'null' ? (
+                          <img
+                            src={`https://www.google.com/s2/favicons?domain=${artifact.domain}&sz=32`}
+                            alt={artifact.domain}
+                            className="w-6 h-6 flex-shrink-0"
+                            onError={(e) => {
+                              e.currentTarget.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>'
+                            }}
+                          />
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 flex-shrink-0 text-slate-400">
+                            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                            <polyline points="13 2 13 9 20 9"></polyline>
+                          </svg>
+                        )}
                         <div className="flex-1 min-w-0">
                           <div className="font-medium text-slate-900 group-hover:text-blue-600 transition-colors truncate">
                             {artifact.title || 'Untitled'}
@@ -358,11 +508,12 @@ function StoryPage() {
                         <svg className="w-5 h-5 text-slate-400 group-hover:text-blue-600 transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                         </svg>
-                      </a>
-                    ))}
+                        </a>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )
+              })()}
 
               {/* Related Stories Section */}
               {story.related_stories && story.related_stories.length > 0 && (

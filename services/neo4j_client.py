@@ -460,6 +460,9 @@ class Neo4jClient:
         // Match all artifact types (Page, File, Image, Video)
         OPTIONAL MATCH (story)-[:HAS_ARTIFACT]->(artifact)
         WHERE artifact:Page OR artifact:Artifact
+        // Get domain from artifact property (migrated from MediaSource)
+        // Organization relationship provides rich entity data for publisher
+        OPTIONAL MATCH (artifact)-[:PUBLISHED_BY]->(publisher:Organization)
         OPTIONAL MATCH (story)-[:HAS_CLAIM]->(claim:Claim)
         OPTIONAL MATCH (story)-[:MENTIONS]->(person:Person)
         OPTIONAL MATCH (story)-[:MENTIONS_ORG]->(org:Organization)
@@ -630,6 +633,64 @@ class Neo4jClient:
                 'story_title': story_node.get('topic', 'Untitled Story') if story_node else 'Unknown',
                 'nodes': nodes,
                 'edges': edges
+            }
+
+    def get_entity_by_name(self, canonical_name: str) -> Optional[Dict]:
+        """
+        Get entity by canonical name from Neo4j
+
+        Args:
+            canonical_name: Entity canonical name (e.g., "Sam Altman", "OpenAI")
+
+        Returns:
+            Entity dict with type, description, Wikidata QID, confidence, etc.
+        """
+        if not self.connected:
+            self._connect()
+        if not self.connected:
+            return None
+
+        cypher = """
+        MATCH (e)
+        WHERE (e:Person OR e:Organization OR e:Location)
+          AND e.canonical_name = $canonical_name
+        RETURN labels(e)[0] as entity_type,
+               e.canonical_id as canonical_id,
+               e.canonical_name as canonical_name,
+               e.wikidata_qid as wikidata_qid,
+               e.wikidata_thumbnail as wikidata_thumbnail,
+               e.description as description,
+               e.confidence as confidence,
+               e.mentions as mentions,
+               e.role as role,
+               e.domain as domain
+        LIMIT 1
+        """
+
+        with self.driver.session(database=self.database) as session:
+            result = session.run(cypher, canonical_name=canonical_name)
+            record = result.single()
+
+            if not record:
+                return None
+
+            # Build context object from role and domain
+            context = {}
+            if record.get('role'):
+                context['role'] = record.get('role')
+            if record.get('domain'):
+                context['domain'] = record.get('domain')
+
+            return {
+                'entity_type': record.get('entity_type'),
+                'canonical_id': record.get('canonical_id'),
+                'canonical_name': record.get('canonical_name'),
+                'wikidata_qid': record.get('wikidata_qid'),
+                'wikidata_thumbnail': record.get('wikidata_thumbnail'),
+                'description': record.get('description'),
+                'confidence': record.get('confidence'),
+                'mentions': record.get('mentions', []),
+                'context': context if context else None
             }
 
 
