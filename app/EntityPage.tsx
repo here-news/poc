@@ -10,9 +10,14 @@ interface EntityDetails {
   wikidata_qid?: string
   wikidata_description?: string
   wikidata_thumbnail?: string
+  description?: string
   confidence?: number
   mentions: string[]
   story_count?: number
+  context?: {
+    role?: string
+    domain?: string
+  }
 }
 
 interface RelatedStory {
@@ -174,9 +179,37 @@ function EntityPage() {
                   <div className={`inline-block px-3 py-1 ${typeConfig.bgClass} ${typeConfig.borderClass} border rounded-full text-xs font-semibold ${typeConfig.textClass} mb-3`}>
                     {typeConfig.label}
                   </div>
-                  <h1 className="text-4xl font-bold mb-2 text-slate-900">{entity.canonical_name}</h1>
-                  {entity.wikidata_description && (
-                    <p className="text-lg text-slate-600 leading-relaxed">{entity.wikidata_description}</p>
+                  <h1 className="text-4xl font-bold mb-4 text-slate-900">{entity.canonical_name}</h1>
+
+                  {/* Role/Context Information */}
+                  {entity.context?.role && (
+                    <div className="mb-4">
+                      <span className="inline-flex items-center px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-sm font-medium">
+                        {entity.context.role}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Description */}
+                  {(entity.description || entity.wikidata_description) && (
+                    <p className="text-lg text-slate-700 leading-relaxed mb-4">
+                      {entity.description || entity.wikidata_description}
+                    </p>
+                  )}
+
+                  {/* Domain for organizations */}
+                  {entity.context?.domain && entity.entity_type === 'Organization' && (
+                    <div className="flex items-center gap-2 text-sm text-slate-600">
+                      <span className="text-slate-500">Website:</span>
+                      <a
+                        href={`https://${entity.context.domain}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-700 hover:underline"
+                      >
+                        {entity.context.domain}
+                      </a>
+                    </div>
                   )}
                 </div>
               </div>
