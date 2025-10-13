@@ -213,15 +213,16 @@ function LiveSignals() {
                   {/* Pin Button - Top Left */}
                   <button
                     onClick={(e) => togglePin(story.id, e)}
-                    className={`absolute top-3 left-3 p-1.5 rounded-lg border-2 transition-all shadow-sm z-10 ${
+                    className={`absolute top-2 left-2 p-1.5 rounded-full transition-all z-10 ${
                       isPinned
-                        ? 'bg-yellow-400 border-yellow-500 text-yellow-900 shadow-yellow-200'
-                        : 'bg-white/90 border-slate-300 text-slate-400 hover:bg-slate-50 hover:border-slate-400 hover:text-slate-600'
+                        ? 'bg-yellow-400 text-yellow-900 shadow-lg scale-110'
+                        : 'bg-white/60 text-slate-400 hover:bg-white hover:text-slate-600 hover:scale-110'
                     }`}
                     title={isPinned ? 'Pinned - Watching for 24h' : 'Click to pin (1p to keep 24h watching)'}
                   >
-                    <svg className={`w-4 h-4 transition-transform ${isPinned ? 'rotate-45' : ''}`} fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M10 2a1 1 0 011 1v1.323l3.954 1.582 1.599-.8a1 1 0 01.894 1.79l-1.233.616 1.738 5.42a1 1 0 01-.285 1.05A3.989 3.989 0 0115 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.715-5.349L11 6.477V16h2a1 1 0 110 2H7a1 1 0 110-2h2V6.477L6.237 7.582l1.715 5.349a1 1 0 01-.285 1.05A3.989 3.989 0 015 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.738-5.42-1.233-.617a1 1 0 01.894-1.788l1.599.799L9 4.323V3a1 1 0 011-1z" />
+                    {/* Simple pushpin icon */}
+                    <svg className={`w-3.5 h-3.5 transition-transform ${isPinned ? 'rotate-45' : ''}`} fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M16 12V4h1c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/>
                     </svg>
                   </button>
 
