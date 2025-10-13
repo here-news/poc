@@ -323,7 +323,7 @@ function StoryPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-6xl mx-auto px-6 py-8">
         <Header userId={userId} />
 
         <main className="mt-8 grid lg:grid-cols-[1fr_360px] gap-8">

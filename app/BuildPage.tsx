@@ -165,7 +165,7 @@ function BuildPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-        <div className="max-w-7xl mx-auto px-6 py-8">
+        <div className="max-w-6xl mx-auto px-6 py-8">
           <Header userId={userId} />
           <div className="mt-10 text-center">
             <div className="inline-block w-8 h-8 border-4 border-cyan-200 border-t-cyan-500 rounded-full animate-spin mb-4" />
@@ -179,7 +179,7 @@ function BuildPage() {
   if (error) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-        <div className="max-w-7xl mx-auto px-6 py-8">
+        <div className="max-w-6xl mx-auto px-6 py-8">
           <Header userId={userId} />
           <div className="mt-10 text-center">
             <p className="text-red-400">{error}</p>
@@ -195,7 +195,7 @@ function BuildPage() {
   if (!graph) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-        <div className="max-w-7xl mx-auto px-6 py-8">
+        <div className="max-w-6xl mx-auto px-6 py-8">
           <Header userId={userId} />
           <div className="mt-10 text-center">
             <p className="text-slate-400">No graph data available for this story yet.</p>
