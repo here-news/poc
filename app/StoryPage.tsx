@@ -45,6 +45,11 @@ interface StoryDetails {
   }
 }
 
+// Helper function to strip markup from text (for summaries)
+function stripMarkup(text: string): string {
+  return text.replace(/\[\[([^\]]+)\]\]/g, '$1')
+}
+
 // Helper function to render content with entity links and tooltips
 function renderContentWithEntityLinks(content: string): JSX.Element {
   // Pattern: [[Entity Name]] - new markup format from story synthesis
@@ -404,9 +409,9 @@ function StoryPage() {
                 </div>
 
                 <div>
-                  <p className="text-base leading-relaxed mb-4 text-slate-800">
-                    {story.description}
-                  </p>
+                  <div className="text-base leading-relaxed mb-4 text-slate-800">
+                    {stripMarkup(story.description)}
+                  </div>
 
                   <div className="flex flex-wrap gap-2 mt-4">
                     {story.locations.map((location) => (
@@ -443,7 +448,7 @@ function StoryPage() {
                     )}
                   </div>
                   <div className="prose prose-lg prose-slate max-w-none">
-                    <div className="text-slate-700 leading-relaxed space-y-4 whitespace-pre-line">
+                    <div className="text-slate-700 leading-relaxed whitespace-pre-line">
                       {renderContentWithEntityLinks(story.content)}
                     </div>
                   </div>
@@ -457,16 +462,31 @@ function StoryPage() {
 
               {/* Sources Section */}
               {story.artifacts && story.artifacts.length > 0 && (() => {
+                // Helper to extract domain from URL
+                const extractDomain = (url: string) => {
+                  try {
+                    const urlObj = new URL(url)
+                    return urlObj.hostname.replace(/^www\./, '')
+                  } catch {
+                    return null
+                  }
+                }
+
                 // Deduplicate artifacts by URL, preferring normalized domain without www.
                 const uniqueArtifacts = story.artifacts.reduce((acc, artifact) => {
                   const existing = acc.find(a => a.url === artifact.url)
+                  // Extract domain from URL if not provided
+                  const artifactWithDomain = {
+                    ...artifact,
+                    domain: artifact.domain || extractDomain(artifact.url)
+                  }
                   if (!existing) {
-                    acc.push(artifact)
+                    acc.push(artifactWithDomain)
                   } else {
                     // If duplicate found, prefer the one without www. prefix
-                    if (artifact.domain && !artifact.domain.startsWith('www.') && existing.domain?.startsWith('www.')) {
+                    if (artifactWithDomain.domain && !artifactWithDomain.domain.startsWith('www.') && existing.domain?.startsWith('www.')) {
                       const index = acc.indexOf(existing)
-                      acc[index] = artifact
+                      acc[index] = artifactWithDomain
                     }
                   }
                   return acc
