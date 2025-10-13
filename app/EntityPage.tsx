@@ -77,6 +77,11 @@ function EntityPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Voting state (mockup)
+  const [upvotes, setUpvotes] = useState(42)
+  const [downvotes, setDownvotes] = useState(3)
+  const [userVote, setUserVote] = useState<'up' | 'down' | null>(null)
+
   useEffect(() => {
     const uid = ensureUserId()
     setUserId(uid)
@@ -112,6 +117,36 @@ function EntityPage() {
       setError('Failed to load entity details')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleVote = (voteType: 'up' | 'down') => {
+    if (userVote === voteType) {
+      // Unvote - remove the vote
+      if (voteType === 'up') {
+        setUpvotes(prev => prev - 1)
+      } else {
+        setDownvotes(prev => prev - 1)
+      }
+      setUserVote(null)
+    } else if (userVote === null) {
+      // New vote
+      if (voteType === 'up') {
+        setUpvotes(prev => prev + 1)
+      } else {
+        setDownvotes(prev => prev + 1)
+      }
+      setUserVote(voteType)
+    } else {
+      // Change vote
+      if (voteType === 'up') {
+        setUpvotes(prev => prev + 1)
+        setDownvotes(prev => prev - 1)
+      } else {
+        setDownvotes(prev => prev + 1)
+        setUpvotes(prev => prev - 1)
+      }
+      setUserVote(voteType)
     }
   }
 
@@ -154,7 +189,40 @@ function EntityPage() {
 
         <main className="mt-8">
           {/* Entity Header */}
-          <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm mb-8">
+          <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm mb-8 relative">
+            {/* Voting Buttons */}
+            <div className="absolute top-6 right-6 flex items-center gap-2">
+              <button
+                onClick={() => handleVote('up')}
+                className={`flex items-center gap-1 px-3 py-2 rounded-lg border transition-all ${
+                  userVote === 'up'
+                    ? 'bg-green-100 border-green-400 text-green-700'
+                    : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300'
+                }`}
+                title="Vote up"
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M2 10.5a1.5 1.5 0 113 0v6a1.5 1.5 0 01-3 0v-6zM6 10.333v5.43a2 2 0 001.106 1.79l.05.025A4 4 0 008.943 18h5.416a2 2 0 001.962-1.608l1.2-6A2 2 0 0015.56 8H12V4a2 2 0 00-2-2 1 1 0 00-1 1v.667a4 4 0 01-.8 2.4L6.8 7.933a4 4 0 00-.8 2.4z" />
+                </svg>
+                <span className="text-sm font-semibold">{upvotes}</span>
+              </button>
+
+              <button
+                onClick={() => handleVote('down')}
+                className={`flex items-center gap-1 px-3 py-2 rounded-lg border transition-all ${
+                  userVote === 'down'
+                    ? 'bg-red-100 border-red-400 text-red-700'
+                    : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300'
+                }`}
+                title="Vote down"
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M18 9.5a1.5 1.5 0 11-3 0v-6a1.5 1.5 0 013 0v6zM14 9.667v-5.43a2 2 0 00-1.105-1.79l-.05-.025A4 4 0 0011.055 2H5.64a2 2 0 00-1.962 1.608l-1.2 6A2 2 0 004.44 12H8v4a2 2 0 002 2 1 1 0 001-1v-.667a4 4 0 01.8-2.4l1.4-1.866a4 4 0 00.8-2.4z" />
+                </svg>
+                <span className="text-sm font-semibold">{downvotes}</span>
+              </button>
+            </div>
+
             <div className="p-10">
               {/* Thumbnail & Title */}
               <div className="flex items-start gap-6 mb-6">
