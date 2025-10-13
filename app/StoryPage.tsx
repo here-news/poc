@@ -226,6 +226,13 @@ function StoryPage() {
   const [chatOpen, setChatOpen] = useState(false)
   const [orgsExpanded, setOrgsExpanded] = useState(false)
 
+  // Pin state (mockup)
+  const [isPinned, setIsPinned] = useState(false)
+
+  // Tip/contributors state (mockup)
+  const [contributorCount, setContributorCount] = useState(5)
+  const [totalTips, setTotalTips] = useState(12)
+
   useEffect(() => {
     const uid = ensureUserId()
     setUserId(uid)
@@ -323,11 +330,26 @@ function StoryPage() {
           {/* Main Story Content */}
           <div className="space-y-6">
             {/* Title & Summary - Merged */}
-            <div className="bg-gradient-to-br from-blue-50 via-white to-purple-50 border-2 border-blue-200 rounded-2xl overflow-hidden shadow-md">
+            <div className="bg-gradient-to-br from-blue-50 via-white to-purple-50 border-2 border-blue-200 rounded-2xl overflow-hidden shadow-md relative">
+              {/* Pin Button - Top Left */}
+              <button
+                onClick={() => setIsPinned(!isPinned)}
+                className={`absolute top-4 left-4 p-2 rounded-lg border-2 transition-all shadow-sm ${
+                  isPinned
+                    ? 'bg-yellow-400 border-yellow-500 text-yellow-900 shadow-yellow-200'
+                    : 'bg-white/90 border-slate-300 text-slate-400 hover:bg-slate-50 hover:border-slate-400 hover:text-slate-600'
+                }`}
+                title={isPinned ? 'Pinned - Watching for 24h' : 'Click to pin (1p to keep 24h watching)'}
+              >
+                <svg className={`w-5 h-5 transition-transform ${isPinned ? 'rotate-45' : ''}`} fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M10 2a1 1 0 011 1v1.323l3.954 1.582 1.599-.8a1 1 0 01.894 1.79l-1.233.616 1.738 5.42a1 1 0 01-.285 1.05A3.989 3.989 0 0115 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.715-5.349L11 6.477V16h2a1 1 0 110 2H7a1 1 0 110-2h2V6.477L6.237 7.582l1.715 5.349a1 1 0 01-.285 1.05A3.989 3.989 0 015 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.738-5.42-1.233-.617a1 1 0 01.894-1.788l1.599.799L9 4.323V3a1 1 0 011-1z" />
+                </svg>
+              </button>
+
               <div className="p-10">
                 {/* Category & Meta Info */}
                 <div className="flex items-center justify-between mb-6">
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-white/80 text-blue-700 border border-blue-200 shadow-sm">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-white/80 text-blue-700 border border-blue-200 shadow-sm ml-10">
                     {story.category || 'Story'}
                   </span>
                   <div className="flex items-center gap-3 text-xs text-slate-600">
@@ -418,6 +440,52 @@ function StoryPage() {
 
           {/* Sidebar */}
           <aside className="space-y-5 lg:sticky lg:top-8 h-fit">
+            {/* Tip & Contributors */}
+            <div className="bg-gradient-to-br from-teal-50 to-blue-50 border-2 border-teal-200 rounded-xl p-5 shadow-sm">
+              <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-4">Grow this Story</h3>
+
+              {/* Tip Button */}
+              <button
+                onClick={() => setTotalTips(totalTips + 1)}
+                className="w-full mb-4 px-4 py-3 bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white font-semibold rounded-lg transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+              >
+                <span className="text-xl">💰</span>
+                <span>Tip 1p to grow the story</span>
+              </button>
+
+              {/* Contributors */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-600 font-medium">Contributors</span>
+                  <span className="text-teal-700 font-bold">{contributorCount}</span>
+                </div>
+
+                {/* Mock contributor avatars */}
+                <div className="flex items-center gap-2">
+                  <div className="flex -space-x-2">
+                    {[1, 2, 3, 4, 5].slice(0, Math.min(contributorCount, 5)).map((i) => (
+                      <div
+                        key={i}
+                        className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 border-2 border-white flex items-center justify-center text-white text-xs font-bold"
+                      >
+                        {String.fromCharCode(64 + i)}
+                      </div>
+                    ))}
+                  </div>
+                  {contributorCount > 5 && (
+                    <span className="text-xs text-slate-500">+{contributorCount - 5} more</span>
+                  )}
+                </div>
+
+                <div className="pt-3 border-t border-teal-200">
+                  <div className="flex items-center justify-between text-xs text-slate-600">
+                    <span>Total tips</span>
+                    <span className="font-bold text-teal-700">{totalTips}p</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* People in Story */}
             <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
               <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-4">People</h3>
