@@ -334,17 +334,17 @@ function StoryPage() {
               {/* Pin Button - At Corner */}
               <button
                 onClick={() => setIsPinned(!isPinned)}
-                className={`absolute top-0 left-0 p-2 transition-all ${
+                className={`absolute top-2 left-2 transition-all duration-300 ${
                   isPinned ? 'text-yellow-500' : 'text-slate-400 hover:text-slate-600'
                 }`}
                 style={{
-                  transform: `rotate(-45deg) ${isPinned ? 'scale(1)' : 'scale(0.9)'}`,
-                  transformOrigin: 'top left'
+                  transform: isPinned ? 'rotate(-45deg) scale(1.1)' : 'rotate(0deg) scale(1)',
+                  transformOrigin: 'center'
                 }}
                 title={isPinned ? 'Pinned - Watching for 24h' : 'Click to pin (1p to keep 24h watching)'}
               >
                 {/* Simple pushpin icon */}
-                <svg className="w-5 h-5 transition-all drop-shadow-md" fill="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6 drop-shadow-lg" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M16 12V4h1c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/>
                 </svg>
               </button>
