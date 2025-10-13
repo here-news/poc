@@ -105,7 +105,8 @@ class Neo4jClient:
         // For now only Page exists, but this is future-proof
         OPTIONAL MATCH (story)-[:HAS_ARTIFACT]->(artifact)
         WHERE artifact:Page OR artifact:Artifact
-        OPTIONAL MATCH (story)-[:HAS_CLAIM]->(claim:Claim)
+        // Claims are connected to Pages, not Stories directly
+        OPTIONAL MATCH (artifact)-[:HAS_CLAIM]->(claim:Claim)
         OPTIONAL MATCH (story)-[:MENTIONS]->(person:Person)
         OPTIONAL MATCH (story)-[:MENTIONS_LOCATION]->(location:Location)
         OPTIONAL MATCH (artifact)-[:MENTIONS_LOCATION]->(artifact_location:Location)
@@ -204,7 +205,8 @@ class Neo4jClient:
         cypher = """
         MATCH (story:Story)
         OPTIONAL MATCH (story)-[:HAS_ARTIFACT]->(artifact:Artifact)
-        OPTIONAL MATCH (story)-[:HAS_CLAIM]->(claim:Claim)
+        // Claims are connected to Pages, not Stories directly
+        OPTIONAL MATCH (artifact)-[:HAS_CLAIM]->(claim:Claim)
         OPTIONAL MATCH (story)-[:MENTIONS]->(person:Person)
         OPTIONAL MATCH (story)-[:MENTIONS_LOCATION]->(location:Location)
         OPTIONAL MATCH (artifact)-[:MENTIONS_LOCATION]->(artifact_location:Location)
@@ -263,7 +265,8 @@ class Neo4jClient:
         MATCH (story:Story)
         WHERE story.embedding IS NOT NULL
         OPTIONAL MATCH (story)-[:HAS_ARTIFACT]->(artifact:Artifact)
-        OPTIONAL MATCH (story)-[:HAS_CLAIM]->(claim:Claim)
+        // Claims are connected to Pages, not Stories directly
+        OPTIONAL MATCH (artifact)-[:HAS_CLAIM]->(claim:Claim)
         OPTIONAL MATCH (story)-[:MENTIONS]->(person:Person)
         OPTIONAL MATCH (story)-[:MENTIONS_LOCATION]->(location:Location)
         OPTIONAL MATCH (artifact)-[:MENTIONS_LOCATION]->(artifact_location:Location)
@@ -463,7 +466,8 @@ class Neo4jClient:
         // Get domain from artifact property (migrated from MediaSource)
         // Organization relationship provides rich entity data for publisher
         OPTIONAL MATCH (artifact)-[:PUBLISHED_BY]->(publisher:Organization)
-        OPTIONAL MATCH (story)-[:HAS_CLAIM]->(claim:Claim)
+        // Claims are connected to Pages, not Stories directly
+        OPTIONAL MATCH (artifact)-[:HAS_CLAIM]->(claim:Claim)
         OPTIONAL MATCH (story)-[:MENTIONS]->(person:Person)
         OPTIONAL MATCH (story)-[:MENTIONS_ORG]->(org:Organization)
         OPTIONAL MATCH (story)-[:MENTIONS_LOCATION]->(location:Location)
