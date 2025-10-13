@@ -321,56 +321,135 @@ function StoryPage() {
 
         <main className="mt-8 grid lg:grid-cols-[1fr_360px] gap-8">
           {/* Main Story Content */}
-          <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-            <div className="p-10">
-              {/* Title */}
-              <h1 className="text-4xl font-bold mb-4 leading-tight text-slate-900">{story.title}</h1>
+          <div className="space-y-6">
+            {/* Title Card */}
+            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+              <div className="p-10">
+                {/* Category Badge */}
+                <div className="mb-4">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-blue-50 to-purple-50 text-blue-700 border border-blue-200">
+                    {story.category || 'Story'}
+                  </span>
+                </div>
 
-              {/* Meta Info */}
-              <div className="flex items-center gap-3 text-sm text-slate-600 mb-8 pb-8 border-b border-slate-200">
-                <span className="flex items-center gap-1">
-                  <span>📅</span>
-                  {story.last_updated_human}
-                </span>
-                <span>•</span>
-                <span>{story.artifact_count} sources</span>
-                <span>•</span>
-                <span>{story.claim_count} claims</span>
+                {/* Title */}
+                <h1 className="text-5xl font-bold mb-6 leading-tight text-slate-900 tracking-tight">{story.title}</h1>
+
+                {/* Meta Info */}
+                <div className="flex items-center gap-4 text-sm text-slate-600">
+                  <span className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-full">
+                    <span>📅</span>
+                    <span className="font-medium">{story.last_updated_human}</span>
+                  </span>
+                  <span className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-full">
+                    <span>📰</span>
+                    <span className="font-medium">{story.artifact_count} sources</span>
+                  </span>
+                  <span className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-full">
+                    <span>✓</span>
+                    <span className="font-medium">{story.claim_count} claims</span>
+                  </span>
+                </div>
               </div>
+            </div>
 
-              {/* Story Summary */}
-              <div className="mb-8">
-                <p className="text-lg leading-relaxed text-slate-700">
-                  {stripMarkup(story.description)}
-                </p>
+            {/* Story Summary - Elevated Design */}
+            <div className="bg-gradient-to-br from-blue-50 via-white to-purple-50 border-2 border-blue-200 rounded-2xl overflow-hidden shadow-md">
+              <div className="p-10">
+                {/* Summary Header */}
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center shadow-lg">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <h2 className="text-2xl font-bold text-slate-900">Story Summary</h2>
+                </div>
+
+                {/* Summary Text with Quote Styling */}
+                <div className="relative">
+                  <div className="absolute -left-4 top-0 text-8xl text-blue-200 font-serif leading-none select-none">"</div>
+                  <p className="relative text-xl leading-relaxed text-slate-800 font-medium pl-8">
+                    {stripMarkup(story.description)}
+                  </p>
+                </div>
+
+                {/* Confidence Indicator */}
+                {confidence && (
+                  <div className="mt-6 pt-6 border-t border-blue-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-semibold text-slate-700">Story Confidence</span>
+                      <span className="text-sm font-bold text-blue-600">{confidence}%</span>
+                    </div>
+                    <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-full transition-all duration-500"
+                        style={{ width: `${confidence}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
+            </div>
 
-              {/* Full Story Content */}
-              {story.content && story.content.length > 100 && (
-                <div className="border-t border-slate-200 pt-8">
-                  <div className="prose prose-lg prose-slate max-w-none">
-                    <div className="text-slate-800 leading-[1.8] text-[17px] whitespace-pre-line">
-                      {renderContentWithEntityLinks(story.content)}
+            {/* Full Story Content - Clean Reading Experience */}
+            {story.content && story.content.length > 100 && (
+              <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                <div className="p-10">
+                  {/* Content Header */}
+                  <div className="flex items-center gap-3 mb-8 pb-6 border-b border-slate-200">
+                    <div className="w-1 h-8 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full"></div>
+                    <h2 className="text-2xl font-bold text-slate-900">Full Story</h2>
+                  </div>
+
+                  {/* Story Body with Enhanced Typography */}
+                  <div className="prose prose-xl prose-slate max-w-none">
+                    <div className="text-slate-800 leading-[1.9] text-[18px] whitespace-pre-line">
+                      {/* Drop cap for first letter */}
+                      <style>{`
+                        .story-content::first-letter {
+                          font-size: 3.5em;
+                          line-height: 0.9;
+                          float: left;
+                          margin: 0.1em 0.1em 0 0;
+                          font-weight: bold;
+                          color: #2563eb;
+                        }
+                      `}</style>
+                      <div className="story-content">
+                        {renderContentWithEntityLinks(story.content)}
+                      </div>
                     </div>
                   </div>
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* Related Stories Section */}
-              {story.related_stories && story.related_stories.length > 0 && (
-                <div className="mt-12 border-t border-slate-200 pt-8">
-                  <h2 className="text-xl font-semibold text-slate-900 mb-4">Related Stories</h2>
+
+            {/* Related Stories Section */}
+            {story.related_stories && story.related_stories.length > 0 && (
+              <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                <div className="p-10">
+                  <div className="flex items-center gap-3 mb-6 pb-6 border-b border-slate-200">
+                    <div className="w-1 h-8 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full"></div>
+                    <h2 className="text-2xl font-bold text-slate-900">Related Stories</h2>
+                  </div>
                   <div className="space-y-3">
                     {story.related_stories.map((related) => (
                       <Link
                         key={related.id}
                         to={`/story/${related.id}`}
-                        className="flex items-center justify-between p-4 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors group"
+                        className="flex items-center justify-between p-5 bg-gradient-to-r from-slate-50 to-white hover:from-blue-50 hover:to-purple-50 border border-slate-200 hover:border-blue-300 rounded-xl transition-all duration-200 group shadow-sm hover:shadow-md"
                       >
                         <div className="flex-1">
-                          <div className="font-medium text-slate-900 group-hover:text-blue-600 transition-colors">
+                          <div className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors text-base">
                             {related.title}
                           </div>
+                          {related.match_score && (
+                            <div className="text-xs text-slate-500 mt-1">
+                              {Math.round(related.match_score * 100)}% match
+                            </div>
+                          )}
                         </div>
                         <svg className="w-5 h-5 text-slate-400 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -379,15 +458,20 @@ function StoryPage() {
                     ))}
                   </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
           {/* Sidebar */}
           <aside className="space-y-6 lg:sticky lg:top-8 h-fit">
             {/* People in Story */}
-            <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
-              <h3 className="text-sm font-semibold text-slate-700 uppercase mb-4">People in Story</h3>
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-md hover:shadow-lg transition-shadow">
+              <div className="flex items-center gap-2 mb-5">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-sm">
+                  <span className="text-white text-sm">👤</span>
+                </div>
+                <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide">People in Story</h3>
+              </div>
               {story.entities?.people && story.entities.people.length > 0 ? (
                 <div className="space-y-2">
                   {story.entities.people.map((person: any, idx: number) => {
@@ -429,8 +513,13 @@ function StoryPage() {
             </div>
 
             {/* Locations in Story */}
-            <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
-              <h3 className="text-sm font-semibold text-slate-700 uppercase mb-4">Locations</h3>
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-md hover:shadow-lg transition-shadow">
+              <div className="flex items-center gap-2 mb-5">
+                <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center shadow-sm">
+                  <span className="text-white text-sm">📍</span>
+                </div>
+                <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide">Locations</h3>
+              </div>
               {story.entities?.locations && story.entities.locations.length > 0 ? (
                 <div className="space-y-2">
                   {story.entities.locations.map((location: any) => (
@@ -466,12 +555,17 @@ function StoryPage() {
             </div>
 
             {/* Organizations in Story - Collapsible */}
-            <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-md hover:shadow-lg transition-shadow">
               <button
                 onClick={() => setOrgsExpanded(!orgsExpanded)}
                 className="w-full flex items-center justify-between text-left"
               >
-                <h3 className="text-sm font-semibold text-slate-700 uppercase">Organizations</h3>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center shadow-sm">
+                    <span className="text-white text-sm">🏢</span>
+                  </div>
+                  <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide">Organizations</h3>
+                </div>
                 <div className="flex items-center gap-2">
                   {story.entities?.organizations && story.entities.organizations.length > 0 && (
                     <span className="text-xs text-slate-500">({story.entities.organizations.length})</span>
@@ -536,9 +630,14 @@ function StoryPage() {
             </div>
 
             {/* Timeline Placeholder */}
-            <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
-              <h3 className="text-sm font-semibold text-slate-700 uppercase mb-3">Timeline</h3>
-              <p className="text-xs text-slate-500 leading-relaxed">
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-md hover:shadow-lg transition-shadow">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center shadow-sm">
+                  <span className="text-white text-sm">📅</span>
+                </div>
+                <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide">Timeline</h3>
+              </div>
+              <p className="text-sm text-slate-500 leading-relaxed">
                 Story timeline will be displayed here showing key developments and updates.
               </p>
             </div>
@@ -567,8 +666,13 @@ function StoryPage() {
               }, [] as typeof story.artifacts)
 
               return (
-                <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
-                  <h3 className="text-sm font-semibold text-slate-700 uppercase mb-4">Sources ({uniqueArtifacts.length})</h3>
+                <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-md hover:shadow-lg transition-shadow">
+                  <div className="flex items-center gap-2 mb-5">
+                    <div className="w-8 h-8 bg-gradient-to-br from-slate-600 to-slate-700 rounded-lg flex items-center justify-center shadow-sm">
+                      <span className="text-white text-sm">📰</span>
+                    </div>
+                    <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide">Sources ({uniqueArtifacts.length})</h3>
+                  </div>
                   <div className="space-y-2">
                     {uniqueArtifacts.map((artifact) => (
                       <a
