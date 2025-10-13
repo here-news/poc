@@ -511,9 +511,9 @@ class Neo4jClient:
                [loc in all_locations WHERE loc.name IS NOT NULL | loc.name] as locations,
                [a in artifacts WHERE a.url IS NOT NULL] as artifacts,
                [r in related_stories WHERE r.id IS NOT NULL] as related_stories,
-               [p in people WHERE p.id IS NOT NULL | {id: p.id, name: p.name}] as people_entities,
-               [o in organizations WHERE o.id IS NOT NULL | {id: o.id, name: o.name}] as org_entities,
-               [l in entity_locations WHERE l.id IS NOT NULL | {id: l.id, name: l.name}] as location_entities,
+               [p in people WHERE p.canonical_id IS NOT NULL | {id: p.canonical_id, name: p.canonical_name, thumbnail: p.wikidata_thumbnail}] as people_entities,
+               [o in organizations WHERE o.canonical_id IS NOT NULL | {id: o.canonical_id, name: o.canonical_name, thumbnail: o.wikidata_thumbnail, domain: o.domain}] as org_entities,
+               [l in entity_locations WHERE l.canonical_id IS NOT NULL | {id: l.canonical_id, name: l.canonical_name, thumbnail: l.wikidata_thumbnail}] as location_entities,
                story.confidence as confidence,
                story.entropy as entropy,
                story.created_at as created_at,
@@ -534,11 +534,17 @@ class Neo4jClient:
             story_dict['related_stories'] = record.get('related_stories', [])
             story_dict['org_count'] = record.get('org_count', 0)
             story_dict['location_count'] = record.get('location_count', 0)
+
+            people_entities = record.get('people_entities', [])
+            org_entities = record.get('org_entities', [])
+            location_entities = record.get('location_entities', [])
+
             story_dict['entities'] = {
-                'people': record.get('people_entities', []),
-                'organizations': record.get('org_entities', []),
-                'locations': record.get('location_entities', [])
+                'people': people_entities,
+                'organizations': org_entities,
+                'locations': location_entities
             }
+
             return story_dict
 
     def get_story_graph(self, story_id: str) -> Optional[Dict]:
@@ -696,6 +702,117 @@ class Neo4jClient:
                 'mentions': record.get('mentions', []),
                 'context': context if context else None
             }
+
+    def get_entity_by_id(self, canonical_id: str) -> Optional[Dict]:
+        """
+        Get entity by canonical_id from Neo4j
+
+        Args:
+            canonical_id: Entity canonical_id (e.g., "person_a1b2c3", "org_x4y5z6")
+
+        Returns:
+            Entity dict with type, description, Wikidata QID, confidence, mentions, etc.
+        """
+        if not self.connected:
+            self._connect()
+        if not self.connected:
+            return None
+
+        cypher = """
+        MATCH (e {canonical_id: $canonical_id})
+        WHERE (e:Person OR e:Organization OR e:Location)
+        RETURN labels(e)[0] as entity_type,
+               e.canonical_id as canonical_id,
+               e.canonical_name as canonical_name,
+               e.wikidata_qid as wikidata_qid,
+               e.wikidata_thumbnail as wikidata_thumbnail,
+               e.wikidata_description as wikidata_description,
+               e.description as description,
+               e.confidence as confidence,
+               e.mentions as mentions,
+               e.role as role,
+               e.domain as domain
+        LIMIT 1
+        """
+
+        with self.driver.session(database=self.database) as session:
+            result = session.run(cypher, canonical_id=canonical_id)
+            record = result.single()
+
+            if not record:
+                return None
+
+            # Build context object from role and domain
+            context = {}
+            if record.get('role'):
+                context['role'] = record.get('role')
+            if record.get('domain'):
+                context['domain'] = record.get('domain')
+
+            return {
+                'entity_type': record.get('entity_type'),
+                'canonical_id': record.get('canonical_id'),
+                'canonical_name': record.get('canonical_name'),
+                'wikidata_qid': record.get('wikidata_qid'),
+                'wikidata_thumbnail': record.get('wikidata_thumbnail'),
+                'wikidata_description': record.get('wikidata_description'),
+                'description': record.get('description') or record.get('wikidata_description'),
+                'confidence': record.get('confidence'),
+                'mentions': record.get('mentions', []),
+                'context': context if context else None
+            }
+
+    def get_entity_stories(self, canonical_id: str) -> List[Dict]:
+        """
+        Get stories that mention a specific entity
+
+        Args:
+            canonical_id: Entity canonical_id
+
+        Returns:
+            List of story summaries that mention this entity
+        """
+        if not self.connected:
+            self._connect()
+        if not self.connected:
+            return []
+
+        cypher = """
+        MATCH (e {canonical_id: $canonical_id})
+        WHERE (e:Person OR e:Organization OR e:Location)
+        WITH e
+        MATCH (story:Story)
+        WHERE (story)-[:MENTIONS]->(e)
+           OR (story)-[:MENTIONS_ORG]->(e)
+           OR (story)-[:MENTIONS_LOCATION]->(e)
+        OPTIONAL MATCH (story)-[:HAS_ARTIFACT]->(artifact)
+        WHERE artifact:Page OR artifact:Artifact
+        WITH story, e, count(DISTINCT artifact) as artifact_count
+        RETURN story.id as id,
+               coalesce(story.title, story.topic) as title,
+               story.gist as description,
+               story.content as content,
+               story.created_at as created_at,
+               story.updated_at as updated_at,
+               artifact_count
+        ORDER BY story.updated_at DESC
+        LIMIT 50
+        """
+
+        with self.driver.session(database=self.database) as session:
+            result = session.run(cypher, canonical_id=canonical_id)
+            stories: List[Dict] = []
+            for record in result:
+                created_at = self._format_datetime(record.get('created_at'))
+                stories.append({
+                    'id': record.get('id'),
+                    'title': record.get('title') or 'Untitled Story',
+                    'description': record.get('description') or '',
+                    'content': record.get('content') or '',
+                    'artifact_count': record.get('artifact_count', 0),
+                    'created_at': created_at
+                })
+            return stories
 
 
 # Singleton instance

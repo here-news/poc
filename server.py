@@ -645,6 +645,51 @@ async def get_entity_by_name(name: str):
         print(f"Error fetching entity '{name}': {e}")
         return {"error": str(e)}, 500
 
+@app.get("/api/entity/{entity_id}")
+async def get_entity_by_id(entity_id: str):
+    """
+    Get entity details by canonical_id
+
+    Path params:
+        entity_id: Entity canonical_id (e.g., "person_a1b2c3", "org_x4y5z6")
+
+    Returns:
+        Entity metadata including type, description, Wikidata QID, confidence, mentions
+    """
+    try:
+        entity = neo4j_client.get_entity_by_id(entity_id)
+
+        if not entity:
+            return {"error": f"Entity '{entity_id}' not found"}, 404
+
+        return entity
+    except Exception as e:
+        print(f"Error fetching entity '{entity_id}': {e}")
+        return {"error": str(e)}, 500
+
+@app.get("/api/entity/{entity_id}/stories")
+async def get_entity_stories(entity_id: str):
+    """
+    Get stories related to an entity
+
+    Path params:
+        entity_id: Entity canonical_id
+
+    Returns:
+        List of stories that mention this entity
+    """
+    try:
+        stories = neo4j_client.get_entity_stories(entity_id)
+
+        return {
+            "entity_id": entity_id,
+            "stories": stories,
+            "total": len(stories)
+        }
+    except Exception as e:
+        print(f"Error fetching stories for entity '{entity_id}': {e}")
+        return {"error": str(e)}, 500
+
 def _get_language_name(lang_code: str) -> str:
     """Convert ISO 639-1 code to readable language name"""
     language_names = {

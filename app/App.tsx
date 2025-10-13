@@ -5,6 +5,7 @@ import SimplifiedHome from './SimplifiedHome'
 import ResultPage from './ResultPage'
 import StoryPage from './StoryPage'
 import BuildPage from './BuildPage'
+import EntityPage from './EntityPage'
 
 function App() {
   return (
@@ -15,6 +16,9 @@ function App() {
         <Route path="/result/:taskId" element={<ResultPage />} />
         <Route path="/story/:id" element={<StoryPage />} />
         <Route path="/build/:id" element={<BuildPage />} />
+        <Route path="/people/:id/:name?" element={<EntityPage />} />
+        <Route path="/organizations/:id/:name?" element={<EntityPage />} />
+        <Route path="/locations/:id/:name?" element={<EntityPage />} />
       </Routes>
     </Router>
   )

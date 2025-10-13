@@ -224,6 +224,7 @@ function StoryPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [chatOpen, setChatOpen] = useState(false)
+  const [orgsExpanded, setOrgsExpanded] = useState(false)
 
   useEffect(() => {
     const uid = ensureUserId()
@@ -252,7 +253,7 @@ function StoryPage() {
         setError(data.error)
       } else if (data.story) {
         // Map API response to StoryDetails format
-        setStory({
+        const storyData = {
           ...data.story,
           // Ensure all required fields have defaults
           description: data.story.description || data.story.gist || 'No description available',
@@ -264,7 +265,9 @@ function StoryPage() {
           last_updated_human: data.story.last_updated_human || 'Recently',
           health_indicator: data.story.health_indicator || 'healthy',
           category: data.story.category || 'general'
-        })
+        }
+
+        setStory(storyData)
       } else {
         setError('Invalid story data')
       }
@@ -316,258 +319,62 @@ function StoryPage() {
       <div className="max-w-7xl mx-auto px-6 py-8">
         <Header userId={userId} />
 
-        <main className="mt-8 grid lg:grid-cols-[1fr_320px] gap-8">
-          {/* Story Header */}
+        <main className="mt-8 grid lg:grid-cols-[1fr_360px] gap-8">
+          {/* Main Story Content */}
           <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-            {/* Hero Image Banner */}
-            {story.cover_image && (
-              <div className="relative w-full h-64 bg-gradient-to-br from-blue-100 to-purple-100">
-                <img
-                  src={story.cover_image}
-                  alt="Story evidence"
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
-                <div className="absolute bottom-4 left-6 right-6">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="px-2 py-1 bg-white/90 backdrop-blur-sm rounded text-xs font-medium text-slate-700">
-                      📸 Evidence Photo
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="p-8">
-              {/* Status Bar */}
-              <div className="flex items-center gap-4 flex-wrap mb-6">
-                <div className="flex items-center gap-2 px-4 py-2 bg-amber-100 border border-amber-300 rounded-full">
-                  <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
-                  <span className="text-sm font-semibold text-amber-800">DEVELOPING STORY</span>
-                </div>
-
-                <div className="flex items-center gap-3 px-4 py-2 bg-blue-50 border border-blue-200 rounded-full">
-                  <span className="text-xs text-blue-700 font-medium">Entropy</span>
-                  <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-green-500 via-yellow-500 to-red-500 transition-all duration-500"
-                      style={{ width: entropyBarWidth }}
-                    />
-                  </div>
-                  <span className="text-sm font-semibold text-slate-800">{entropy.toFixed(2)}</span>
-                </div>
-
-                <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-full font-semibold text-sm hover:shadow-lg hover:shadow-green-500/30 transition-all">
-                  <span>💚</span>
-                  <span>Support</span>
-                </button>
-
-                {story.revision && (
-                  <div className="px-3 py-1 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-full font-semibold text-sm">
-                    {story.revision}
-                  </div>
-                )}
-              </div>
-
+            <div className="p-10">
               {/* Title */}
-              <h1 className="text-3xl font-bold mb-6 leading-tight text-slate-900">{story.title}</h1>
+              <h1 className="text-4xl font-bold mb-4 leading-tight text-slate-900">{story.title}</h1>
 
-              {/* Metrics */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pb-6 border-b border-slate-200">
-                <div>
-                  <div className="text-xs text-blue-600 uppercase mb-1 font-semibold">Claims</div>
-                  <div className="text-xl font-semibold text-slate-900">{story.claim_count}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-blue-600 uppercase mb-1 font-semibold">Sources</div>
-                  <div className="text-xl font-semibold text-slate-900">{story.artifact_count}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-blue-600 uppercase mb-1 font-semibold">Entities</div>
-                  <div className="text-xl font-semibold text-slate-900">
-                    {story.people_count + (story.org_count || 0) + (story.location_count || 0)}
-                  </div>
-                  <div className="text-xs text-slate-500 mt-1">
-                    {story.people_count}👤 {story.org_count || 0}🏢 {story.location_count || 0}📍
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs text-blue-600 uppercase mb-1 font-semibold">Confidence</div>
-                  <div className="text-xl font-semibold text-amber-600">{confidence}%</div>
-                </div>
+              {/* Meta Info */}
+              <div className="flex items-center gap-3 text-sm text-slate-600 mb-8 pb-8 border-b border-slate-200">
+                <span className="flex items-center gap-1">
+                  <span>📅</span>
+                  {story.last_updated_human}
+                </span>
+                <span>•</span>
+                <span>{story.artifact_count} sources</span>
+                <span>•</span>
+                <span>{story.claim_count} claims</span>
               </div>
 
               {/* Story Summary */}
-              <div className="mt-6 bg-gradient-to-br from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold text-blue-700">Current Story Summary</h2>
-                  {story.revision && (
-                    <span className="px-3 py-1 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-full font-semibold text-sm">
-                      {story.revision}
-                    </span>
-                  )}
-                </div>
-
-                <div>
-                  <div className="text-base leading-relaxed mb-4 text-slate-800">
-                    {stripMarkup(story.description)}
-                  </div>
-
-                  <div className="flex flex-wrap gap-2 mt-4">
-                    {story.locations.map((location) => (
-                      <span key={location} className="px-3 py-1 bg-white border border-blue-200 rounded-full text-xs text-slate-700">
-                        📍 {location}
-                      </span>
-                    ))}
-                    <span className="px-3 py-1 bg-white border border-blue-200 rounded-full text-xs text-slate-700">
-                      📊 {story.artifact_count} artifacts
-                    </span>
-                    <span className="px-3 py-1 bg-white border border-blue-200 rounded-full text-xs text-slate-700">
-                      ✓ {story.verified_claims || story.claim_count} verified facts
-                    </span>
-                  </div>
-                </div>
+              <div className="mb-8">
+                <p className="text-lg leading-relaxed text-slate-700">
+                  {stripMarkup(story.description)}
+                </p>
               </div>
 
               {/* Full Story Content */}
               {story.content && story.content.length > 100 && (
-                <div className="mt-8 border-t border-slate-200 pt-8">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-bold text-slate-900">📰 Full Story</h2>
-                    {story.coherence_score && (
-                      <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-full">
-                        <span className="text-xs font-semibold text-blue-700">Coherence</span>
-                        <div className="w-16 h-2 bg-slate-200 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-gradient-to-r from-blue-500 to-purple-500"
-                            style={{ width: `${(story.coherence_score * 100).toFixed(0)}%` }}
-                          />
-                        </div>
-                        <span className="text-sm font-bold text-slate-900">{(story.coherence_score * 100).toFixed(0)}%</span>
-                      </div>
-                    )}
-                  </div>
+                <div className="border-t border-slate-200 pt-8">
                   <div className="prose prose-lg prose-slate max-w-none">
-                    <div className="text-slate-700 leading-relaxed whitespace-pre-line">
+                    <div className="text-slate-800 leading-[1.8] text-[17px] whitespace-pre-line">
                       {renderContentWithEntityLinks(story.content)}
                     </div>
-                  </div>
-                  <div className="mt-6 flex items-center gap-4 text-sm text-slate-600">
-                    <span>📊 Synthesized from {story.artifact_count} sources</span>
-                    <span>•</span>
-                    <span>✓ {story.claim_count} claims</span>
                   </div>
                 </div>
               )}
 
-              {/* Sources Section */}
-              {story.artifacts && story.artifacts.length > 0 && (() => {
-                // Helper to extract domain from URL
-                const extractDomain = (url: string) => {
-                  try {
-                    const urlObj = new URL(url)
-                    return urlObj.hostname.replace(/^www\./, '')
-                  } catch {
-                    return null
-                  }
-                }
-
-                // Deduplicate artifacts by URL, preferring normalized domain without www.
-                const uniqueArtifacts = story.artifacts.reduce((acc, artifact) => {
-                  const existing = acc.find(a => a.url === artifact.url)
-                  // Extract domain from URL if not provided
-                  const artifactWithDomain = {
-                    ...artifact,
-                    domain: artifact.domain || extractDomain(artifact.url)
-                  }
-                  if (!existing) {
-                    acc.push(artifactWithDomain)
-                  } else {
-                    // If duplicate found, prefer the one without www. prefix
-                    if (artifactWithDomain.domain && !artifactWithDomain.domain.startsWith('www.') && existing.domain?.startsWith('www.')) {
-                      const index = acc.indexOf(existing)
-                      acc[index] = artifactWithDomain
-                    }
-                  }
-                  return acc
-                }, [] as typeof story.artifacts)
-
-                return (
-                  <div className="mt-8 border-t border-slate-200 pt-8">
-                    <h2 className="text-2xl font-bold text-slate-900 mb-6">📚 Sources ({uniqueArtifacts.length})</h2>
-                    <div className="space-y-3">
-                      {uniqueArtifacts.map((artifact, idx) => (
-                        <a
-                          key={artifact.url}
-                          href={artifact.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-4 p-4 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors group"
-                        >
-                        {artifact.domain && artifact.domain !== 'null' ? (
-                          <img
-                            src={`https://www.google.com/s2/favicons?domain=${artifact.domain}&sz=32`}
-                            alt={artifact.domain}
-                            className="w-6 h-6 flex-shrink-0"
-                            onError={(e) => {
-                              e.currentTarget.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>'
-                            }}
-                          />
-                        ) : (
-                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 flex-shrink-0 text-slate-400">
-                            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
-                            <polyline points="13 2 13 9 20 9"></polyline>
-                          </svg>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-slate-900 group-hover:text-blue-600 transition-colors truncate">
-                            {artifact.title || 'Untitled'}
-                          </div>
-                          <div className="text-sm text-slate-500">{artifact.domain}</div>
-                        </div>
-                        <svg className="w-5 h-5 text-slate-400 group-hover:text-blue-600 transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                        </svg>
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                )
-              })()}
-
               {/* Related Stories Section */}
               {story.related_stories && story.related_stories.length > 0 && (
-                <div className="mt-8 border-t border-slate-200 pt-8">
-                  <h2 className="text-2xl font-bold text-slate-900 mb-6">🔗 Related Stories ({story.related_stories.length})</h2>
+                <div className="mt-12 border-t border-slate-200 pt-8">
+                  <h2 className="text-xl font-semibold text-slate-900 mb-4">Related Stories</h2>
                   <div className="space-y-3">
                     {story.related_stories.map((related) => (
                       <Link
                         key={related.id}
                         to={`/story/${related.id}`}
-                        className="flex items-center justify-between p-4 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors group"
+                        className="flex items-center justify-between p-4 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors group"
                       >
                         <div className="flex-1">
                           <div className="font-medium text-slate-900 group-hover:text-blue-600 transition-colors">
                             {related.title}
                           </div>
-                          {related.relationship_type && (
-                            <div className="text-xs text-slate-500 mt-1">
-                              {related.relationship_type === 'guard_failure' && '⚠️ Same event, different angle'}
-                              {related.relationship_type === 'different_angle' && '🔄 Different perspective'}
-                              {!related.relationship_type.includes('guard') && !related.relationship_type.includes('angle') && `📊 ${related.relationship_type}`}
-                            </div>
-                          )}
                         </div>
-                        {related.match_score && (
-                          <div className="flex items-center gap-2">
-                            <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
-                              {(related.match_score * 100).toFixed(0)}% match
-                            </span>
-                            <svg className="w-5 h-5 text-slate-400 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                          </div>
-                        )}
+                        <svg className="w-5 h-5 text-slate-400 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
                       </Link>
                     ))}
                   </div>
@@ -576,130 +383,230 @@ function StoryPage() {
             </div>
           </div>
 
-          {/* Main Content - Story Details */}
-          <div className="space-y-8">
-            {/* Key Findings */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
-            <h2 className="text-xl font-semibold text-green-700 mb-6">✅ Key Verified Facts</h2>
-
-            <div className="space-y-4">
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mt-1">
-                    <span className="text-green-600 font-bold">✓</span>
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-slate-700 leading-relaxed">
-                      This story has been verified by <strong>{story.people_count} contributors</strong> using <strong>{story.artifact_count} sources</strong>.
-                    </p>
-                    <div className="flex items-center gap-2 mt-2 text-xs text-green-700">
-                      <span className="px-2 py-1 bg-green-100 rounded font-medium">95% confidence</span>
-                      <span>Multi-source verified</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <p className="text-slate-600 text-sm mb-4">
-                Full claim verification details available in the <Link to={`/build/${story.id}`} className="text-blue-600 hover:text-blue-700 underline font-medium">investigation view</Link>.
-              </p>
-
-              {/* Contribute CTA */}
-              <div className="pt-4 border-t border-slate-200">
-                <Link
-                  to={`/build/${story.id}`}
-                  className="flex items-center justify-between w-full px-4 py-3 bg-slate-800 hover:bg-slate-900 text-white font-semibold rounded-lg transition-all group"
-                >
-                  <div className="flex items-center gap-3">
-                    <span>🔧</span>
-                    <div className="text-left">
-                      <div className="font-semibold">Contribute to Investigation</div>
-                      <div className="text-xs text-slate-300 font-normal">Help verify claims and add evidence</div>
-                    </div>
-                  </div>
-                  <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </Link>
-              </div>
-            </div>
-          </div>
-
-            {/* Story Timeline Placeholder */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
-              <h2 className="text-xl font-semibold text-blue-700 mb-4">📈 Story Timeline</h2>
-              <p className="text-slate-600 text-sm">
-                Timeline of key developments and fact verification milestones will be displayed here.
-              </p>
-            </div>
-          </div>
-
-          {/* Sidebar - Support & Stats */}
+          {/* Sidebar */}
           <aside className="space-y-6 lg:sticky lg:top-8 h-fit">
-            {/* Support Card */}
-            <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-6 shadow-sm">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-2xl">💚</span>
-                <h3 className="font-semibold text-green-800">Support This Story</h3>
-              </div>
+            {/* People in Story */}
+            <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
+              <h3 className="text-sm font-semibold text-slate-700 uppercase mb-4">People in Story</h3>
+              {story.entities?.people && story.entities.people.length > 0 ? (
+                <div className="space-y-2">
+                  {story.entities.people.map((person: any, idx: number) => {
+                    const isTopThree = idx < 3
+                    const photoSize = isTopThree ? 'w-16 h-16' : 'w-10 h-10'
+                    const iconSize = isTopThree ? 'text-2xl' : 'text-base'
 
-              <p className="text-sm text-slate-700 mb-4 leading-relaxed">
-                Built by {story.people_count} contributors. Your support helps fund investigation and reduces entropy.
-              </p>
+                    return (
+                      <Link
+                        key={person.id}
+                        to={`/people/${person.id}/${person.name.toLowerCase().replace(/\s+/g, '-')}`}
+                        className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg transition-colors group"
+                      >
+                        {person.thumbnail ? (
+                          <img
+                            src={person.thumbnail}
+                            alt={person.name}
+                            className={`${photoSize} rounded-full object-cover flex-shrink-0 border border-slate-200`}
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none'
+                              e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                            }}
+                          />
+                        ) : null}
+                        <div className={`${photoSize} rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 ${person.thumbnail ? 'hidden' : ''}`}>
+                          <span className={iconSize}>👤</span>
+                        </div>
+                        <span className={`${isTopThree ? 'text-base font-medium' : 'text-sm'} text-slate-900 group-hover:text-blue-600 flex-1`}>{person.name}</span>
+                        <svg className="w-4 h-4 text-slate-400 group-hover:text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </Link>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500">No people mentioned</p>
+              )}
+            </div>
 
-              <div className="space-y-2">
-                <button className="w-full px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-lg hover:shadow-lg hover:shadow-green-500/30 transition-all">
-                  Support $5
-                </button>
-                <button className="w-full px-4 py-2 bg-white hover:bg-green-50 border-2 border-green-500 text-green-700 font-semibold rounded-lg transition-all">
-                  Support $10
-                </button>
-                <button className="w-full px-4 py-2 bg-white hover:bg-green-50 border border-green-300 text-green-700 font-medium rounded-lg transition-all text-sm">
-                  Custom Amount
-                </button>
-              </div>
+            {/* Locations in Story */}
+            <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
+              <h3 className="text-sm font-semibold text-slate-700 uppercase mb-4">Locations</h3>
+              {story.entities?.locations && story.entities.locations.length > 0 ? (
+                <div className="space-y-2">
+                  {story.entities.locations.map((location: any) => (
+                    <Link
+                      key={location.id}
+                      to={`/locations/${location.id}/${location.name.toLowerCase().replace(/\s+/g, '-')}`}
+                      className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg transition-colors group"
+                    >
+                      {location.thumbnail ? (
+                        <img
+                          src={location.thumbnail}
+                          alt={location.name}
+                          className="w-12 h-12 rounded-full object-cover flex-shrink-0 border border-slate-200"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none'
+                            e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                          }}
+                        />
+                      ) : null}
+                      <div className={`w-12 h-12 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 ${location.thumbnail ? 'hidden' : ''}`}>
+                        <span className="text-lg">📍</span>
+                      </div>
+                      <span className="text-sm text-slate-900 group-hover:text-blue-600 flex-1">{location.name}</span>
+                      <svg className="w-4 h-4 text-slate-400 group-hover:text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500">No locations mentioned</p>
+              )}
+            </div>
 
-              <p className="text-xs text-slate-600 mt-4 text-center">
-                Includes update notifications 🔔
+            {/* Organizations in Story - Collapsible */}
+            <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
+              <button
+                onClick={() => setOrgsExpanded(!orgsExpanded)}
+                className="w-full flex items-center justify-between text-left"
+              >
+                <h3 className="text-sm font-semibold text-slate-700 uppercase">Organizations</h3>
+                <div className="flex items-center gap-2">
+                  {story.entities?.organizations && story.entities.organizations.length > 0 && (
+                    <span className="text-xs text-slate-500">({story.entities.organizations.length})</span>
+                  )}
+                  <svg
+                    className={`w-4 h-4 text-slate-400 transition-transform ${orgsExpanded ? 'rotate-180' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </button>
+
+              {orgsExpanded && (
+                <div className="mt-4">
+                  {story.entities?.organizations && story.entities.organizations.length > 0 ? (
+                    <div className="space-y-2">
+                      {story.entities.organizations.map((org: any) => (
+                        <Link
+                          key={org.id}
+                          to={`/organizations/${org.id}/${org.name.toLowerCase().replace(/\s+/g, '-')}`}
+                          className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg transition-colors group"
+                        >
+                          {org.thumbnail ? (
+                            <img
+                              src={org.thumbnail}
+                              alt={org.name}
+                              className="w-10 h-10 rounded-full object-cover flex-shrink-0 border border-slate-200"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none'
+                                e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                              }}
+                            />
+                          ) : org.domain ? (
+                            <img
+                              src={`https://www.google.com/s2/favicons?domain=${org.domain}&sz=64`}
+                              alt={org.name}
+                              className="w-10 h-10 rounded-full object-cover flex-shrink-0 border border-slate-200 bg-white p-2"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none'
+                                e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                              }}
+                            />
+                          ) : null}
+                          <div className={`w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0 ${org.thumbnail || org.domain ? 'hidden' : ''}`}>
+                            <span className="text-base">🏢</span>
+                          </div>
+                          <span className="text-sm text-slate-900 group-hover:text-blue-600 flex-1">{org.name}</span>
+                          <svg className="w-4 h-4 text-slate-400 group-hover:text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-500">No organizations mentioned</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Timeline Placeholder */}
+            <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
+              <h3 className="text-sm font-semibold text-slate-700 uppercase mb-3">Timeline</h3>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Story timeline will be displayed here showing key developments and updates.
               </p>
             </div>
 
-            {/* Stats Card */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-              <h3 className="text-sm font-semibold text-slate-500 uppercase mb-4">Story Stats</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-slate-600">👤 People</span>
-                  <span className="font-semibold text-slate-900">{story.people_count}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-slate-600">🏢 Organizations</span>
-                  <span className="font-semibold text-slate-900">{story.org_count || 0}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-slate-600">📍 Locations</span>
-                  <span className="font-semibold text-slate-900">{story.location_count || 0}</span>
-                </div>
-                <div className="flex justify-between items-center border-t border-slate-200 pt-3">
-                  <span className="text-sm text-slate-600">📚 Sources</span>
-                  <span className="font-semibold text-slate-900">{story.artifact_count}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-slate-600">✓ Claims</span>
-                  <span className="font-semibold text-slate-900">{story.claim_count}</span>
-                </div>
-                {story.coherence_score && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-slate-600">🎯 Coherence</span>
-                    <span className="font-semibold text-slate-900">{(story.coherence_score * 100).toFixed(0)}%</span>
+            {/* Sources */}
+            {story.artifacts && story.artifacts.length > 0 && (() => {
+              const extractDomain = (url: string) => {
+                try {
+                  const urlObj = new URL(url)
+                  return urlObj.hostname.replace(/^www\./, '')
+                } catch {
+                  return null
+                }
+              }
+
+              const uniqueArtifacts = story.artifacts.reduce((acc, artifact) => {
+                const existing = acc.find(a => a.url === artifact.url)
+                const artifactWithDomain = {
+                  ...artifact,
+                  domain: artifact.domain || extractDomain(artifact.url)
+                }
+                if (!existing) {
+                  acc.push(artifactWithDomain)
+                }
+                return acc
+              }, [] as typeof story.artifacts)
+
+              return (
+                <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
+                  <h3 className="text-sm font-semibold text-slate-700 uppercase mb-4">Sources ({uniqueArtifacts.length})</h3>
+                  <div className="space-y-2">
+                    {uniqueArtifacts.map((artifact) => (
+                      <a
+                        key={artifact.url}
+                        href={artifact.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg transition-colors group"
+                      >
+                        {artifact.domain && artifact.domain !== 'null' ? (
+                          <img
+                            src={`https://www.google.com/s2/favicons?domain=${artifact.domain}&sz=32`}
+                            alt={artifact.domain}
+                            className="w-5 h-5 flex-shrink-0"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none'
+                            }}
+                          />
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 flex-shrink-0 text-slate-400">
+                            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                            <polyline points="13 2 13 9 20 9"></polyline>
+                          </svg>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm text-slate-900 group-hover:text-blue-600 truncate">
+                            {artifact.domain || 'Source'}
+                          </div>
+                        </div>
+                        <svg className="w-4 h-4 text-slate-400 group-hover:text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                      </a>
+                    ))}
                   </div>
-                )}
-                <div className="flex justify-between items-center border-t border-slate-200 pt-3">
-                  <span className="text-sm text-slate-600">🕐 Last Update</span>
-                  <span className="font-semibold text-slate-900">{story.last_updated_human}</span>
                 </div>
-              </div>
-            </div>
+              )
+            })()}
           </aside>
         </main>
       </div>
