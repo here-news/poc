@@ -210,18 +210,20 @@ function LiveSignals() {
                   to={`/story/${story.id}`}
                   className="block group rounded-2xl border border-slate-200 bg-white/90 p-5 transition shadow-sm hover:shadow-md hover:border-blue-300 relative"
                 >
-                  {/* Pin Button - Top Left */}
+                  {/* Pin Button - At Corner */}
                   <button
                     onClick={(e) => togglePin(story.id, e)}
-                    className={`absolute top-2 left-2 p-1.5 rounded-full transition-all z-10 ${
-                      isPinned
-                        ? 'bg-yellow-400 text-yellow-900 shadow-lg scale-110'
-                        : 'bg-white/60 text-slate-400 hover:bg-white hover:text-slate-600 hover:scale-110'
+                    className={`absolute top-0 left-0 p-1.5 transition-all z-10 ${
+                      isPinned ? 'text-yellow-500' : 'text-slate-400 hover:text-slate-600'
                     }`}
+                    style={{
+                      transform: `rotate(-45deg) ${isPinned ? 'scale(1)' : 'scale(0.9)'}`,
+                      transformOrigin: 'top left'
+                    }}
                     title={isPinned ? 'Pinned - Watching for 24h' : 'Click to pin (1p to keep 24h watching)'}
                   >
                     {/* Simple pushpin icon */}
-                    <svg className={`w-3.5 h-3.5 transition-transform ${isPinned ? 'rotate-45' : ''}`} fill="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 transition-all drop-shadow-md" fill="currentColor" viewBox="0 0 24 24">
                       <path d="M16 12V4h1c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/>
                     </svg>
                   </button>
