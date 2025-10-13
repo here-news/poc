@@ -420,12 +420,7 @@ function StoryPage() {
           <aside className="space-y-5 lg:sticky lg:top-8 h-fit">
             {/* People in Story */}
             <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-7 h-7 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white text-xs">👤</span>
-                </div>
-                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wide">People</h3>
-              </div>
+              <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-4">People</h3>
               {story.entities?.people && story.entities.people.length > 0 ? (
                 <div className="space-y-2">
                   {story.entities.people.map((person: any, idx: number) => {
@@ -468,12 +463,7 @@ function StoryPage() {
 
             {/* Locations in Story */}
             <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-7 h-7 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white text-xs">📍</span>
-                </div>
-                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wide">Locations</h3>
-              </div>
+              <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-4">Locations</h3>
               {story.entities?.locations && story.entities.locations.length > 0 ? (
                 <div className="space-y-2">
                   {story.entities.locations.map((location: any) => (
@@ -514,12 +504,7 @@ function StoryPage() {
                 onClick={() => setOrgsExpanded(!orgsExpanded)}
                 className="w-full flex items-center justify-between text-left"
               >
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center">
-                    <span className="text-white text-xs">🏢</span>
-                  </div>
-                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wide">Organizations</h3>
-                </div>
+                <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Organizations</h3>
                 <div className="flex items-center gap-2">
                   {story.entities?.organizations && story.entities.organizations.length > 0 && (
                     <span className="text-xs text-slate-500">({story.entities.organizations.length})</span>
@@ -585,12 +570,7 @@ function StoryPage() {
 
             {/* Timeline Placeholder */}
             <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-7 h-7 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white text-xs">📅</span>
-                </div>
-                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wide">Timeline</h3>
-              </div>
+              <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-3">Timeline</h3>
               <p className="text-xs text-slate-500 leading-relaxed">
                 Story timeline coming soon
               </p>
@@ -621,12 +601,7 @@ function StoryPage() {
 
               return (
                 <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="w-7 h-7 bg-gradient-to-br from-slate-600 to-slate-700 rounded-lg flex items-center justify-center">
-                      <span className="text-white text-xs">📰</span>
-                    </div>
-                    <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wide">Sources ({uniqueArtifacts.length})</h3>
-                  </div>
+                  <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-4">Sources ({uniqueArtifacts.length})</h3>
                   <div className="space-y-2">
                     {uniqueArtifacts.map((artifact) => (
                       <a
