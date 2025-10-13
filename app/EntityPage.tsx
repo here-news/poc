@@ -82,6 +82,9 @@ function EntityPage() {
   const [downvotes, setDownvotes] = useState(3)
   const [userVote, setUserVote] = useState<'up' | 'down' | null>(null)
 
+  // Mock voting trend data (7 days of net votes: upvotes - downvotes)
+  const votingTrend = [35, 37, 36, 38, 39, 38, 39]
+
   useEffect(() => {
     const uid = ensureUserId()
     setUserId(uid)
@@ -182,6 +185,23 @@ function EntityPage() {
 
   const typeConfig = getEntityTypeConfig(entity.entity_type)
 
+  // Generate SVG path for mini line chart
+  const generateChartPath = (data: number[]) => {
+    const width = 60
+    const height = 24
+    const max = Math.max(...data)
+    const min = Math.min(...data)
+    const range = max - min || 1
+
+    const points = data.map((value, index) => {
+      const x = (index / (data.length - 1)) * width
+      const y = height - ((value - min) / range) * height
+      return `${x},${y}`
+    })
+
+    return `M ${points.join(' L ')}`
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       <div className="max-w-6xl mx-auto px-6 py-8">
@@ -190,8 +210,8 @@ function EntityPage() {
         <main className="mt-8">
           {/* Entity Header */}
           <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm mb-8 relative">
-            {/* Voting Buttons */}
-            <div className="absolute top-6 right-6 flex items-center gap-2">
+            {/* Voting Buttons with Trend Chart */}
+            <div className="absolute top-6 right-6 flex items-center gap-3">
               <button
                 onClick={() => handleVote('up')}
                 className={`flex items-center gap-1 px-3 py-2 rounded-lg border transition-all ${
@@ -221,6 +241,39 @@ function EntityPage() {
                 </svg>
                 <span className="text-sm font-semibold">{downvotes}</span>
               </button>
+
+              {/* Mini Voting Trend Chart */}
+              <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg" title="7-day voting trend">
+                <svg width="60" height="24" className="text-blue-500">
+                  <path
+                    d={generateChartPath(votingTrend)}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  {votingTrend.map((value, index) => {
+                    const width = 60
+                    const height = 24
+                    const max = Math.max(...votingTrend)
+                    const min = Math.min(...votingTrend)
+                    const range = max - min || 1
+                    const x = (index / (votingTrend.length - 1)) * width
+                    const y = height - ((value - min) / range) * height
+                    return (
+                      <circle
+                        key={index}
+                        cx={x}
+                        cy={y}
+                        r="2"
+                        fill="currentColor"
+                      />
+                    )
+                  })}
+                </svg>
+                <span className="text-xs text-slate-500">7d</span>
+              </div>
             </div>
 
             <div className="p-10">
