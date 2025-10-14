@@ -244,6 +244,20 @@ function StoryPage() {
     }
   }, [id])
 
+  // Auto-expand Organizations if no People or Locations
+  useEffect(() => {
+    if (story) {
+      const hasPeople = story.entities?.people && story.entities.people.length > 0
+      const hasLocations = story.entities?.locations && story.entities.locations.length > 0
+      const hasOrgs = story.entities?.organizations && story.entities.organizations.length > 0
+
+      // Expand organizations if there are orgs but no people and no locations
+      if (hasOrgs && !hasPeople && !hasLocations) {
+        setOrgsExpanded(true)
+      }
+    }
+  }, [story])
+
   const fetchStoryDetails = async (storyId: string) => {
     try {
       setLoading(true)
