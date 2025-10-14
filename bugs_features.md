@@ -1,4 +1,4 @@
-# HN4 Web App - Bugs & Features
+# HERE.news Web App - Bugs & Features
 
 ## Priority 1: Critical Issues (User Experience)
 

@@ -1,6 +1,6 @@
-# HN4 - Web Content Extraction Prototype
+# HERE.news - Global Real-Time Living News System
 
-A prototype web content extractor with AI-powered content validation and cleaning.
+A global real-time living news system with AI-powered content analysis and community-driven story building.
 
 > **Migration notice:** The live extraction/cleaning/entity-resolution pipeline now
 > runs inside the Cloud Run project in `../here-extraction-service` (deployed as
