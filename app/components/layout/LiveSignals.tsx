@@ -45,6 +45,7 @@ function LiveSignals() {
   const [newStoriesCount, setNewStoriesCount] = useState(0)
   const [hasMore, setHasMore] = useState(true)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [scrollProgress, setScrollProgress] = useState(0) // 0-1, how close to triggering load
 
   // Pin states (mockup) - using story IDs as keys
   const [pinnedStories, setPinnedStories] = useState<Set<string>>(new Set())
@@ -79,28 +80,42 @@ function LiveSignals() {
     }
   }, [])
 
-  // Infinite scroll observer
+  // Scroll tension effect for loading more
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const first = entries[0]
-        if (first.isIntersecting && hasMore && !isLoadingMore && !loading) {
+    const handleScroll = () => {
+      if (!hasMore || isLoadingMore || loading) {
+        setScrollProgress(0)
+        return
+      }
+
+      const scrollTop = window.scrollY
+      const windowHeight = window.innerHeight
+      const documentHeight = document.documentElement.scrollHeight
+
+      // Calculate distance from bottom
+      const distanceFromBottom = documentHeight - (scrollTop + windowHeight)
+
+      // Much higher tension: long animation zone, but only trigger very close to bottom
+      const tensionZone = 800 // Start showing animation 800px from bottom
+      const triggerPoint = 50 // Only trigger when within 50px of absolute bottom
+
+      if (distanceFromBottom < tensionZone) {
+        // Calculate progress (0 to 1) - most of the progress is just visual buildup
+        const progress = 1 - (distanceFromBottom / tensionZone)
+        setScrollProgress(progress)
+
+        // Only trigger when VERY close to bottom
+        if (distanceFromBottom < triggerPoint && !isLoadingMore) {
           loadMoreStories()
+          setScrollProgress(0)
         }
-      },
-      { threshold: 0.1 }
-    )
-
-    const sentinel = document.getElementById('scroll-sentinel')
-    if (sentinel) {
-      observer.observe(sentinel)
-    }
-
-    return () => {
-      if (sentinel) {
-        observer.unobserve(sentinel)
+      } else {
+        setScrollProgress(0)
       }
     }
+
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
   }, [hasMore, isLoadingMore, loading, stories.length])
 
   const fetchStories = async (isBackground = false) => {
@@ -348,21 +363,75 @@ function LiveSignals() {
                 )
               })}
 
-              {/* Infinite scroll sentinel and loading indicator */}
+              {/* Scroll tension indicator */}
               {hasMore && (
-                <div id="scroll-sentinel" className="py-8 text-center">
-                  {isLoadingMore && (
+                <div className="py-12 text-center relative">
+                  {isLoadingMore ? (
                     <div className="inline-flex items-center gap-2 text-slate-500">
                       <div className="w-5 h-5 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
                       <span className="text-sm">Loading more stories...</span>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      {/* Animated indicator that grows with scroll */}
+                      <div
+                        className="mx-auto transition-all duration-200 ease-out"
+                        style={{
+                          width: `${40 + scrollProgress * 60}px`,
+                          height: `${40 + scrollProgress * 60}px`,
+                          opacity: Math.max(0.3, scrollProgress)
+                        }}
+                      >
+                        <div className="relative w-full h-full">
+                          {/* Outer ring with gradient */}
+                          <div
+                            className="absolute inset-0 rounded-full border-4 transition-colors"
+                            style={{
+                              borderColor: scrollProgress > 0.5
+                                ? `rgba(59, 130, 246, ${scrollProgress})`
+                                : `rgba(148, 163, 184, ${0.3 + scrollProgress * 0.2})`,
+                              transform: `rotate(${scrollProgress * 360}deg)`,
+                              borderTopColor: scrollProgress > 0.5 ? 'rgb(139, 92, 246)' : 'transparent'
+                            }}
+                          />
+                          {/* Center dot */}
+                          <div
+                            className="absolute inset-0 m-auto rounded-full bg-gradient-to-br from-blue-400 to-purple-500 transition-all"
+                            style={{
+                              width: `${8 + scrollProgress * 12}px`,
+                              height: `${8 + scrollProgress * 12}px`,
+                              opacity: scrollProgress,
+                              boxShadow: scrollProgress > 0.5 ? `0 0 ${scrollProgress * 20}px rgba(139, 92, 246, ${scrollProgress * 0.6})` : 'none'
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Text hint */}
+                      {scrollProgress > 0 && (
+                        <div
+                          className="mt-4 text-sm font-medium transition-all duration-200"
+                          style={{
+                            color: scrollProgress > 0.7 ? 'rgb(139, 92, 246)' : 'rgb(148, 163, 184)',
+                            opacity: scrollProgress
+                          }}
+                        >
+                          {scrollProgress < 0.7 ? 'Scroll for more...' : 'Keep scrolling...'}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
               )}
 
               {!hasMore && stories.length > 0 && (
-                <div className="py-6 text-center text-sm text-slate-400">
-                  No more stories to load
+                <div className="py-6 text-center">
+                  <div className="inline-flex items-center gap-2 text-slate-400 text-sm">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    You've reached the end
+                  </div>
                 </div>
               )}
             </>
