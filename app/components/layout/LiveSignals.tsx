@@ -95,17 +95,19 @@ function LiveSignals() {
       // Calculate distance from bottom
       const distanceFromBottom = documentHeight - (scrollTop + windowHeight)
 
-      // Much higher tension: long animation zone, but only trigger very close to bottom
-      const tensionZone = 800 // Start showing animation 800px from bottom
-      const triggerPoint = 50 // Only trigger when within 50px of absolute bottom
+      // Extreme tension: long animation zone, but only trigger at ABSOLUTE bottom
+      const tensionZone = 1000 // Start showing animation 1000px from bottom
+      const triggerThreshold = 5 // Must be within 5px of absolute bottom
 
       if (distanceFromBottom < tensionZone) {
-        // Calculate progress (0 to 1) - most of the progress is just visual buildup
-        const progress = 1 - (distanceFromBottom / tensionZone)
+        // Progress curve - slow buildup, then rapid increase near end
+        const rawProgress = 1 - (distanceFromBottom / tensionZone)
+        // Exponential curve for more dramatic tension
+        const progress = Math.pow(rawProgress, 0.5) // Square root makes it build faster visually
         setScrollProgress(progress)
 
-        // Only trigger when VERY close to bottom
-        if (distanceFromBottom < triggerPoint && !isLoadingMore) {
+        // ONLY trigger when at absolute bottom - requires real effort
+        if (distanceFromBottom <= triggerThreshold && !isLoadingMore) {
           loadMoreStories()
           setScrollProgress(0)
         }
@@ -407,16 +409,32 @@ function LiveSignals() {
                         </div>
                       </div>
 
-                      {/* Text hint */}
+                      {/* Text hint with increasing urgency */}
                       {scrollProgress > 0 && (
                         <div
                           className="mt-4 text-sm font-medium transition-all duration-200"
                           style={{
-                            color: scrollProgress > 0.7 ? 'rgb(139, 92, 246)' : 'rgb(148, 163, 184)',
-                            opacity: scrollProgress
+                            color: scrollProgress > 0.9 ? 'rgb(139, 92, 246)' : scrollProgress > 0.7 ? 'rgb(59, 130, 246)' : 'rgb(148, 163, 184)',
+                            opacity: scrollProgress,
+                            transform: scrollProgress > 0.9 ? 'scale(1.1)' : 'scale(1)'
                           }}
                         >
-                          {scrollProgress < 0.7 ? 'Scroll for more...' : 'Keep scrolling...'}
+                          {scrollProgress < 0.5 ? 'Scroll for more...' :
+                           scrollProgress < 0.75 ? 'Keep scrolling...' :
+                           scrollProgress < 0.9 ? 'Almost there...' :
+                           'Scroll to the very bottom!'}
+                        </div>
+                      )}
+
+                      {/* Progress bar showing how close to trigger */}
+                      {scrollProgress > 0.5 && (
+                        <div className="mt-3 mx-auto w-48 h-1 bg-slate-200 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-200"
+                            style={{
+                              width: `${Math.max(0, (scrollProgress - 0.5) * 200)}%`
+                            }}
+                          />
                         </div>
                       )}
                     </div>
