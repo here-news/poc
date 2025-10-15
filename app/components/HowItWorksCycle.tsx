@@ -7,7 +7,7 @@ const HowItWorksCycle = () => {
     { icon: '📥', title: 'Submit', description: 'Evidence URL' },
     { icon: '🔄', title: 'Match', description: 'Existing stories' },
     { icon: '🔍', title: 'Verify', description: 'Check claims' },
-    { icon: '📝', title: 'Form', description: 'New narratives' }
+    { icon: '✨', title: 'Emerge', description: 'New narratives' }
   ]
 
   return (

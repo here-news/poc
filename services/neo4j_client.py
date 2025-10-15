@@ -222,13 +222,11 @@ class Neo4jClient:
              size(claims) AS claim_count,
              size(people) AS people_count,
              head([a IN artifacts WHERE a.thumbnail_url IS NOT NULL AND a.thumbnail_url <> '' | a.thumbnail_url]) AS cover_thumbnail
-        WHERE artifact_count > 0 AND (
-              (story.topic IS NOT NULL AND toLower(story.topic) CONTAINS q)
+        WHERE (story.topic IS NOT NULL AND toLower(story.topic) CONTAINS q)
            OR (story.gist IS NOT NULL AND toLower(story.gist) CONTAINS q)
            OR any(a IN artifacts WHERE (a.title IS NOT NULL AND toLower(a.title) CONTAINS q)
                                    OR (a.description IS NOT NULL AND toLower(a.description) CONTAINS q))
            OR any(loc IN all_locations WHERE loc.name IS NOT NULL AND toLower(loc.name) CONTAINS q)
-        )
         WITH story, artifact_count, claim_count, people_count, all_locations, cover_thumbnail,
              coalesce(last_artifact_date, story.updated_at, story.created_at) AS last_activity
         RETURN story.id AS id,
@@ -282,7 +280,6 @@ class Neo4jClient:
              size(claims) AS claim_count,
              size(people) AS people_count,
              head([a IN artifacts WHERE a.thumbnail_url IS NOT NULL AND a.thumbnail_url <> '' | a.thumbnail_url]) AS cover_thumbnail
-        WHERE artifact_count > 0
         WITH story, embedding, artifact_count, claim_count, people_count, all_locations, cover_thumbnail,
              coalesce(last_artifact_date, story.updated_at, story.created_at) AS last_activity
         RETURN story.id AS id,
