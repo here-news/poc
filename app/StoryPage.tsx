@@ -17,6 +17,8 @@ interface StoryDetails {
   location_count?: number
   locations: string[]
   last_updated_human: string
+  last_updated?: string
+  created_at?: string
   cover_image?: string
   health_indicator?: string
   entropy?: number
@@ -48,6 +50,28 @@ interface StoryDetails {
 // Helper function to strip markup from text (for summaries)
 function stripMarkup(text: string): string {
   return text.replace(/\[\[([^\]]+)\]\]/g, '$1')
+}
+
+// Helper function to format timestamp as relative time
+function formatRelativeTime(timestamp: string): string {
+  const now = new Date()
+  const then = new Date(timestamp)
+  const diffMs = now.getTime() - then.getTime()
+  const diffSeconds = Math.floor(diffMs / 1000)
+  const diffMinutes = Math.floor(diffSeconds / 60)
+  const diffHours = Math.floor(diffMinutes / 60)
+  const diffDays = Math.floor(diffHours / 24)
+  const diffWeeks = Math.floor(diffDays / 7)
+  const diffMonths = Math.floor(diffDays / 30)
+  const diffYears = Math.floor(diffDays / 365)
+
+  if (diffSeconds < 60) return 'just now'
+  if (diffMinutes < 60) return `${diffMinutes}m ago`
+  if (diffHours < 24) return `${diffHours}h ago`
+  if (diffDays < 7) return `${diffDays}d ago`
+  if (diffWeeks < 4) return `${diffWeeks}w ago`
+  if (diffMonths < 12) return `${diffMonths}mo ago`
+  return `${diffYears}y ago`
 }
 
 // Helper function to render content with entity links and tooltips
@@ -89,9 +113,13 @@ function EntityLink({ entityName }: { entityName: string }) {
   const [showTooltip, setShowTooltip] = useState(false)
   const [entityData, setEntityData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
+  const [hasBeenTapped, setHasBeenTapped] = useState(false)
+  const [tooltipPosition, setTooltipPosition] = useState<'center' | 'left' | 'right'>('center')
+  const [tooltipCoords, setTooltipCoords] = useState({ top: 0, left: 0 })
+  const linkRef = React.useRef<HTMLAnchorElement>(null)
 
   const fetchEntityData = async () => {
-    if (entityData || loading) return
+    if (entityData || loading) return entityData
 
     setLoading(true)
     try {
@@ -99,22 +127,145 @@ function EntityLink({ entityName }: { entityName: string }) {
       if (response.ok) {
         const data = await response.json()
         setEntityData(data)
+        return data
       }
     } catch (err) {
       console.error('Failed to fetch entity:', err)
     } finally {
       setLoading(false)
     }
+    return null
   }
 
   const handleMouseEnter = () => {
+    if (showTooltip) return // Prevent recalculation if already shown
     setShowTooltip(true)
     fetchEntityData()
+    // Delay position calculation slightly to ensure link is rendered
+    setTimeout(() => {
+      const coords = calculateTooltipPosition()
+      setTooltipCoords({ top: coords.top, left: coords.left })
+    }, 10)
+  }
+
+  const calculateTooltipPosition = () => {
+    if (!linkRef.current) return { position: 'center', top: 0, left: 0 }
+
+    const rect = linkRef.current.getBoundingClientRect()
+    const tooltipWidth = 320 // 80 * 4 (w-80 = 20rem = 320px)
+    const tooltipHeight = 450 // Approximate max height
+    const viewportWidth = window.innerWidth
+    const viewportHeight = window.innerHeight
+    const padding = 16
+
+    // Calculate top position (prefer below the link)
+    let top = rect.bottom + 8
+    let showAbove = false
+
+    // If tooltip would go below viewport, show above instead
+    if (top + tooltipHeight > viewportHeight - padding) {
+      top = rect.top - 8
+      showAbove = true
+
+      // If also too high when above, clamp to top of viewport
+      if (top < padding) {
+        top = padding
+        showAbove = false
+      } else {
+        top = top - tooltipHeight
+      }
+    }
+
+    // Ensure top is never negative or too low
+    top = Math.max(padding, Math.min(top, viewportHeight - tooltipHeight - padding))
+
+    let left = rect.left + rect.width / 2 - tooltipWidth / 2
+    let position: 'center' | 'left' | 'right' = 'center'
+
+    // If tooltip would overflow on the right
+    if (left + tooltipWidth > viewportWidth - padding) {
+      left = viewportWidth - tooltipWidth - padding
+      position = 'right'
+    }
+    // If tooltip would overflow on the left
+    else if (left < padding) {
+      left = padding
+      position = 'left'
+    }
+
+    setTooltipPosition(position)
+    return { position, top, left }
   }
 
   const handleMouseLeave = () => {
     setShowTooltip(false)
   }
+
+  const handleClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+    // Always prevent default and handle navigation manually
+    e.preventDefault()
+
+    // Detect touch devices
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+
+    if (isTouchDevice) {
+      if (!hasBeenTapped) {
+        // First tap - show tooltip only
+        e.stopPropagation()
+        setShowTooltip(true)
+        setHasBeenTapped(true)
+        fetchEntityData()
+        const coords = calculateTooltipPosition()
+        setTooltipCoords({ top: coords.top, left: coords.left })
+        return
+      }
+    }
+
+    // Fetch entity data if not already loaded
+    const data = entityData || await fetchEntityData()
+
+    console.log('Entity data for navigation:', data) // Debug log
+
+    // Try multiple possible field names for entity ID
+    const entityId = data?.id || data?.entity_id || data?.rid || data?.canonical_id
+
+    if (entityId && data?.entity_type) {
+      const type = data.entity_type.toLowerCase()
+      const slug = entityName.toLowerCase().replace(/\s+/g, '-')
+
+      const typeMap: { [key: string]: string } = {
+        'person': 'people',
+        'organization': 'organizations',
+        'location': 'locations'
+      }
+
+      const path = typeMap[type] || 'entity'
+      const url = `/${path}/${entityId}/${slug}`
+      console.log('Navigating to:', url) // Debug log
+      window.location.href = url
+    } else {
+      console.error('Missing entity ID or type:', data)
+    }
+  }
+
+  const handleTouchEnd = () => {
+    // Reset tap state when tooltip is closed by tapping elsewhere
+    if (!showTooltip) {
+      setHasBeenTapped(false)
+    }
+  }
+
+  // Close tooltip when clicking outside
+  React.useEffect(() => {
+    if (showTooltip) {
+      const handleClickOutside = () => {
+        setShowTooltip(false)
+        setHasBeenTapped(false)
+      }
+      document.addEventListener('click', handleClickOutside)
+      return () => document.removeEventListener('click', handleClickOutside)
+    }
+  }, [showTooltip])
 
   const getTypeColor = (type: string) => {
     switch (type) {
@@ -125,20 +276,65 @@ function EntityLink({ entityName }: { entityName: string }) {
     }
   }
 
+  // Construct entity page URL using RID and entity type
+  const getEntityUrl = () => {
+    if (!entityData?.id || !entityData?.entity_type) return '#'
+
+    const type = entityData.entity_type.toLowerCase()
+    const slug = entityName.toLowerCase().replace(/\s+/g, '-')
+
+    // Map entity types to URL paths
+    const typeMap: { [key: string]: string } = {
+      'person': 'people',
+      'organization': 'organizations',
+      'location': 'locations'
+    }
+
+    const path = typeMap[type] || 'entity'
+    return `/${path}/${entityData.id}/${slug}`
+  }
+
+  // Calculate arrow position relative to entity link
+  const getArrowPosition = () => {
+    if (!linkRef.current) return { left: '50%' }
+
+    const rect = linkRef.current.getBoundingClientRect()
+    const linkCenter = rect.left + rect.width / 2
+    const arrowLeft = linkCenter - tooltipCoords.left
+
+    return { left: `${arrowLeft}px` }
+  }
+
   return (
     <span className="relative inline-block">
-      <span
+      <a
+        ref={linkRef}
+        href={getEntityUrl()}
         className="text-blue-600 hover:text-blue-700 border-b border-blue-300 border-dotted cursor-pointer transition-colors"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
+        onClick={handleClick}
+        onTouchEnd={handleTouchEnd}
       >
         {entityName}
-      </span>
+      </a>
 
       {showTooltip && (
-        <div className="absolute z-50 w-80 p-4 bg-white border border-slate-300 rounded-lg shadow-xl mt-2 left-1/2 transform -translate-x-1/2">
+        <div
+          className="fixed z-50 w-80 p-4 bg-white border border-slate-300 rounded-lg shadow-xl pointer-events-auto"
+          style={{
+            top: `${tooltipCoords.top}px`,
+            left: `${tooltipCoords.left}px`,
+            pointerEvents: 'auto'
+          }}
+          onClick={(e) => e.stopPropagation()}
+          onMouseEnter={(e) => e.stopPropagation()}
+        >
           {/* Arrow */}
-          <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-8 border-r-8 border-b-8 border-transparent border-b-slate-300" />
+          <div
+            className="absolute -top-2 w-0 h-0 border-l-8 border-r-8 border-b-8 border-transparent border-b-slate-300"
+            style={getArrowPosition()}
+          />
 
           {loading && (
             <div className="text-sm text-slate-500 italic">Loading...</div>
@@ -273,6 +469,8 @@ function StoryPage() {
       if (data.error) {
         setError(data.error)
       } else if (data.story) {
+        console.log('Raw API story data:', data.story) // Debug - see all fields
+
         // Map API response to StoryDetails format
         const storyData = {
           ...data.story,
@@ -283,11 +481,14 @@ function StoryPage() {
           artifact_count: data.story.artifact_count || 0,
           claim_count: data.story.claim_count || 0,
           people_count: data.story.people_count || 0,
+          last_updated: data.story.last_activity || data.story.updated_at || data.story.last_updated || data.story.lastUpdated,
+          created_at: data.story.created_at || data.story.createdAt,
           last_updated_human: data.story.last_updated_human || 'Recently',
           health_indicator: data.story.health_indicator || 'healthy',
           category: data.story.category || 'general'
         }
 
+        console.log('Story last_updated timestamp:', storyData.last_updated) // Debug
         setStory(storyData)
       } else {
         setError('Invalid story data')
@@ -364,32 +565,93 @@ function StoryPage() {
               </button>
 
               <div className="p-10">
-                {/* Category & Meta Info */}
-                <div className="flex items-center justify-between mb-6">
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-white/80 text-blue-700 border border-blue-200 shadow-sm">
-                    {story.category || 'Story'}
-                  </span>
-                  <div className="flex items-center gap-3 text-xs text-slate-600">
-                    <span className="flex items-center gap-1.5">
-                      <span>📅</span>
-                      <span className="font-medium">{story.last_updated_human}</span>
-                    </span>
-                    <span>•</span>
-                    <span>{story.artifact_count} sources</span>
-                    <span>•</span>
-                    <span>{story.claim_count} claims</span>
-                  </div>
-                </div>
-
                 {/* Title */}
-                <h1 className="text-5xl font-bold mb-8 leading-tight text-slate-900 tracking-tight">{story.title}</h1>
+                <h1 className="text-4xl font-bold mb-6 leading-tight text-slate-900 tracking-tight">{story.title}</h1>
 
                 {/* Summary with Quote Styling */}
                 <div className="relative">
                   <div className="absolute -left-4 top-0 text-7xl text-blue-200 font-serif leading-none select-none">"</div>
                   <p className="relative text-xl leading-relaxed text-slate-800 font-medium pl-8">
                     {stripMarkup(story.description)}
+                    <span className="text-sm text-slate-500 ml-3 font-normal">
+                      • {story.last_updated ? formatRelativeTime(story.last_updated) : story.last_updated_human}
+                    </span>
                   </p>
+                </div>
+
+                {/* Tipping Visual Bar - Flow: Coherence ← Builders ← Fund ← Tip */}
+                <div className="mt-8 border-t border-slate-200 pt-6">
+                  {/* Helper text */}
+                  <div className="text-xs text-slate-500 mb-3 italic">
+                    💡 Tips fund community & AI to evolve this story
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    {/* Coherence Bar - Smaller */}
+                    <div className="flex items-center gap-2">
+                      <div className="w-24 h-2.5 bg-slate-200 rounded-full overflow-hidden relative group">
+                        <div
+                          className="h-full bg-gradient-to-r from-slate-600 via-emerald-400 to-green-500 rounded-full transition-all duration-500"
+                          style={{ width: `${(story.coherence_score || 0.75) * 100}%` }}
+                        />
+                        {/* Tooltip on hover */}
+                        <div className="absolute hidden group-hover:block bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-slate-900 text-white text-xs rounded-lg whitespace-nowrap z-10">
+                          Story coherence: {Math.round((story.coherence_score || 0.75) * 100)}%
+                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-slate-900" />
+                        </div>
+                      </div>
+                      <span className="text-xs font-bold text-green-700 whitespace-nowrap">
+                        {Math.round((story.coherence_score || 0.75) * 100)}%
+                      </span>
+                    </div>
+
+                    {/* Left Arrow */}
+                    <svg className="w-4 h-4 text-slate-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+
+                    {/* Builders Count */}
+                    <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 rounded border border-slate-200">
+                      <svg className="w-3.5 h-3.5 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
+                      </svg>
+                      <span className="text-xs font-semibold text-slate-700">
+                        {contributorCount}
+                      </span>
+                    </div>
+
+                    {/* Left Arrow */}
+                    <svg className="w-4 h-4 text-slate-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+
+                    {/* Fund Amount */}
+                    <div className="flex items-center gap-1.5 px-2 py-1 bg-teal-50 rounded border border-teal-200">
+                      <span className="text-xs text-slate-600 font-medium">fund:</span>
+                      <span className="text-sm font-bold text-teal-700">
+                        ${(totalTips * 0.01).toFixed(2)}
+                      </span>
+                    </div>
+
+                    {/* Left Arrow */}
+                    <svg className="w-4 h-4 text-slate-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+
+                    {/* Tip Buttons - Compact */}
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-slate-500 font-medium">tip:</span>
+                      {[1, 10, 100].map((amount) => (
+                        <button
+                          key={amount}
+                          onClick={() => setTotalTips(totalTips + amount)}
+                          className="px-2.5 py-1 bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white text-xs font-semibold rounded transition-all shadow-sm hover:shadow-md active:scale-95"
+                        >
+                          {amount}c
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -457,52 +719,6 @@ function StoryPage() {
 
           {/* Sidebar */}
           <aside className="space-y-5 lg:sticky lg:top-8 h-fit">
-            {/* Tip & Contributors */}
-            <div className="bg-gradient-to-br from-teal-50 to-blue-50 border-2 border-teal-200 rounded-xl p-5 shadow-sm">
-              <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-4">Grow this Story</h3>
-
-              {/* Tip Button */}
-              <button
-                onClick={() => setTotalTips(totalTips + 1)}
-                className="w-full mb-4 px-4 py-3 bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white font-semibold rounded-lg transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
-              >
-                <span className="text-xl">💰</span>
-                <span>Tip 1p to grow the story</span>
-              </button>
-
-              {/* Contributors */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-600 font-medium">Contributors</span>
-                  <span className="text-teal-700 font-bold">{contributorCount}</span>
-                </div>
-
-                {/* Mock contributor avatars */}
-                <div className="flex items-center gap-2">
-                  <div className="flex -space-x-2">
-                    {[1, 2, 3, 4, 5].slice(0, Math.min(contributorCount, 5)).map((i) => (
-                      <div
-                        key={i}
-                        className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 border-2 border-white flex items-center justify-center text-white text-xs font-bold"
-                      >
-                        {String.fromCharCode(64 + i)}
-                      </div>
-                    ))}
-                  </div>
-                  {contributorCount > 5 && (
-                    <span className="text-xs text-slate-500">+{contributorCount - 5} more</span>
-                  )}
-                </div>
-
-                <div className="pt-3 border-t border-teal-200">
-                  <div className="flex items-center justify-between text-xs text-slate-600">
-                    <span>Total tips</span>
-                    <span className="font-bold text-teal-700">{totalTips}p</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
             {/* People in Story */}
             <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
               <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-4">People</h3>

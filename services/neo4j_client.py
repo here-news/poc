@@ -517,9 +517,9 @@ class Neo4jClient:
                story.confidence as confidence,
                story.entropy as entropy,
                story.created_at as created_at,
-               story.updated_at as updated_at,
+               story.last_updated as updated_at,
                coalesce(cover_thumbnail, '') as cover_image,
-               coalesce(last_artifact_date, story.updated_at, story.created_at) as last_activity
+               coalesce(story.last_updated, last_artifact_date, story.created_at) as last_activity
         """
 
         with self.driver.session(database=self.database) as session:
@@ -530,7 +530,18 @@ class Neo4jClient:
 
             # Convert to dict and add entity structure
             story_dict = self._record_to_summary(record)
-            story_dict['artifacts'] = record.get('artifacts', [])
+
+            # Serialize datetime fields in artifacts
+            artifacts = record.get('artifacts', [])
+            serialized_artifacts = []
+            for artifact in artifacts:
+                if artifact:
+                    serialized_artifact = dict(artifact)
+                    if 'created_at' in serialized_artifact:
+                        serialized_artifact['created_at'] = self._format_datetime(serialized_artifact['created_at'])
+                    serialized_artifacts.append(serialized_artifact)
+            story_dict['artifacts'] = serialized_artifacts
+
             story_dict['related_stories'] = record.get('related_stories', [])
             story_dict['org_count'] = record.get('org_count', 0)
             story_dict['location_count'] = record.get('location_count', 0)
