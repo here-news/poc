@@ -38,7 +38,7 @@ function Header({ userId }: HeaderProps) {
         />
       </Link>
 
-      {/* Center section with Search bar and How it works link */}
+      {/* Center section with Search bar */}
       <div className="flex items-center gap-4 flex-1 max-w-2xl mx-4">
         {/* Search bar */}
         <div className="relative flex-1">
@@ -61,13 +61,6 @@ function Header({ userId }: HeaderProps) {
             </kbd>
           </div>
         </div>
-
-        <Link
-          to="/how-it-works"
-          className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors whitespace-nowrap"
-        >
-          How here works
-        </Link>
       </div>
 
       <div className="flex items-center gap-4 self-start sm:self-auto">

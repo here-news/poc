@@ -3,6 +3,7 @@ import Header from './components/layout/Header'
 import LiveSignals from './components/layout/LiveSignals'
 import SubmissionInput from './components/SubmissionInput'
 import SubmissionResult from './components/SubmissionResult'
+import HowItWorksCycle from './components/HowItWorksCycle'
 import { useSubmissions } from './hooks/useSubmissions'
 import { ensureUserId } from './userSession'
 
@@ -62,33 +63,8 @@ function SimplifiedHome() {
               </div>
             )}
 
-            {/* Info Card */}
-            <div className="bg-gradient-to-br from-blue-50 to-purple-50 border border-blue-200 rounded-2xl p-6">
-              <h3 className="font-semibold text-slate-900 mb-3">How it works</h3>
-              <div className="space-y-3 text-sm text-slate-700">
-                <div className="flex gap-3">
-                  <span className="text-lg">🔍</span>
-                  <div>
-                    <strong>1. Submit</strong>
-                    <p className="text-xs text-slate-600">Paste a news article URL</p>
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <span className="text-lg">🔗</span>
-                  <div>
-                    <strong>2. Match</strong>
-                    <p className="text-xs text-slate-600">Find related stories</p>
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <span className="text-lg">✅</span>
-                  <div>
-                    <strong>3. Verify</strong>
-                    <p className="text-xs text-slate-600">Collaborate on facts</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+            {/* How it works - Animated Cycle */}
+            <HowItWorksCycle />
           </aside>
         </div>
       </div>
