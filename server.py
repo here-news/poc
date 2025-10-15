@@ -66,14 +66,18 @@ async def get_story_by_id(story_id: str):
         }, 500
 
 @app.get("/api/stories")
-async def get_stories(limit: int = 10):
+async def get_stories(limit: int = 10, offset: int = 0):
     """
     Get recent stories from Neo4j graph database
+
+    Args:
+        limit: Number of stories to return (default 10)
+        offset: Number of stories to skip for pagination (default 0)
 
     Returns list of story nodes with metadata
     """
     try:
-        summaries = neo4j_client.get_story_summaries(limit=limit)
+        summaries = neo4j_client.get_story_summaries(limit=limit, offset=offset)
 
         category_map = {}
         for story in summaries:

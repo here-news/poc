@@ -92,7 +92,7 @@ class Neo4jClient:
             })
         return stories
 
-    def get_story_summaries(self, limit: int = 20) -> List[Dict]:
+    def get_story_summaries(self, limit: int = 20, offset: int = 0) -> List[Dict]:
         """Fetch enriched story summaries suitable for homepage and chat."""
         if not self.connected:
             self._connect()
@@ -133,11 +133,12 @@ class Neo4jClient:
                coalesce(cover_thumbnail, '') as cover_image,
                coalesce(story.last_updated, last_artifact_date, story.created_at) as last_activity
         ORDER BY last_activity DESC
+        SKIP $offset
         LIMIT $limit
         """
 
         with self.driver.session(database=self.database) as session:
-            result = session.run(cypher, limit=limit)
+            result = session.run(cypher, limit=limit, offset=offset)
             summaries: List[Dict] = []
             for record in result:
                 summary = self._record_to_summary(record)

@@ -43,6 +43,8 @@ function LiveSignals() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
   const [newStoriesCount, setNewStoriesCount] = useState(0)
+  const [hasMore, setHasMore] = useState(true)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
 
   // Pin states (mockup) - using story IDs as keys
   const [pinnedStories, setPinnedStories] = useState<Set<string>>(new Set())
@@ -76,6 +78,30 @@ function LiveSignals() {
       clearInterval(interval)
     }
   }, [])
+
+  // Infinite scroll observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const first = entries[0]
+        if (first.isIntersecting && hasMore && !isLoadingMore && !loading) {
+          loadMoreStories()
+        }
+      },
+      { threshold: 0.1 }
+    )
+
+    const sentinel = document.getElementById('scroll-sentinel')
+    if (sentinel) {
+      observer.observe(sentinel)
+    }
+
+    return () => {
+      if (sentinel) {
+        observer.unobserve(sentinel)
+      }
+    }
+  }, [hasMore, isLoadingMore, loading, stories.length])
 
   const fetchStories = async (isBackground = false) => {
     try {
@@ -119,6 +145,7 @@ function LiveSignals() {
         }
 
         setStories(summaries)
+        setHasMore(summaries.length === 12) // Has more if we got full page
         setLastRefresh(new Date())
         setError(null)
       }
@@ -131,6 +158,44 @@ function LiveSignals() {
     } finally {
       setLoading(false)
       setIsRefreshing(false)
+    }
+  }
+
+  const loadMoreStories = async () => {
+    if (isLoadingMore || !hasMore) return
+
+    try {
+      setIsLoadingMore(true)
+      const offset = stories.length
+      const response = await fetch(`/api/stories?limit=12&offset=${offset}`)
+      const data = await response.json()
+
+      if (!data.error && data.stories) {
+        const newSummaries: StorySummary[] = (data.stories || []).map((story: any) => ({
+          id: story.id,
+          title: story.title,
+          description: story.description,
+          category: story.category || 'global',
+          artifact_count: story.artifact_count || 0,
+          claim_count: story.claim_count || 0,
+          people_count: story.people_count || 0,
+          locations: story.locations || [],
+          last_updated_human: story.last_updated_human || 'recently',
+          cover_image: story.cover_image,
+          health_indicator: story.health_indicator
+        }))
+
+        // Filter out duplicates
+        const existingIds = new Set(stories.map(s => s.id))
+        const uniqueNewStories = newSummaries.filter(s => !existingIds.has(s.id))
+
+        setStories(prev => [...prev, ...uniqueNewStories])
+        setHasMore(newSummaries.length === 12) // Has more if we got full page
+      }
+    } catch (err) {
+      console.error('Error loading more stories:', err)
+    } finally {
+      setIsLoadingMore(false)
     }
   }
 
@@ -198,89 +263,109 @@ function LiveSignals() {
               <p className="text-sm">No threads yet. Seed the first one!</p>
             </div>
           ) : (
-            stories.map((story) => {
-              const category = categoryConfig[story.category] || categoryConfig.global
-              const health = healthConfig[story.health_indicator || 'unknown'] || healthConfig.unknown
+            <>
+              {stories.map((story) => {
+                const category = categoryConfig[story.category] || categoryConfig.global
+                const health = healthConfig[story.health_indicator || 'unknown'] || healthConfig.unknown
 
-              const isPinned = pinnedStories.has(story.id)
+                const isPinned = pinnedStories.has(story.id)
 
-              return (
-                <Link
-                  key={story.id}
-                  to={`/story/${story.id}`}
-                  className="block group rounded-2xl border border-slate-200 bg-white/90 p-5 transition shadow-sm hover:shadow-md hover:border-blue-300 relative"
-                >
-                  {/* Pin Button - At Corner */}
-                  <button
-                    onClick={(e) => togglePin(story.id, e)}
-                    className={`absolute top-2 left-2 transition-all duration-300 z-10 ${
-                      isPinned ? 'text-yellow-500' : 'text-slate-400 hover:text-slate-600'
-                    }`}
-                    style={{
-                      transform: isPinned ? 'rotate(-45deg) scale(1.1)' : 'rotate(0deg) scale(1)',
-                      transformOrigin: 'center'
-                    }}
-                    title={isPinned ? 'Pinned - Watching for 24h' : 'Click to pin (1p to keep 24h watching)'}
+                return (
+                  <Link
+                    key={story.id}
+                    to={`/story/${story.id}`}
+                    className="block group rounded-2xl border border-slate-200 bg-white/90 p-5 transition shadow-sm hover:shadow-md hover:border-blue-300 relative"
                   >
-                    {/* Simple pushpin icon */}
-                    <svg className="w-5 h-5 drop-shadow-lg" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M16 12V4h1c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/>
-                    </svg>
-                  </button>
+                    {/* Pin Button - At Corner */}
+                    <button
+                      onClick={(e) => togglePin(story.id, e)}
+                      className={`absolute top-2 left-2 transition-all duration-300 z-10 ${
+                        isPinned ? 'text-yellow-500' : 'text-slate-400 hover:text-slate-600'
+                      }`}
+                      style={{
+                        transform: isPinned ? 'rotate(-45deg) scale(1.1)' : 'rotate(0deg) scale(1)',
+                        transformOrigin: 'center'
+                      }}
+                      title={isPinned ? 'Pinned - Watching for 24h' : 'Click to pin (1p to keep 24h watching)'}
+                    >
+                      {/* Simple pushpin icon */}
+                      <svg className="w-5 h-5 drop-shadow-lg" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M16 12V4h1c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/>
+                      </svg>
+                    </button>
 
-                  <div className="flex items-start gap-4">
-                    {/* Thumbnail Image */}
-                    {story.cover_image && (
-                      <div className="w-28 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-slate-100">
-                        <img
-                          src={story.cover_image}
-                          alt=""
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                      </div>
-                    )}
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <h3 className="text-lg font-semibold text-slate-800 group-hover:text-blue-600 transition-colors">
-                          {story.title}
-                        </h3>
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${category.color}`}>
-                          {category.label}
-                        </span>
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${health.color}`}>
-                          {health.label}
-                        </span>
-                      </div>
-                      {story.description && (
-                        <p className="text-sm text-slate-600 mt-1 line-clamp-2">
-                          {story.description}
-                        </p>
-                      )}
-                      <div className="flex items-center gap-3 mt-3 text-xs text-slate-500">
-                        <span className={category.accent}>
-                          {story.artifact_count} artifact{story.artifact_count !== 1 ? 's' : ''}
-                        </span>
-                        <span>{story.claim_count} claim{story.claim_count !== 1 ? 's' : ''}</span>
-                        <span>{story.people_count} contributor{story.people_count !== 1 ? 's' : ''}</span>
-                      </div>
-                      {story.locations.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1 text-xs text-slate-400">
-                          {story.locations.slice(0, 3).map((location) => (
-                            <span key={location} className="px-2 py-0.5 bg-slate-100 rounded-full">
-                              {location}
-                            </span>
-                          ))}
+                    <div className="flex items-start gap-4">
+                      {/* Thumbnail Image */}
+                      {story.cover_image && (
+                        <div className="w-28 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-slate-100">
+                          <img
+                            src={story.cover_image}
+                            alt=""
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
                         </div>
                       )}
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <h3 className="text-lg font-semibold text-slate-800 group-hover:text-blue-600 transition-colors">
+                            {story.title}
+                          </h3>
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${category.color}`}>
+                            {category.label}
+                          </span>
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${health.color}`}>
+                            {health.label}
+                          </span>
+                        </div>
+                        {story.description && (
+                          <p className="text-sm text-slate-600 mt-1 line-clamp-2">
+                            {story.description}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-3 mt-3 text-xs text-slate-500">
+                          <span className={category.accent}>
+                            {story.artifact_count} artifact{story.artifact_count !== 1 ? 's' : ''}
+                          </span>
+                          <span>{story.claim_count} claim{story.claim_count !== 1 ? 's' : ''}</span>
+                          <span>{story.people_count} contributor{story.people_count !== 1 ? 's' : ''}</span>
+                        </div>
+                        {story.locations.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1 text-xs text-slate-400">
+                            {story.locations.slice(0, 3).map((location) => (
+                              <span key={location} className="px-2 py-0.5 bg-slate-100 rounded-full">
+                                {location}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-xs font-medium text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full whitespace-nowrap self-start">
+                        {story.last_updated_human}
+                      </span>
                     </div>
-                    <span className="text-xs font-medium text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full whitespace-nowrap self-start">
-                      {story.last_updated_human}
-                    </span>
-                  </div>
-                </Link>
-              )
-            })
+                  </Link>
+                )
+              })}
+
+              {/* Infinite scroll sentinel and loading indicator */}
+              {hasMore && (
+                <div id="scroll-sentinel" className="py-8 text-center">
+                  {isLoadingMore && (
+                    <div className="inline-flex items-center gap-2 text-slate-500">
+                      <div className="w-5 h-5 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+                      <span className="text-sm">Loading more stories...</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!hasMore && stories.length > 0 && (
+                <div className="py-6 text-center text-sm text-slate-400">
+                  No more stories to load
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

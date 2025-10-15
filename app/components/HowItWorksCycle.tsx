@@ -12,13 +12,43 @@ const HowItWorksCycle = () => {
 
   return (
     <div
-      className="bg-gradient-to-br from-blue-50 to-purple-50 border border-blue-200 rounded-2xl p-6 cursor-pointer transition-all duration-300 hover:shadow-lg"
+      className="relative bg-gradient-to-br from-blue-50 to-purple-50 border border-blue-200 rounded-2xl p-6 cursor-pointer transition-all duration-300 hover:shadow-lg overflow-hidden"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <h3 className="font-semibold text-slate-900 mb-4">How it works</h3>
+      {/* Rotating cycle background */}
+      <div className="absolute inset-0 pointer-events-none">
+        <svg className="w-full h-full" viewBox="0 0 300 300" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="cycleGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="rgb(59, 130, 246)" stopOpacity="0.1" />
+              <stop offset="50%" stopColor="rgb(59, 130, 246)" stopOpacity="0.4" />
+              <stop offset="100%" stopColor="rgb(59, 130, 246)" stopOpacity="0.1" />
+            </linearGradient>
+          </defs>
 
-      <div className="space-y-3">
+          {/* Animated rotating border showing cycle */}
+          <rect
+            x="2"
+            y="2"
+            width="296"
+            height="296"
+            rx="16"
+            fill="none"
+            stroke="url(#cycleGradient)"
+            strokeWidth="3"
+            strokeDasharray={isHovered ? "20 10" : "0"}
+            className={`transition-all duration-500 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
+            style={{
+              animation: isHovered ? 'rotateBorder 3s linear infinite' : 'none'
+            }}
+          />
+        </svg>
+      </div>
+
+      <h3 className="font-semibold text-slate-900 mb-4 relative z-10">How it works</h3>
+
+      <div className="space-y-3 relative z-10">
         {steps.map((step, index) => (
           <div key={index}>
             {/* Step */}
@@ -63,30 +93,15 @@ const HowItWorksCycle = () => {
           </div>
         ))}
 
-        {/* Loop back arrow */}
+        {/* Loop back indicator */}
         <div className={`
           ml-5 mt-3 mb-1 flex items-center gap-2 text-slate-400
           transition-all duration-300
           ${isHovered ? 'text-blue-500' : 'text-slate-400'}
         `}>
-          <div className="relative">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            {/* Rotating indicator when hovered */}
-            {isHovered && (
-              <div
-                className="absolute inset-0"
-                style={{
-                  animation: 'spin 2s linear infinite'
-                }}
-              >
-                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9" />
-                </svg>
-              </div>
-            )}
-          </div>
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9" />
+          </svg>
           <span className="text-xs font-medium">Cycles continuously</span>
         </div>
       </div>
@@ -109,12 +124,12 @@ const HowItWorksCycle = () => {
             opacity: 0;
           }
         }
-        @keyframes spin {
-          from {
-            transform: rotate(0deg);
+        @keyframes rotateBorder {
+          0% {
+            stroke-dashoffset: 0;
           }
-          to {
-            transform: rotate(360deg);
+          100% {
+            stroke-dashoffset: 120;
           }
         }
       `}</style>
