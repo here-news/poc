@@ -63,8 +63,10 @@ function SimplifiedHome() {
               </div>
             )}
 
-            {/* How it works - Animated Cycle */}
-            <HowItWorksCycle />
+            {/* How it works - Animated Cycle (hidden on mobile) */}
+            <div className="hidden lg:block">
+              <HowItWorksCycle />
+            </div>
           </aside>
         </div>
       </div>
