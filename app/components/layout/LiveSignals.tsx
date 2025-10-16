@@ -217,8 +217,8 @@ function LiveSignals() {
   }
 
   return (
-    <section className="space-y-6">
-      <div className="bg-white/70 backdrop-blur-sm border border-white/60 rounded-3xl p-6 shadow-sm">
+    <section className="space-y-4 sm:space-y-6">
+      <div className="bg-white/70 backdrop-blur-sm border border-white/60 rounded-3xl p-4 sm:p-6 shadow-sm">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h2 className="text-xl font-semibold text-slate-800">Recent Threads</h2>
@@ -265,7 +265,7 @@ function LiveSignals() {
           </div>
         </div>
 
-        <div className="mt-6 space-y-4">
+        <div className="mt-4 sm:mt-6 space-y-3 sm:space-y-4">
           {loading ? (
             <div className="text-center py-8 text-slate-500">
               <div className="inline-block w-6 h-6 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-2" />
@@ -291,7 +291,7 @@ function LiveSignals() {
                   <Link
                     key={story.id}
                     to={`/story/${story.id}`}
-                    className="block group rounded-2xl border border-slate-200 bg-white/90 p-5 transition shadow-sm hover:shadow-md hover:border-blue-300 relative"
+                    className="block group rounded-2xl border border-slate-200 bg-white/90 p-4 sm:p-5 transition shadow-sm hover:shadow-md hover:border-blue-300 relative"
                   >
                     {/* Pin Button - At Corner */}
                     <button
@@ -306,12 +306,61 @@ function LiveSignals() {
                       title={isPinned ? 'Pinned - Watching for 24h' : 'Click to pin (1p to keep 24h watching)'}
                     >
                       {/* Simple pushpin icon */}
-                      <svg className="w-5 h-5 drop-shadow-lg" fill="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 sm:w-5 sm:h-5 drop-shadow-lg" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M16 12V4h1c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/>
                       </svg>
                     </button>
 
-                    <div className="flex items-start gap-4">
+                    {/* Mobile layout: Title first, then content with thumbnail */}
+                    <div className="sm:hidden">
+                      {/* Title and badges - Full width on mobile */}
+                      <div className="mb-3">
+                        <h3 className="text-base font-semibold text-slate-800 group-hover:text-blue-600 transition-colors mb-2">
+                          {story.title}
+                        </h3>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${category.color}`}>
+                            {category.label}
+                          </span>
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${health.color}`}>
+                            {health.label}
+                          </span>
+                          <span className="text-xs font-medium text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full">
+                            {story.last_updated_human}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Thumbnail and description */}
+                      <div className="flex gap-3">
+                        {story.cover_image && (
+                          <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-slate-100">
+                            <img
+                              src={story.cover_image}
+                              alt=""
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          {story.description && (
+                            <p className="text-xs text-slate-600 line-clamp-3 mb-2">
+                              {story.description}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-2 text-xs text-slate-500 flex-wrap">
+                            <span className={category.accent}>
+                              {story.artifact_count} artifact{story.artifact_count !== 1 ? 's' : ''}
+                            </span>
+                            <span>{story.claim_count} claim{story.claim_count !== 1 ? 's' : ''}</span>
+                            <span>{story.people_count} contributor{story.people_count !== 1 ? 's' : ''}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Desktop layout: Original horizontal */}
+                    <div className="hidden sm:flex items-start gap-4">
                       {/* Thumbnail Image */}
                       {story.cover_image && (
                         <div className="w-28 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-slate-100">
