@@ -97,7 +97,7 @@ function Header({ userId }: HeaderProps) {
 
   return (
     <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <Link to="/app" className="relative h-14 sm:h-16 cursor-pointer hover:opacity-80 transition-opacity">
+      <Link to="/app" className="relative h-12 sm:h-14 md:h-16 cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0">
         <img
           src={logoAsset}
           alt="Here Pin Logo"
@@ -106,7 +106,7 @@ function Header({ userId }: HeaderProps) {
       </Link>
 
       {/* Center section with Search bar */}
-      <div className="flex items-center gap-4 flex-1 max-w-2xl mx-4">
+      <div className="flex items-center gap-2 sm:gap-4 flex-1 max-w-2xl sm:mx-2 md:mx-4">
         {/* Search bar with results dropdown */}
         <div ref={searchContainerRef} className="relative flex-1">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -126,7 +126,7 @@ function Header({ userId }: HeaderProps) {
             {isSearching ? (
               <div className="animate-spin w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full" />
             ) : (
-              <kbd className="px-2 py-1 text-xs font-semibold text-slate-500 bg-slate-100 border border-slate-200 rounded">
+              <kbd className="hidden sm:inline-block px-2 py-1 text-xs font-semibold text-slate-500 bg-slate-100 border border-slate-200 rounded">
                 /
               </kbd>
             )}
@@ -183,9 +183,9 @@ function Header({ userId }: HeaderProps) {
         </div>
       </div>
 
-      <div className="flex items-center gap-4 self-start sm:self-auto">
-        <button className="relative p-2 hover:bg-slate-100 rounded-lg transition-colors group">
-          <svg className="w-6 h-6 text-slate-600 group-hover:text-slate-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="flex items-center gap-2 sm:gap-4 self-start sm:self-auto flex-shrink-0">
+        <button className="hidden md:block relative p-2 hover:bg-slate-100 rounded-lg transition-colors group">
+          <svg className="w-5 h-5 md:w-6 md:h-6 text-slate-600 group-hover:text-slate-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
           </svg>
           {/* Notification dot - show when user has notifications */}

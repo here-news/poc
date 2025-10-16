@@ -152,11 +152,12 @@ function EntityLink({ entityName }: { entityName: string }) {
     if (!linkRef.current) return { position: 'center', top: 0, left: 0 }
 
     const rect = linkRef.current.getBoundingClientRect()
-    const tooltipWidth = 320 // 80 * 4 (w-80 = 20rem = 320px)
-    const tooltipHeight = 450 // Approximate max height
     const viewportWidth = window.innerWidth
     const viewportHeight = window.innerHeight
     const padding = 16
+    // On mobile, tooltip width is viewport - 2rem (32px), on desktop it's 320px
+    const tooltipWidth = viewportWidth < 640 ? viewportWidth - 32 : 320
+    const tooltipHeight = 450 // Approximate max height
 
     // Calculate top position (prefer below the link)
     let top = rect.bottom + 8
@@ -321,7 +322,7 @@ function EntityLink({ entityName }: { entityName: string }) {
 
       {showTooltip && (
         <div
-          className="fixed z-50 w-80 p-4 bg-white border border-slate-300 rounded-lg shadow-xl pointer-events-auto"
+          className="fixed z-50 w-[calc(100vw-2rem)] max-w-sm sm:w-80 p-4 bg-white border border-slate-300 rounded-lg shadow-xl pointer-events-auto"
           style={{
             top: `${tooltipCoords.top}px`,
             left: `${tooltipCoords.left}px`,
@@ -538,12 +539,12 @@ function StoryPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <div className="max-w-6xl mx-auto px-6 py-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
         <Header userId={userId} />
 
-        <main className="mt-8 grid lg:grid-cols-[1fr_360px] gap-8">
+        <main className="mt-6 sm:mt-8 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4 sm:gap-6 lg:gap-8">
           {/* Main Story Content */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {/* Title & Summary - Merged */}
             <div className="bg-gradient-to-br from-blue-50 via-white to-purple-50 border-2 border-blue-200 rounded-2xl overflow-hidden shadow-md relative">
               {/* Pin Button - At Corner */}
@@ -564,9 +565,9 @@ function StoryPage() {
                 </svg>
               </button>
 
-              <div className="p-10">
+              <div className="p-6 sm:p-8 md:p-10">
                 {/* Title */}
-                <h1 className="text-4xl font-bold mb-6 leading-tight text-slate-900 tracking-tight">{story.title}</h1>
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 sm:mb-6 leading-tight text-slate-900 tracking-tight">{story.title}</h1>
 
                 {/* Summary with Quote Styling */}
                 <div className="relative">
@@ -586,7 +587,7 @@ function StoryPage() {
                     💡 Tips fund community & AI to evolve this story
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                     {/* Coherence Bar - Smaller */}
                     <div className="flex items-center gap-2">
                       <div className="w-24 h-2.5 bg-slate-200 rounded-full overflow-hidden relative group">
@@ -606,13 +607,13 @@ function StoryPage() {
                     </div>
 
                     {/* Left Arrow */}
-                    <svg className="w-4 h-4 text-slate-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="hidden sm:block w-4 h-4 text-slate-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                     </svg>
 
                     {/* Builders Count */}
-                    <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 rounded border border-slate-200">
-                      <svg className="w-3.5 h-3.5 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
+                    <div className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-1 bg-slate-50 rounded border border-slate-200">
+                      <svg className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
                       </svg>
                       <span className="text-xs font-semibold text-slate-700">
@@ -621,31 +622,31 @@ function StoryPage() {
                     </div>
 
                     {/* Left Arrow */}
-                    <svg className="w-4 h-4 text-slate-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="hidden sm:block w-4 h-4 text-slate-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                     </svg>
 
                     {/* Fund Amount */}
-                    <div className="flex items-center gap-1.5 px-2 py-1 bg-teal-50 rounded border border-teal-200">
+                    <div className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-1 bg-teal-50 rounded border border-teal-200">
                       <span className="text-xs text-slate-600 font-medium">fund:</span>
-                      <span className="text-sm font-bold text-teal-700">
+                      <span className="text-xs sm:text-sm font-bold text-teal-700">
                         ${(totalTips * 0.01).toFixed(2)}
                       </span>
                     </div>
 
                     {/* Left Arrow */}
-                    <svg className="w-4 h-4 text-slate-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="hidden sm:block w-4 h-4 text-slate-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                     </svg>
 
                     {/* Tip Buttons - Compact */}
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1 sm:gap-1.5">
                       <span className="text-xs text-slate-500 font-medium">tip:</span>
                       {[1, 10, 100].map((amount) => (
                         <button
                           key={amount}
                           onClick={() => setTotalTips(totalTips + amount)}
-                          className="px-2.5 py-1 bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white text-xs font-semibold rounded transition-all shadow-sm hover:shadow-md active:scale-95"
+                          className="px-2 sm:px-2.5 py-1 bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white text-xs font-semibold rounded transition-all shadow-sm hover:shadow-md active:scale-95"
                         >
                           {amount}c
                         </button>
@@ -659,10 +660,10 @@ function StoryPage() {
             {/* Full Story Content */}
             {story.content && story.content.length > 100 && (
               <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-                <div className="p-10">
+                <div className="p-6 sm:p-8 md:p-10">
                   {/* Story Body with Enhanced Typography */}
-                  <div className="prose prose-xl prose-slate max-w-none">
-                    <div className="text-slate-800 leading-[1.9] text-[18px] whitespace-pre-line">
+                  <div className="prose prose-lg sm:prose-xl prose-slate max-w-none">
+                    <div className="text-slate-800 leading-[1.9] text-base sm:text-[18px] whitespace-pre-line">
                       {/* Drop cap for first letter - using brand teal color */}
                       <style>{`
                         .story-content::first-letter {
@@ -687,7 +688,7 @@ function StoryPage() {
             {/* Related Stories Section */}
             {story.related_stories && story.related_stories.length > 0 && (
               <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-                <div className="p-8">
+                <div className="p-4 sm:p-6 md:p-8">
                   <h2 className="text-lg font-bold text-slate-900 mb-4">Related Stories</h2>
                   <div className="space-y-2">
                     {story.related_stories.map((related) => (
@@ -718,9 +719,9 @@ function StoryPage() {
           </div>
 
           {/* Sidebar */}
-          <aside className="space-y-5 lg:sticky lg:top-8 h-fit">
+          <aside className="space-y-3 sm:space-y-4 lg:space-y-5 lg:sticky lg:top-8 h-fit">
             {/* People in Story */}
-            <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+            <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 shadow-sm">
               <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-4">People</h3>
               {story.entities?.people && story.entities.people.length > 0 ? (
                 <div className="space-y-2">
@@ -763,7 +764,7 @@ function StoryPage() {
             </div>
 
             {/* Locations in Story */}
-            <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+            <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 shadow-sm">
               <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-4">Locations</h3>
               {story.entities?.locations && story.entities.locations.length > 0 ? (
                 <div className="space-y-2">
@@ -800,7 +801,7 @@ function StoryPage() {
             </div>
 
             {/* Organizations in Story - Collapsible */}
-            <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+            <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 shadow-sm">
               <button
                 onClick={() => setOrgsExpanded(!orgsExpanded)}
                 className="w-full flex items-center justify-between text-left"
@@ -870,7 +871,7 @@ function StoryPage() {
             </div>
 
             {/* Timeline Placeholder */}
-            <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+            <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 shadow-sm">
               <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-3">Timeline</h3>
               <p className="text-xs text-slate-500 leading-relaxed">
                 Story timeline coming soon
@@ -901,7 +902,7 @@ function StoryPage() {
               }, [] as typeof story.artifacts)
 
               return (
-                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 shadow-sm">
                   <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-4">Sources ({uniqueArtifacts.length})</h3>
                   <div className="space-y-2">
                     {uniqueArtifacts.map((artifact) => (
