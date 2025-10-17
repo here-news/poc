@@ -790,21 +790,21 @@ class Neo4jClient:
         MATCH (e {canonical_id: $canonical_id})
         WHERE (e:Person OR e:Organization OR e:Location)
         WITH e
+        // Support both direct Story→Entity (from synthesis) and Story→Page→Entity (primary)
         MATCH (story:Story)
-        WHERE (story)-[:MENTIONS]->(e)
-           OR (story)-[:MENTIONS_ORG]->(e)
-           OR (story)-[:MENTIONS_LOCATION]->(e)
+        WHERE (story)-[:MENTIONS_ENTITY]->(e)
+           OR (story)-[:HAS_ARTIFACT]->(:Page)-[:MENTIONS_ENTITY]->(e)
         OPTIONAL MATCH (story)-[:HAS_ARTIFACT]->(artifact)
         WHERE artifact:Page OR artifact:Artifact
-        WITH story, e, count(DISTINCT artifact) as artifact_count
+        WITH DISTINCT story, count(DISTINCT artifact) as artifact_count
         RETURN story.id as id,
                coalesce(story.title, story.topic) as title,
                story.gist as description,
                story.content as content,
                story.created_at as created_at,
-               story.updated_at as updated_at,
+               story.last_updated as updated_at,
                artifact_count
-        ORDER BY story.updated_at DESC
+        ORDER BY story.last_updated DESC
         LIMIT 50
         """
 
