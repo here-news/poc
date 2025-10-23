@@ -168,7 +168,12 @@ function EntityLink({ entityName }: { entityName: string }) {
           }
         })
       },
-      { threshold: 0.5, rootMargin: '50px' }
+      {
+        threshold: 0,
+        // Trigger when element is approaching the middle of viewport
+        // Negative top margin means "trigger before it enters viewport"
+        rootMargin: '0px 0px -40% 0px'
+      }
     )
 
     observer.observe(linkRef.current)
