@@ -108,7 +108,7 @@ function renderContentWithEntityLinks(content: string): JSX.Element {
   return <>{parts}</>
 }
 
-// Entity link component with hover tooltip
+// Entity link component with hover tooltip and floating headshot
 function EntityLink({ entityName }: { entityName: string }) {
   const [showTooltip, setShowTooltip] = useState(false)
   const [entityData, setEntityData] = useState<any>(null)
@@ -116,7 +116,10 @@ function EntityLink({ entityName }: { entityName: string }) {
   const [hasBeenTapped, setHasBeenTapped] = useState(false)
   const [tooltipPosition, setTooltipPosition] = useState<'center' | 'left' | 'right'>('center')
   const [tooltipCoords, setTooltipCoords] = useState({ top: 0, left: 0 })
+  const [showHeadshot, setShowHeadshot] = useState(false)
+  const [headshotSide, setHeadshotSide] = useState<'left' | 'right'>('left')
   const linkRef = React.useRef<HTMLAnchorElement>(null)
+  const [hasLoadedHeadshot, setHasLoadedHeadshot] = useState(false)
 
   const fetchEntityData = async () => {
     if (entityData || loading) return entityData
@@ -136,6 +139,46 @@ function EntityLink({ entityName }: { entityName: string }) {
     }
     return null
   }
+
+  // Intersection Observer for lazy loading headshots
+  React.useEffect(() => {
+    if (!linkRef.current || hasLoadedHeadshot) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !hasLoadedHeadshot) {
+            setHasLoadedHeadshot(true)
+
+            // Fetch entity data
+            fetchEntityData().then((data) => {
+              // Only show headshot for people with thumbnails
+              if (data?.entity_type === 'Person' && data?.wikidata_thumbnail) {
+                // Determine left or right based on position in viewport
+                const rect = linkRef.current?.getBoundingClientRect()
+                if (rect) {
+                  const viewportCenter = window.innerWidth / 2
+                  setHeadshotSide(rect.left < viewportCenter ? 'left' : 'right')
+                }
+
+                // Show headshot with slight delay for animation
+                setTimeout(() => setShowHeadshot(true), 100)
+              }
+            })
+          }
+        })
+      },
+      { threshold: 0.5, rootMargin: '50px' }
+    )
+
+    observer.observe(linkRef.current)
+
+    return () => {
+      if (linkRef.current) {
+        observer.unobserve(linkRef.current)
+      }
+    }
+  }, [hasLoadedHeadshot])
 
   const handleMouseEnter = () => {
     if (showTooltip) return // Prevent recalculation if already shown
@@ -319,6 +362,28 @@ function EntityLink({ entityName }: { entityName: string }) {
       >
         {entityName}
       </a>
+
+      {/* Floating headshot */}
+      {showHeadshot && entityData?.wikidata_thumbnail && (
+        <span
+          className={`inline-block align-middle mx-2 transition-all duration-500 ease-out ${
+            showHeadshot ? 'opacity-100 scale-100' : 'opacity-0 scale-0'
+          }`}
+          style={{
+            animation: 'fadeInScale 0.5s ease-out'
+          }}
+        >
+          <img
+            src={entityData.wikidata_thumbnail}
+            alt={entityData.canonical_name || entityName}
+            className="w-16 h-16 rounded-full object-cover border-2 border-blue-300 shadow-lg"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none'
+              setShowHeadshot(false)
+            }}
+          />
+        </span>
+      )}
 
       {showTooltip && (
         <div
@@ -673,6 +738,16 @@ function StoryPage() {
                           margin: 0.1em 0.1em 0 0;
                           font-weight: bold;
                           color: #008080;
+                        }
+                        @keyframes fadeInScale {
+                          from {
+                            opacity: 0;
+                            transform: scale(0.3);
+                          }
+                          to {
+                            opacity: 1;
+                            transform: scale(1);
+                          }
                         }
                       `}</style>
                       <div className="story-content">
