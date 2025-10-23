@@ -3,8 +3,8 @@
 A global real-time living news system with AI-powered content analysis and community-driven story building.
 
 > **Migration notice:** The live extraction/cleaning/entity-resolution pipeline now
-> runs inside the Cloud Run project in `../here-extraction-service` (deployed as
-> `story-engine-here`). This repo focuses on the FastAPI gateway, Firestore task
+> runs inside the Cloud Run project in `../story-engine-here`.
+> This repo focuses on the FastAPI gateway, Firestore task
 > coordination, and the React frontend. The Python modules under `services/` (other
 > than `task_store.py` and `pubsub_publisher.py`) are legacy snapshots kept for
 > reference only.

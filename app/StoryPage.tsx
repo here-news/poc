@@ -677,6 +677,7 @@ function StoryPage() {
                       `}</style>
                       <div className="story-content">
                         {renderContentWithEntityLinks(story.content)}
+                        <span className="text-slate-600 italic"> ── φ HERE.news</span>
                       </div>
                     </div>
                   </div>

@@ -83,12 +83,12 @@
 ## Priority 3: Technical Debt
 
 - [ ] **Add og_metadata to extraction results**
-  - **Location**: `here-extraction-service/services/universal_web_extractor.py`
+  - **Location**: `story-engine-here/services/universal_web_extractor.py`
   - **Action**: Extract Open Graph metadata (og:image, og:title, etc.)
   - **Benefit**: Provides rich preview images for all extractions
 
 - [ ] **Ensure preview_meta is persisted from iFramely stage**
-  - **Location**: `here-extraction-service/main.py:476-480`
+  - **Location**: `story-engine-here/main.py:476-480`
   - **Action**: Verify `task_store.set_preview_meta()` is working correctly
   - **Benefit**: Fast previews available even after full extraction completes
 

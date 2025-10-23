@@ -93,7 +93,7 @@ from services.gcs_persistence import initialize_gcs_persistence
 ### 2. extraction_manager.py _(legacy)_
 
 > Legacy module retained for documentation. The live task coordinator runs in
-> Cloud Run within `here-extraction-service`.
+> Cloud Run within `story-engine-here`.
 
 **Role**: In-memory task state management
 
