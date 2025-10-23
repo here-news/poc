@@ -171,7 +171,7 @@ function EntityLink({ entityName }: { entityName: string }) {
       {
         threshold: 0,
         // Trigger when element is approaching the middle of viewport
-        // Negative top margin means "trigger before it enters viewport"
+        // Negative bottom margin means "trigger before it reaches the bottom"
         rootMargin: '0px 0px -40% 0px'
       }
     )
@@ -371,7 +371,7 @@ function EntityLink({ entityName }: { entityName: string }) {
       {/* Floating headshot */}
       {showHeadshot && entityData?.wikidata_thumbnail && (
         <span
-          className={`inline-block align-middle mx-2 transition-all duration-500 ease-out ${
+          className={`inline-block align-middle mx-1 sm:mx-2 transition-all duration-500 ease-out ${
             showHeadshot ? 'opacity-100 scale-100' : 'opacity-0 scale-0'
           }`}
           style={{
@@ -381,7 +381,7 @@ function EntityLink({ entityName }: { entityName: string }) {
           <img
             src={entityData.wikidata_thumbnail}
             alt={entityData.canonical_name || entityName}
-            className="w-16 h-16 rounded-full object-cover border-2 border-blue-300 shadow-lg"
+            className="w-10 h-10 sm:w-16 sm:h-16 rounded-full object-cover border-2 border-blue-300 shadow-lg"
             onError={(e) => {
               e.currentTarget.style.display = 'none'
               setShowHeadshot(false)
@@ -801,49 +801,6 @@ function StoryPage() {
 
           {/* Sidebar */}
           <aside className="space-y-3 sm:space-y-4 lg:space-y-5 lg:sticky lg:top-8 h-fit">
-            {/* People in Story */}
-            <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 shadow-sm">
-              <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-4">People</h3>
-              {story.entities?.people && story.entities.people.length > 0 ? (
-                <div className="space-y-2">
-                  {story.entities.people.map((person: any, idx: number) => {
-                    const isTopThree = idx < 3
-                    const photoSize = isTopThree ? 'w-16 h-16' : 'w-10 h-10'
-                    const iconSize = isTopThree ? 'text-2xl' : 'text-base'
-
-                    return (
-                      <Link
-                        key={person.id}
-                        to={`/people/${person.id}/${person.name.toLowerCase().replace(/\s+/g, '-')}`}
-                        className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg transition-colors group"
-                      >
-                        {person.thumbnail ? (
-                          <img
-                            src={person.thumbnail}
-                            alt={person.name}
-                            className={`${photoSize} rounded-full object-cover flex-shrink-0 border border-slate-200`}
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none'
-                              e.currentTarget.nextElementSibling?.classList.remove('hidden')
-                            }}
-                          />
-                        ) : null}
-                        <div className={`${photoSize} rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 ${person.thumbnail ? 'hidden' : ''}`}>
-                          <span className={iconSize}>👤</span>
-                        </div>
-                        <span className={`${isTopThree ? 'text-base font-medium' : 'text-sm'} text-slate-900 group-hover:text-blue-600 flex-1`}>{person.name}</span>
-                        <svg className="w-4 h-4 text-slate-400 group-hover:text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </Link>
-                    )
-                  })}
-                </div>
-              ) : (
-                <p className="text-xs text-slate-500">No people mentioned</p>
-              )}
-            </div>
-
             {/* Locations in Story */}
             <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 shadow-sm">
               <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-4">Locations</h3>
