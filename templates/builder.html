@@ -1,0 +1,2732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Builder View | HERE.news</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* HERE.news Brand Colors (from logo) */
+            --primary: #008080;        /* Teal from logo */
+            --primary-dark: #006666;   /* Darker teal */
+            --accent: #1a2f3a;         /* Navy from logo */
+            --accent-light: #3c5663;   /* Lighter navy */
+            --border-color: #e2e8f0;   /* Slate-200 */
+            --bg-light: #f8fafc;       /* Slate-50 */
+            --text-primary: #1e293b;   /* Slate-800 */
+            --text-secondary: #64748b; /* Slate-500 */
+            --success: #10b981;        /* Green-500 */
+            --warning: #f59e0b;        /* Amber-500 */
+            --danger: #ef4444;         /* Red-500 */
+            --info: #3b82f6;           /* Blue-500 */
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-light);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Header */
+        .builder-header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            color: white;
+            padding: 15px 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            flex-shrink: 0;
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        .story-identity {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .story-selector {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            min-width: 200px;
+        }
+
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            background: rgba(255,255,255,0.2);
+        }
+
+        .coherence-display {
+            flex: 1;
+            max-width: 300px;
+        }
+
+        .coherence-bar {
+            background: rgba(255,255,255,0.3);
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 4px;
+        }
+
+        .coherence-fill {
+            background: white;
+            height: 100%;
+            transition: width 0.5s ease;
+        }
+
+        .coherence-text {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        /* Split Container */
+        .split-container {
+            flex: 1;
+            display: flex;
+            gap: 0;
+            overflow: hidden;
+        }
+
+        .left-pane, .right-pane {
+            background: white;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .left-pane {
+            flex: 1;
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .structure-area {
+            flex: 2;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .revision-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            min-height: 200px;
+        }
+
+        .right-pane {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Left Pane Split: Discussion (top 2/3) + Evidence (bottom 1/3) */
+        .discussion-area {
+            flex: 2;
+            display: flex;
+            flex-direction: column;
+            border-bottom: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+
+        .evidence-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 200px;
+            max-height: 300px;
+        }
+
+        /* Pane Headers */
+        .pane-header {
+            padding: 16px 20px;
+            background: #fafafa;
+            border-bottom: 2px solid var(--border-color);
+            font-weight: 600;
+            font-size: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .pane-header .icon {
+            margin-right: 8px;
+        }
+
+        .pane-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        /* Evidence Carousel */
+        .evidence-carousel {
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding: 16px 20px;
+            scroll-behavior: smooth;
+        }
+
+        .evidence-carousel::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        .evidence-carousel::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        .evidence-carousel::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 4px;
+        }
+
+        .evidence-carousel::-webkit-scrollbar-thumb:hover {
+            background: #999;
+        }
+
+        .evidence-card {
+            flex-shrink: 0;
+            width: 240px;
+            background: white;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .evidence-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        }
+
+        .evidence-card.active {
+            border-color: var(--primary);
+            background: #f0f4ff;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .evidence-type-badge {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .evidence-type-badge.url {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .evidence-type-badge.file {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .evidence-type-badge.text {
+            background: #e8f5e9;
+            color: #388e3c;
+        }
+
+        .evidence-card-title {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 8px;
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .evidence-card-meta {
+            font-size: 12px;
+            color: var(--text-secondary);
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .evidence-card-domain {
+            color: var(--primary);
+            font-weight: 500;
+        }
+
+        /* Evidence Detail Header */
+        .evidence-header {
+            background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
+            border-bottom: 2px solid var(--border-color);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .evidence-header-content {
+            display: flex;
+            gap: 16px;
+        }
+
+        .evidence-thumbnail {
+            flex-shrink: 0;
+            width: 120px;
+            height: 120px;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+        }
+
+        .evidence-thumbnail img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .evidence-info {
+            flex: 1;
+        }
+
+        .evidence-title {
+            font-size: 18px;
+            font-weight: 700;
+            line-height: 1.4;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        .evidence-meta {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .evidence-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .evidence-source-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            background: var(--primary);
+            color: white;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .evidence-url {
+            font-size: 12px;
+            color: var(--primary);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .evidence-url:hover {
+            text-decoration: underline;
+        }
+
+        /* Claims from Evidence */
+        .claims-from-evidence {
+            padding: 0 20px 20px;
+        }
+
+        .claims-section-header {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Discussion Thread Styles */
+        .discussion-thread {
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: white;
+            position: relative;
+            padding-left: 48px;
+        }
+
+        .discussion-thread::before {
+            content: '';
+            position: absolute;
+            left: 20px;
+            top: 16px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--primary);
+        }
+
+        .thread-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .thread-author {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .thread-timestamp {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .thread-content {
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+        }
+
+        .thread-actions {
+            display: flex;
+            gap: 12px;
+            font-size: 13px;
+        }
+
+        .thread-action {
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .thread-action:hover {
+            color: var(--primary);
+        }
+
+        /* Builder Collaboration Tools */
+        .builder-tools {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #f0f0f0;
+        }
+
+        .tool-btn {
+            padding: 6px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: white;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.2s;
+        }
+
+        .tool-btn:hover {
+            background: #f8f9fa;
+            transform: translateY(-1px);
+        }
+
+        .tool-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .tool-btn.verify { border-color: #28a745; color: #28a745; }
+        .tool-btn.verify:hover { background: #28a745; color: white; }
+        .tool-btn.verify.active { background: #28a745; border-color: #28a745; }
+
+        .tool-btn.dispute { border-color: #dc3545; color: #dc3545; }
+        .tool-btn.dispute:hover { background: #dc3545; color: white; }
+        .tool-btn.dispute.active { background: #dc3545; border-color: #dc3545; }
+
+        .tool-btn.endorse { border-color: #17a2b8; color: #17a2b8; }
+        .tool-btn.endorse:hover { background: #17a2b8; color: white; }
+        .tool-btn.endorse.active { background: #17a2b8; border-color: #17a2b8; }
+
+        /* Discussion Thread Below Claim */
+        .claim-discussion {
+            margin-top: 12px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            display: none;
+        }
+
+        .claim-discussion.open {
+            display: block;
+        }
+
+        .discussion-comment {
+            padding: 8px 12px;
+            background: white;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            border-left: 3px solid var(--primary);
+        }
+
+        .discussion-comment-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+            font-size: 12px;
+        }
+
+        .discussion-comment-author {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .discussion-comment-time {
+            color: var(--text-secondary);
+        }
+
+        .discussion-comment-text {
+            font-size: 13px;
+            line-height: 1.5;
+            color: var(--text-primary);
+        }
+
+        .discussion-input {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .discussion-input input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        .discussion-input button {
+            padding: 8px 16px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        /* Discovery Pane Styles */
+        .search-box {
+            margin-bottom: 20px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .search-box button {
+            margin-top: 10px;
+            padding: 10px 20px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .search-box button:hover {
+            background: var(--primary-dark);
+        }
+
+        .claim-item {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-left: 3px solid;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        /* Modality-based left border colors matching left pane */
+        .claim-item[data-modality="fact"],
+        .claim-item[data-modality="official_fact"] {
+            border-left-color: #3b82f6;
+        }
+
+        .claim-item[data-modality="reported"],
+        .claim-item[data-modality="reported_claim"] {
+            border-left-color: #8b5cf6;
+        }
+
+        .claim-item[data-modality="opinion"] {
+            border-left-color: #f59e0b;
+        }
+
+        .claim-item[data-modality="allegation"] {
+            border-left-color: #ef4444;
+        }
+
+        .claim-item:hover {
+            border-color: var(--primary);
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+        }
+
+        .claim-item.selected {
+            border-color: var(--primary);
+            background: #f0f4ff;
+        }
+
+        .claim-text {
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 8px;
+        }
+
+        .claim-meta {
+            display: flex;
+            gap: 12px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        /* Modality badge colors matching left pane */
+        .badge.official {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .badge.reported {
+            background: #8b5cf6;
+            color: white;
+        }
+
+        .badge.opinion {
+            background: #f59e0b;
+            color: #333;
+        }
+
+        .badge.allegation {
+            background: #ef4444;
+            color: white;
+        }
+
+        .gap-prompt {
+            background: #fff3cd;
+            border-left: 4px solid var(--warning);
+            padding: 16px;
+            margin-bottom: 16px;
+            border-radius: 6px;
+        }
+
+        .gap-prompt h4 {
+            font-size: 14px;
+            margin-bottom: 8px;
+            color: #856404;
+        }
+
+        .gap-prompt button {
+            margin-top: 8px;
+            padding: 8px 16px;
+            background: var(--warning);
+            color: #333;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        /* Graph Pane Styles */
+        .graph-canvas {
+            min-height: 400px;
+            position: relative;
+        }
+
+        .tree-container {
+            padding: 20px;
+        }
+
+        .tree-node {
+            background: white;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin: 10px auto;
+            max-width: 400px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .tree-node:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .node-story {
+            border-color: var(--primary);
+            background: linear-gradient(135deg, #f0f4ff 0%, #fff 100%);
+        }
+
+        .node-thread {
+            border-color: var(--info);
+        }
+
+        .node-label {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 4px;
+        }
+
+        .claim-count, .coherence-mini {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .tree-children {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .thread-node {
+            margin-left: 40px;
+        }
+
+        .claim-list {
+            margin-left: 60px;
+            margin-top: 10px;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 8px;
+        }
+
+        .claim-node {
+            padding: 10px 12px;
+            background: white;
+            border-left: 3px solid var(--info);
+            margin-bottom: 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .claim-node-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .claim-icon {
+            font-size: 12px;
+        }
+
+        .claim-text {
+            flex: 1;
+            line-height: 1.5;
+        }
+
+        .claim-metadata {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .claim-timestamp {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 6px;
+            background: #f0f4ff;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .claim-entities {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+
+        .entity-tag {
+            padding: 2px 6px;
+            background: #e8f5e9;
+            color: #2e7d32;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .entity-tag.person {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .entity-tag.organization {
+            background: #fff3e0;
+            color: #e65100;
+        }
+
+        .entity-tag.location {
+            background: #fce4ec;
+            color: #c2185b;
+        }
+
+        /* Entity Display with Thumbnails */
+        .page-entities {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .page-entities-header {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .entity-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+        }
+
+        .entity-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            transition: all 0.2s;
+        }
+
+        .entity-card:hover {
+            background: #fff;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+
+        .entity-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+
+        .entity-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .entity-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .entity-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .entity-type-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: capitalize;
+        }
+
+        /* Story Gist */
+        .story-gist {
+            padding: 20px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-bottom: 2px solid var(--border-color);
+            margin-bottom: 10px;
+        }
+
+        .story-gist-text {
+            font-size: 15px;
+            line-height: 1.6;
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        /* Modality Branch Styles - Horizontal Column Layout */
+        .modality-branches-container {
+            display: flex;
+            gap: 8px;
+            padding: 0 8px;
+        }
+
+        .modality-branch {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0; /* Allow flex item to shrink */
+        }
+
+        .modality-header {
+            cursor: pointer;
+            padding: 10px 12px;
+            background: white;
+            border-top: 3px solid;
+            margin: 0;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            align-items: center;
+            text-align: center;
+            border-radius: 6px 6px 0 0;
+        }
+
+        .modality-header:hover {
+            background: #f8f9fa;
+        }
+
+        .modality-header.fact {
+            border-top-color: #3b82f6;
+        }
+
+        .modality-header.opinion {
+            border-top-color: #f59e0b;
+        }
+
+        .modality-header.allegation {
+            border-top-color: #ef4444;
+        }
+
+        .modality-header.reported {
+            border-top-color: #8b5cf6;
+        }
+
+        .modality-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .modality-count {
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-weight: normal;
+        }
+
+        .modality-claims {
+            display: block;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-top: none;
+            border-radius: 0 0 6px 6px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .modality-claims.collapsed {
+            display: none;
+        }
+
+        /* Revision History */
+        .revision-timeline {
+            padding: 16px;
+        }
+
+        .revision-item {
+            display: flex;
+            gap: 12px;
+            padding: 12px;
+            border-left: 3px solid #e5e7eb;
+            margin-bottom: 12px;
+            position: relative;
+        }
+
+        .revision-item::before {
+            content: '';
+            position: absolute;
+            left: -6px;
+            top: 16px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--primary);
+        }
+
+        .revision-item.current::before {
+            background: #10b981;
+            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2);
+        }
+
+        .revision-icon {
+            font-size: 20px;
+        }
+
+        .revision-content {
+            flex: 1;
+        }
+
+        .revision-title {
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 4px;
+        }
+
+        .revision-meta {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .uncommitted-claims {
+            padding: 16px;
+            background: #fffbeb;
+            border-top: 2px solid #fbbf24;
+        }
+
+        .uncommitted-title {
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 12px;
+            color: #92400e;
+        }
+
+        .uncommitted-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .uncommitted-claim {
+            padding: 8px;
+            background: white;
+            border-radius: 4px;
+            font-size: 12px;
+            border-left: 3px solid #fbbf24;
+        }
+
+        .commit-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-commit {
+            flex: 1;
+            padding: 10px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-commit:hover {
+            background: #1d4ed8;
+        }
+
+        .btn-build {
+            flex: 1;
+            padding: 10px;
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-build:hover {
+            background: #059669;
+        }
+
+        /* Inline Entity Highlighting */
+        .entity-highlight {
+            background: none;
+            padding: 1px 3px;
+            border-radius: 3px;
+            font-weight: 600;
+            cursor: help;
+            border-bottom: 2px solid;
+        }
+
+        .entity-highlight.person {
+            color: #2563eb;
+            border-bottom-color: #2563eb;
+        }
+
+        .entity-highlight.organization,
+        .entity-highlight.mediasource {
+            color: #7c3aed;
+            border-bottom-color: #7c3aed;
+        }
+
+        .entity-highlight.location {
+            color: #059669;
+            border-bottom-color: #059669;
+        }
+
+        .entity-highlight:hover {
+            background: rgba(0, 0, 0, 0.05);
+        }
+
+        /* Loading States */
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state .icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn-primary {
+            padding: 10px 20px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-secondary {
+            padding: 10px 20px;
+            background: white;
+            color: var(--primary);
+            border: 2px solid var(--primary);
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-secondary:hover {
+            background: #f0f4ff;
+        }
+
+        /* Add Evidence Header Button */
+        .add-evidence-header-btn {
+            padding: 6px 14px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .add-evidence-header-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 8px rgba(102, 126, 234, 0.4);
+        }
+
+        /* Add Evidence Panel */
+        .add-evidence-panel {
+            position: fixed;
+            top: 0;
+            right: -450px;
+            width: 450px;
+            height: 100vh;
+            background: white;
+            box-shadow: -4px 0 20px rgba(0,0,0,0.2);
+            transition: right 0.4s ease;
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .add-evidence-panel.open {
+            right: 0;
+        }
+
+        .panel-header {
+            padding: 20px 24px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-header h2 {
+            font-size: 20px;
+            margin: 0;
+        }
+
+        .panel-close-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 28px;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            line-height: 32px;
+            text-align: center;
+        }
+
+        .panel-tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .panel-tab {
+            flex: 1;
+            padding: 14px;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: var(--text-secondary);
+        }
+
+        .panel-tab:hover {
+            background: #fff;
+        }
+
+        .panel-tab.active {
+            background: white;
+            border-bottom-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .panel-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .form-group input[type="url"],
+        .form-group input[type="text"],
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .form-group textarea {
+            min-height: 150px;
+            resize: vertical;
+        }
+
+        .form-help {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 6px;
+        }
+
+        .file-upload-area {
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .file-upload-area:hover {
+            border-color: var(--primary);
+            background: #f8f9fa;
+        }
+
+        .file-upload-area.drag-over {
+            border-color: var(--primary);
+            background: #f0f4ff;
+        }
+
+        .file-upload-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .split-container {
+                flex-direction: column;
+            }
+
+            .left-pane {
+                border-right: none;
+                border-bottom: 1px solid var(--border-color);
+                max-height: 50vh;
+            }
+
+            .discussion-area {
+                min-height: 200px;
+            }
+
+            .evidence-area {
+                min-height: 150px;
+            }
+
+            .evidence-card {
+                width: 200px;
+            }
+
+            .thread-node {
+                margin-left: 20px;
+            }
+
+            .claim-list {
+                margin-left: 30px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .coherence-display {
+                max-width: 100%;
+            }
+
+            .evidence-card {
+                width: 180px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="builder-header">
+        <div class="header-content">
+            <div class="story-identity">
+                <a href="/" style="color: white; text-decoration: none; font-weight: 700; font-size: 16px; margin-right: 16px; display: flex; align-items: center; gap: 8px;">
+                    <span style="background: white; color: var(--primary); padding: 4px 8px; border-radius: 4px;">HERE</span>
+                    <span style="font-size: 14px; opacity: 0.9;">Builder</span>
+                </a>
+                <select id="storySelector" class="story-selector" onchange="switchStory()">
+                    <option value="">Loading stories...</option>
+                </select>
+                <span class="status-badge" id="statusBadge">
+                    🌿 Growing
+                </span>
+            </div>
+
+            <div class="coherence-display">
+                <div class="coherence-bar">
+                    <div class="coherence-fill" id="coherenceFill" style="width: 0%"></div>
+                </div>
+                <span class="coherence-text" id="coherenceText">Loading...</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Split Container -->
+    <div class="split-container">
+        <!-- Left Pane: Structure + Revision History -->
+        <div class="left-pane">
+            <!-- Structure Area (top 2/3) -->
+            <div class="structure-area">
+                <div class="pane-header">
+                    <span><span class="icon">🌳</span> Story Structure</span>
+                    <span id="claimTypeCount" style="font-size: 13px; font-weight: normal; color: #666;">Loading...</span>
+                </div>
+                <div class="pane-content">
+                    <div id="graphCanvas">
+                        <div class="empty-state">
+                            <div class="icon">🗂️</div>
+                            <p>Story structure will appear here</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Revision History Area (bottom 1/3) -->
+            <div class="revision-area">
+                <div class="pane-header">
+                    <span><span class="icon">📜</span> Story Revisions</span>
+                    <span style="font-size: 13px; font-weight: normal; color: #666;">v0.3 (draft)</span>
+                </div>
+                <div class="pane-content" id="revisionContent">
+                    <!-- Uncommitted claims section -->
+                    <div class="uncommitted-claims">
+                        <div class="uncommitted-title">⚠️ Uncommitted Changes (3)</div>
+                        <div class="uncommitted-list">
+                            <div class="uncommitted-claim">
+                                New claim about Connolly's policy platform (pending verification)
+                            </div>
+                            <div class="uncommitted-claim">
+                                Updated vote count: 63.2% → 63.4% (source: Irish Times)
+                            </div>
+                            <div class="uncommitted-claim">
+                                Added context: comparison with previous elections
+                            </div>
+                        </div>
+                        <div class="commit-actions">
+                            <button class="btn-commit" onclick="voteToCommit()">
+                                <span>🗳️</span> Vote to Commit
+                            </button>
+                            <button class="btn-build" onclick="buildNewStory()">
+                                <span>🔨</span> Build v0.4
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Revision timeline -->
+                    <div class="revision-timeline">
+                        <div class="revision-item current">
+                            <div class="revision-icon">✨</div>
+                            <div class="revision-content">
+                                <div class="revision-title">v0.3 (Current Draft)</div>
+                                <div class="revision-meta">23 claims • 5 sources • Updated 2 hours ago</div>
+                            </div>
+                        </div>
+                        <div class="revision-item">
+                            <div class="revision-icon">📝</div>
+                            <div class="revision-content">
+                                <div class="revision-title">v0.2 (Published)</div>
+                                <div class="revision-meta">20 claims • 4 sources • Oct 26, 3:42 PM</div>
+                            </div>
+                        </div>
+                        <div class="revision-item">
+                            <div class="revision-icon">🌱</div>
+                            <div class="revision-content">
+                                <div class="revision-title">v0.1 (Initial)</div>
+                                <div class="revision-meta">15 claims • 3 sources • Oct 26, 2:42 PM</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Pane: Discussion + Evidence -->
+        <div class="right-pane">
+            <!-- Discussion Area (2/3) -->
+            <div class="discussion-area">
+                <div class="pane-header">
+                    <span><span class="icon">💬</span> Discussion</span>
+                    <span id="discussionCount" style="font-size: 13px; font-weight: normal; color: #666;">Select evidence to view</span>
+                </div>
+                <div class="pane-content" id="discussionContent">
+                    <div class="empty-state">
+                        <div class="icon">💭</div>
+                        <p>Click on evidence below to see discussions</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Evidence Carousel (1/3) -->
+            <div class="evidence-area">
+                <div class="pane-header">
+                    <span><span class="icon">📎</span> Evidence</span>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <span id="evidenceCount" style="font-size: 13px; font-weight: normal; color: #666;">0 sources</span>
+                        <button class="add-evidence-header-btn" onclick="toggleEvidencePanel()" title="Add Evidence">
+                            ➕ Add
+                        </button>
+                    </div>
+                </div>
+                <div class="evidence-carousel" id="evidenceCarousel">
+                    <div class="empty-state">
+                        <p>Loading evidence...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Evidence Panel -->
+    <div class="add-evidence-panel" id="evidencePanel">
+        <div class="panel-header">
+            <h2>➕ Add Evidence</h2>
+            <button class="panel-close-btn" onclick="toggleEvidencePanel()">×</button>
+        </div>
+
+        <div class="panel-tabs">
+            <button class="panel-tab active" onclick="switchEvidenceTab('url')">
+                🔗 URL
+            </button>
+            <button class="panel-tab" onclick="switchEvidenceTab('text')">
+                📝 Text
+            </button>
+            <button class="panel-tab" onclick="switchEvidenceTab('file')">
+                📎 Upload
+            </button>
+        </div>
+
+        <div class="panel-body">
+            <!-- URL Tab -->
+            <div class="tab-content active" id="tab-url">
+                <div class="form-group">
+                    <label for="evidenceUrl">Article URL</label>
+                    <input type="url"
+                           id="evidenceUrl"
+                           placeholder="https://example.com/article"
+                           required>
+                    <div class="form-help">Enter a URL to a news article, blog post, or document</div>
+                </div>
+                <button class="submit-btn" onclick="submitUrlEvidence()">
+                    Extract Claims from URL
+                </button>
+            </div>
+
+            <!-- Text Tab -->
+            <div class="tab-content" id="tab-text">
+                <div class="form-group">
+                    <label for="evidenceText">Text Content</label>
+                    <textarea id="evidenceText"
+                              placeholder="Paste article text or manually enter claims..."
+                              required></textarea>
+                    <div class="form-help">Paste article content or write claims manually</div>
+                </div>
+                <div class="form-group">
+                    <label for="evidenceTextSource">Source (optional)</label>
+                    <input type="text"
+                           id="evidenceTextSource"
+                           placeholder="Source name or URL">
+                    <div class="form-help">Where did this text come from?</div>
+                </div>
+                <button class="submit-btn" onclick="submitTextEvidence()">
+                    Add Text Evidence
+                </button>
+            </div>
+
+            <!-- Upload Tab -->
+            <div class="tab-content" id="tab-file">
+                <div class="form-group">
+                    <label>Upload Document</label>
+                    <div class="file-upload-area"
+                         id="fileUploadArea"
+                         onclick="document.getElementById('fileInput').click()">
+                        <div class="file-upload-icon">📄</div>
+                        <div><strong>Click to upload</strong> or drag and drop</div>
+                        <div class="form-help" style="margin-top: 12px;">
+                            PDF, DOCX, TXT, or image files (max 10MB)
+                        </div>
+                    </div>
+                    <input type="file"
+                           id="fileInput"
+                           accept=".pdf,.docx,.txt,.jpg,.jpeg,.png"
+                           style="display: none;"
+                           onchange="handleFileSelect(event)">
+                </div>
+                <div id="filePreview" style="margin-bottom: 20px;"></div>
+                <button class="submit-btn"
+                        id="uploadSubmitBtn"
+                        onclick="submitFileEvidence()"
+                        disabled>
+                    Upload & Extract Claims
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global State
+        let currentStory = null;
+        let availableStories = [];
+        let selectedClaims = new Set();
+        let storyThreads = [];
+        let currentEvidence = null;
+        let evidenceSources = [];
+
+        // Initialize
+        async function init() {
+            await loadAvailableStories();
+
+            // Check URL for story ID - first try path parameter (/build/{story_id}), then query param (?story=XXX)
+            let storyId = null;
+
+            // Extract from path: /build/{story_id}
+            const pathMatch = window.location.pathname.match(/\/build\/([a-f0-9-]+)/i);
+            if (pathMatch) {
+                storyId = pathMatch[1];
+            } else {
+                // Fallback to query parameter
+                const urlParams = new URLSearchParams(window.location.search);
+                storyId = urlParams.get('story');
+            }
+
+            if (storyId) {
+                document.getElementById('storySelector').value = storyId;
+                await loadStoryById(storyId);
+            } else if (availableStories.length > 0) {
+                document.getElementById('storySelector').value = availableStories[0].id;
+                await loadStoryById(availableStories[0].id);
+            }
+        }
+
+        // Load Available Stories
+        async function loadAvailableStories() {
+            try {
+                const response = await fetch('/api/builder/stories');
+                const data = await response.json();
+
+                availableStories = data.stories || [];
+
+                const selector = document.getElementById('storySelector');
+                selector.innerHTML = availableStories.map(story =>
+                    `<option value="${story.id}">${story.topic || story.gist || story.id} (${Math.round(story.coherence * 100)}%)</option>`
+                ).join('');
+
+                return availableStories;
+            } catch (error) {
+                console.error('Error loading story list:', error);
+                return [];
+            }
+        }
+
+        // Switch Story
+        async function switchStory() {
+            const selector = document.getElementById('storySelector');
+            const storyId = selector.value;
+
+            if (storyId) {
+                const url = new URL(window.location);
+                url.searchParams.set('story', storyId);
+                window.history.pushState({}, '', url);
+
+                await loadStoryById(storyId);
+            }
+        }
+
+        // Load Story By ID
+        async function loadStoryById(storyId) {
+            try {
+                const response = await fetch(`/api/builder/story/${storyId}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                // Store story data globally - make sure claims is accessible
+                currentStory = {
+                    ...data,
+                    story: data.story || data,
+                    claims: data.claims || [],
+                    sources: data.sources || [],
+                    threads: data.threads || [],
+                    page_entities: data.page_entities || {}
+                };
+
+                storyThreads = currentStory.threads;
+                evidenceSources = currentStory.sources;
+
+                console.log('Story loaded:', currentStory);
+                console.log('Loaded sources:', currentStory.sources.length);
+                console.log('Loaded claims:', currentStory.claims.length);
+                console.log('Sample claim:', currentStory.claims[0]);
+
+                // Update header
+                updateHeader(data);
+
+                // Update graph
+                renderStoryGraph(data);
+
+                // Render evidence cards
+                renderEvidenceCarousel(currentStory.sources, currentStory.claims);
+
+                // If we have sources, auto-select the first one to show example
+                if (currentStory.sources.length > 0 && currentStory.claims.length > 0) {
+                    setTimeout(() => {
+                        selectEvidence(currentStory.sources[0].url, document.getElementById('evidence-0'));
+                    }, 100);
+                } else {
+                    // Clear discussion area
+                    renderDiscussionEmpty();
+                }
+
+            } catch (error) {
+                console.error('Error loading story:', error);
+                showError('Failed to load story data');
+            }
+        }
+
+        // Update Header
+        function updateHeader(data) {
+            const story = data.story || data;
+            const coherence = story.coherence_score || 0;
+            const targetTranche = calculateNextTranche(coherence);
+
+            // Update coherence bar
+            document.getElementById('coherenceFill').style.width = (coherence * 100) + '%';
+            document.getElementById('coherenceText').textContent =
+                `${Math.round(coherence * 100)}% → ${Math.round(targetTranche * 100)}% (Next tranche)`;
+
+            // Update status badge
+            const badge = document.getElementById('statusBadge');
+            if (coherence < 0.4) {
+                badge.className = 'status-badge';
+                badge.innerHTML = '🌱 Emerging';
+                badge.style.background = 'rgba(255, 193, 7, 0.3)';
+            } else if (coherence < 0.7) {
+                badge.className = 'status-badge';
+                badge.innerHTML = '🌿 Growing';
+                badge.style.background = 'rgba(40, 167, 69, 0.3)';
+            } else {
+                badge.className = 'status-badge';
+                badge.innerHTML = '🌳 Mature';
+                badge.style.background = 'rgba(23, 162, 184, 0.3)';
+            }
+        }
+
+        // Render Evidence Carousel
+        function renderEvidenceCarousel(sources, claims) {
+            const carousel = document.getElementById('evidenceCarousel');
+            const countElem = document.getElementById('evidenceCount');
+
+            console.log('renderEvidenceCarousel called');
+            console.log('Sources:', sources);
+            console.log('Claims sample:', claims[0]);
+
+            if (!sources || sources.length === 0) {
+                carousel.innerHTML = `
+                    <div class="empty-state">
+                        <p>No evidence sources yet</p>
+                    </div>
+                `;
+                countElem.textContent = '0 sources';
+                return;
+            }
+
+            countElem.textContent = `${sources.length} sources`;
+
+            // Group claims by source URL
+            const claimsBySource = {};
+            claims.forEach(claim => {
+                // Check different possible source structures
+                const sourceUrl = claim.source?.url || claim.sourceUrl || claim.page_url;
+                if (sourceUrl) {
+                    if (!claimsBySource[sourceUrl]) {
+                        claimsBySource[sourceUrl] = [];
+                    }
+                    claimsBySource[sourceUrl].push(claim);
+                }
+            });
+
+            console.log('Claims grouped by source:', claimsBySource);
+            console.log('Number of sources with claims:', Object.keys(claimsBySource).length);
+
+            carousel.innerHTML = sources.map((source, index) => {
+                const sourceUrl = source.url || '';
+                const domain = source.site || source.domain || (sourceUrl ? new URL(sourceUrl).hostname : 'unknown');
+                const title = source.title || source.gist || 'Untitled';
+                const claimCount = claimsBySource[sourceUrl]?.length || 0;
+                const type = 'url'; // Could be 'file' or 'text' for other types
+
+                console.log(`Source ${index}: ${title}, URL: ${sourceUrl}, Claims: ${claimCount}`);
+
+                return `
+                    <div class="evidence-card" onclick="selectEvidence('${sourceUrl.replace(/'/g, "\\'")}', this)" data-source-url="${sourceUrl}" id="evidence-${index}">
+                        <div class="evidence-type-badge ${type}">${type}</div>
+                        <div class="evidence-card-title">${title}</div>
+                        <div class="evidence-card-meta">
+                            <span class="evidence-card-domain">${domain}</span>
+                            <span>${claimCount} claims</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Select Evidence
+        function selectEvidence(sourceUrl, element) {
+            console.log('Selecting evidence:', sourceUrl);
+            console.log('Current story:', currentStory);
+
+            if (!currentStory || !currentStory.claims) {
+                console.error('No story data or claims available');
+                return;
+            }
+
+            currentEvidence = sourceUrl;
+
+            // Update active state on cards
+            document.querySelectorAll('.evidence-card').forEach(card => {
+                card.classList.remove('active');
+            });
+
+            // Find the clicked card
+            const clickedCard = element || document.querySelector(`[data-source-url="${sourceUrl}"]`);
+            if (clickedCard) {
+                const card = clickedCard.classList.contains('evidence-card') ?
+                    clickedCard : clickedCard.closest('.evidence-card');
+                if (card) card.classList.add('active');
+            }
+
+            // Get claims for this source - check multiple possible structures
+            const allClaims = currentStory.claims || [];
+            const claims = allClaims.filter(c => {
+                const claimSourceUrl = c.source?.url || c.sourceUrl || c.page_url;
+                return claimSourceUrl === sourceUrl;
+            });
+
+            console.log('All claims count:', allClaims.length);
+            console.log('Found claims for this source:', claims.length);
+            console.log('Sample filtered claim:', claims[0]);
+
+            // Render discussion
+            renderDiscussion(sourceUrl, claims);
+        }
+
+        // Render Discussion
+        function renderDiscussion(sourceUrl, claims) {
+            console.log('Rendering discussion for:', sourceUrl);
+            console.log('Claims to render:', claims);
+
+            const container = document.getElementById('discussionContent');
+            const countElem = document.getElementById('discussionCount');
+
+            if (!container) {
+                console.error('Discussion container not found!');
+                return;
+            }
+
+            const source = evidenceSources.find(s => s.url === sourceUrl);
+            const sourceTitle = source?.title || source?.gist || 'Unknown Source';
+            const sourceDomain = source?.domain || source?.site || (sourceUrl ? new URL(sourceUrl).hostname : 'unknown');
+            const publishedAt = source?.published_at;
+
+            // Debug logging for metadata
+            console.log('=== EVIDENCE METADATA DEBUG ===');
+            console.log('Full source object:', JSON.stringify(source, null, 2));
+            console.log('Title:', source?.title);
+            console.log('Domain:', source?.domain);
+            console.log('Site:', source?.site);
+            console.log('Image URL:', source?.image_url);
+            console.log('Author:', source?.author);
+            console.log('Published:', source?.published_at);
+            console.log('Description:', source?.description);
+            console.log('Gist:', source?.gist);
+            console.log('==============================');
+
+            countElem.textContent = `${claims.length} claims extracted`;
+
+            if (!claims || claims.length === 0) {
+                container.innerHTML = `
+                    <div class="evidence-header">
+                        <div class="evidence-header-content">
+                            <div class="evidence-thumbnail">
+                                ${source?.image_url ?
+                                    `<img src="${source.image_url}" alt="${sourceTitle}" onerror="this.parentElement.innerHTML='📄'"/>` :
+                                    '📄'
+                                }
+                            </div>
+                            <div class="evidence-info">
+                                <div class="evidence-title">${sourceTitle}</div>
+                                <div class="evidence-meta">
+                                    <span class="evidence-source-badge">🌐 ${sourceDomain}</span>
+                                    ${publishedAt ? `<span class="evidence-meta-item">📅 ${formatDate(publishedAt)}</span>` : ''}
+                                    ${source?.author ? `<span class="evidence-meta-item">✍️ ${source.author}</span>` : ''}
+                                </div>
+                                <a href="${sourceUrl}" target="_blank" class="evidence-url">
+                                    🔗 View original source →
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="claims-from-evidence">
+                        <div class="empty-state">
+                            <div class="icon">💭</div>
+                            <p>No claims extracted from this source yet</p>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            // Get entities for this page
+            const pageEntities = currentStory.page_entities?.[sourceUrl] || [];
+            console.log('Page entities:', pageEntities);
+
+            // Render evidence header with metadata
+            let html = `
+                <div class="evidence-header">
+                    <div class="evidence-header-content">
+                        <div class="evidence-thumbnail">
+                            ${source?.image_url ?
+                                `<img src="${source.image_url}" alt="${sourceTitle}" onerror="this.parentElement.innerHTML='📰'"/>` :
+                                '📰'
+                            }
+                        </div>
+                        <div class="evidence-info">
+                            <div class="evidence-title">${sourceTitle}</div>
+                            <div class="evidence-meta">
+                                <span class="evidence-source-badge">🌐 ${sourceDomain}</span>
+                                ${publishedAt ? `<span class="evidence-meta-item">📅 ${formatDate(publishedAt)}</span>` : ''}
+                                ${source?.author ? `<span class="evidence-meta-item">✍️ ${source.author}</span>` : ''}
+                                <span class="evidence-meta-item">📊 ${claims.length} claims extracted</span>
+                            </div>
+                            <a href="${sourceUrl}" target="_blank" class="evidence-url">
+                                🔗 View original article →
+                            </a>
+                        </div>
+                    </div>
+                    ${pageEntities.length > 0 ? `
+                        <div class="page-entities">
+                            <div class="page-entities-header">Mentioned in this article</div>
+                            <div class="entity-grid">
+                                ${pageEntities.filter(entity => entity.canonical_name).slice(0, 12).map(entity => {
+                                    const type = entity.type || 'Entity';
+                                    const icon = type === 'Person' ? '👤' :
+                                                type === 'Organization' || type === 'MediaSource' ? '🏢' :
+                                                type === 'Location' ? '📍' : '🏷️';
+
+                                    return `
+                                        <div class="entity-card">
+                                            <div class="entity-avatar">
+                                                ${entity.wikidata_thumbnail ?
+                                                    `<img src="${entity.wikidata_thumbnail}" alt="${entity.canonical_name}" onerror="this.parentElement.innerHTML='${icon}'"/>` :
+                                                    icon
+                                                }
+                                            </div>
+                                            <div class="entity-info">
+                                                <div class="entity-name" title="${entity.canonical_name}">${entity.canonical_name}</div>
+                                                <div class="entity-type-label">${type}${entity.role ? ` • ${entity.role}` : ''}</div>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+                <div class="claims-from-evidence">
+                    <div class="claims-section-header">Claims extracted from this source</div>
+            `;
+
+            // Render claims
+            html += claims.map((claim, index) => {
+                const modality = claim.modality || 'claim';
+                const badgeClass = modality === 'official_fact' || modality === 'fact' ? 'official' :
+                                   modality === 'opinion' ? 'opinion' : 'reported';
+
+                // Extract entities from the claim
+                let entities = claim.entities || [];
+                console.log(`Claim ${index} entities:`, entities);
+
+                const entityTags = entities.slice(0, 5).filter(entity => entity.canonical_name).map(entity => {
+                    const type = entity.type?.toLowerCase() || 'entity';
+                    const icon = type === 'person' ? '👤' :
+                                type === 'organization' ? '🏢' :
+                                type === 'location' ? '📍' : '🏷️';
+                    return `<span class="entity-tag ${type}">${icon} ${entity.canonical_name}</span>`;
+                }).join('');
+
+                const moreEntities = entities.length > 5 ?
+                    `<span class="entity-tag">+${entities.length - 5} more</span>` : '';
+
+                // Mock discussion data for demonstration
+                const hasDiscussion = index < 2; // First two claims have discussions
+                const discussionCount = index === 0 ? 3 : index === 1 ? 1 : 0;
+
+                // Temporal info
+                const eventTime = claim.event_time || claim.created_at;
+                const timeDisplay = formatDate(eventTime);
+
+                return `
+                    <div class="discussion-thread" id="claim-${claim.id}">
+                        <div class="thread-header">
+                            <div class="thread-author">
+                                <span class="badge ${badgeClass}">${modality}</span>
+                            </div>
+                            <div class="thread-timestamp">🕐 ${timeDisplay}</div>
+                        </div>
+                        <div class="thread-content">
+                            ${claim.text || 'No text available'}
+                        </div>
+                        ${entities.length > 0 ? `
+                        <div class="claim-entities" style="margin-top: 8px;">
+                            ${entityTags}
+                            ${moreEntities}
+                        </div>
+                        ` : ''}
+
+                        <!-- Builder Collaboration Tools -->
+                        <div class="builder-tools">
+                            <button class="tool-btn verify" onclick="toggleVerify('${claim.id}', this)">
+                                ✓ Verify
+                            </button>
+                            <button class="tool-btn dispute" onclick="toggleDispute('${claim.id}', this)">
+                                ⚠ Dispute
+                            </button>
+                            <button class="tool-btn endorse" onclick="toggleEndorse('${claim.id}', this)">
+                                ⭐ Endorse
+                            </button>
+                            <button class="tool-btn" onclick="toggleDiscussion('${claim.id}')">
+                                💬 Discuss ${discussionCount > 0 ? '(' + discussionCount + ')' : ''}
+                            </button>
+                            <button class="tool-btn" onclick="addToThread('${claim.id}')">
+                                ➕ Add to thread
+                            </button>
+                        </div>
+
+                        <!-- Discussion Thread (collapsible) -->
+                        <div class="claim-discussion" id="discussion-${claim.id}">
+                            ${hasDiscussion ? `
+                                ${index === 0 ? `
+                                    <div class="discussion-comment">
+                                        <div class="discussion-comment-header">
+                                            <span class="discussion-comment-author">Sarah M.</span>
+                                            <span class="discussion-comment-time">2 hours ago</span>
+                                        </div>
+                                        <div class="discussion-comment-text">
+                                            I can verify this - multiple reputable sources confirm the 63% figure.
+                                        </div>
+                                    </div>
+                                    <div class="discussion-comment">
+                                        <div class="discussion-comment-header">
+                                            <span class="discussion-comment-author">Tom K.</span>
+                                            <span class="discussion-comment-time">1 hour ago</span>
+                                        </div>
+                                        <div class="discussion-comment-text">
+                                            Added official government press release to sources. This is confirmed.
+                                        </div>
+                                    </div>
+                                    <div class="discussion-comment">
+                                        <div class="discussion-comment-header">
+                                            <span class="discussion-comment-author">Lisa R.</span>
+                                            <span class="discussion-comment-time">30 minutes ago</span>
+                                        </div>
+                                        <div class="discussion-comment-text">
+                                            Should we also mention the runner-up's percentage for context?
+                                        </div>
+                                    </div>
+                                ` : `
+                                    <div class="discussion-comment">
+                                        <div class="discussion-comment-header">
+                                            <span class="discussion-comment-author">John D.</span>
+                                            <span class="discussion-comment-time">3 hours ago</span>
+                                        </div>
+                                        <div class="discussion-comment-text">
+                                            This needs more specific sourcing. Which left-wing parties exactly?
+                                        </div>
+                                    </div>
+                                `}
+                            ` : ''}
+                            <div class="discussion-input">
+                                <input type="text" placeholder="Add your comment..." />
+                                <button onclick="addComment('${claim.id}')">Post</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            html += '</div>'; // Close claims-from-evidence
+
+            container.innerHTML = html;
+
+            console.log('Discussion rendered successfully');
+        }
+
+        // Render Discussion Empty State
+        function renderDiscussionEmpty() {
+            const container = document.getElementById('discussionContent');
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="icon">💭</div>
+                    <p>Click on evidence below to see discussions</p>
+                </div>
+            `;
+            document.getElementById('discussionCount').textContent = 'Select evidence to view';
+        }
+
+        // Helper: Format Date
+        function formatDate(dateStr) {
+            if (!dateStr) return 'Unknown date';
+
+            // If it's already a formatted string (like "October 8, 2025, 8:56 PM ET")
+            // just return it as-is
+            if (typeof dateStr === 'string' && dateStr.includes(',') && !dateStr.includes('T')) {
+                return dateStr;
+            }
+
+            // Try to parse as ISO date
+            try {
+                const date = new Date(dateStr);
+                if (isNaN(date.getTime())) {
+                    return dateStr; // Return as-is if can't parse
+                }
+
+                const now = new Date();
+                const diff = now - date;
+                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+                if (days === 0) return 'Today';
+                if (days === 1) return 'Yesterday';
+                if (days < 7) return `${days} days ago`;
+                return date.toLocaleDateString();
+            } catch (e) {
+                return dateStr; // Return as-is if parsing fails
+            }
+        }
+
+        // Helper: Format Claim Time (more compact for graphs)
+        function formatClaimTime(dateStr) {
+            if (!dateStr) return null;
+            try {
+                const date = new Date(dateStr);
+                const now = new Date();
+                const diff = now - date;
+                const hours = Math.floor(diff / (1000 * 60 * 60));
+                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+                if (hours < 1) return 'Just now';
+                if (hours < 24) return `${hours}h ago`;
+                if (days < 7) return `${days}d ago`;
+                if (days < 30) return `${Math.floor(days / 7)}w ago`;
+
+                // For older dates, show actual date
+                const month = date.toLocaleDateString('en-US', { month: 'short' });
+                const day = date.getDate();
+                const year = date.getFullYear();
+                const currentYear = now.getFullYear();
+
+                if (year === currentYear) {
+                    return `${month} ${day}`;
+                }
+                return `${month} ${day}, ${year}`;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // Add to Thread (placeholder)
+        function addToThread(claimId) {
+            alert(`Adding claim ${claimId} to thread - functionality coming soon`);
+        }
+
+        // View Entities (placeholder)
+        function viewEntities(claimId) {
+            const claim = currentStory.claims.find(c => c.id === claimId);
+            if (claim && claim.entities) {
+                const entityList = claim.entities.map(e =>
+                    `${e.canonical_name} (${e.type})`
+                ).join('\n');
+                alert(`Entities:\n${entityList || 'None'}`);
+            }
+        }
+
+        // Builder Collaboration Functions
+        function toggleVerify(claimId, button) {
+            button.classList.toggle('active');
+            if (button.classList.contains('active')) {
+                console.log(`Verified claim: ${claimId}`);
+                // In production: POST /api/claim/${claimId}/verify
+            }
+        }
+
+        function toggleDispute(claimId, button) {
+            button.classList.toggle('active');
+            if (button.classList.contains('active')) {
+                console.log(`Disputed claim: ${claimId}`);
+                // In production: POST /api/claim/${claimId}/dispute
+            }
+        }
+
+        function toggleEndorse(claimId, button) {
+            button.classList.toggle('active');
+            if (button.classList.contains('active')) {
+                console.log(`Endorsed claim: ${claimId}`);
+                // In production: POST /api/claim/${claimId}/endorse
+            }
+        }
+
+        function toggleDiscussion(claimId) {
+            const discussion = document.getElementById(`discussion-${claimId}`);
+            if (discussion) {
+                discussion.classList.toggle('open');
+            }
+        }
+
+        function addComment(claimId) {
+            const discussionElem = document.getElementById(`discussion-${claimId}`);
+            const input = discussionElem.querySelector('input');
+            const commentText = input.value.trim();
+
+            if (!commentText) {
+                return;
+            }
+
+            // Create new comment element
+            const newComment = document.createElement('div');
+            newComment.className = 'discussion-comment';
+            newComment.innerHTML = `
+                <div class="discussion-comment-header">
+                    <span class="discussion-comment-author">You</span>
+                    <span class="discussion-comment-time">Just now</span>
+                </div>
+                <div class="discussion-comment-text">
+                    ${commentText}
+                </div>
+            `;
+
+            // Insert before the input
+            const inputDiv = discussionElem.querySelector('.discussion-input');
+            discussionElem.insertBefore(newComment, inputDiv);
+
+            // Clear input
+            input.value = '';
+
+            console.log(`Added comment to claim ${claimId}: ${commentText}`);
+            // In production: POST /api/claim/${claimId}/comment
+        }
+
+        // Render Story Graph
+        function renderStoryGraph(data) {
+            const canvas = document.getElementById('graphCanvas');
+            const story = data.story || data;
+            const claims = data.claims || [];
+
+            if (claims.length === 0) {
+                canvas.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">🗂️</div>
+                        <p>No claims yet. Add evidence to build structure.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Group claims by modality
+            const claimsByModality = {
+                fact: [],
+                opinion: [],
+                allegation: [],
+                reported: []
+            };
+
+            claims.forEach(claim => {
+                // Normalize modality to our 4 categories
+                let modality = (claim.modality || 'fact').toLowerCase();
+
+                // Map various modality values to our standard 4 types
+                if (modality.includes('reported') || modality.includes('claim')) {
+                    modality = 'reported';
+                } else if (modality.includes('fact') || modality.includes('official')) {
+                    modality = 'fact';
+                } else if (modality.includes('opinion') || modality.includes('analysis')) {
+                    modality = 'opinion';
+                } else if (modality.includes('allegation') || modality.includes('allege')) {
+                    modality = 'allegation';
+                } else {
+                    // Default to reported for unknown modalities
+                    modality = 'reported';
+                }
+
+                claimsByModality[modality].push(claim);
+            });
+
+            // Sort each modality group by time (newest first)
+            Object.keys(claimsByModality).forEach(modality => {
+                claimsByModality[modality].sort((a, b) => {
+                    const timeA = new Date(a.event_time || a.created_at || 0);
+                    const timeB = new Date(b.event_time || b.created_at || 0);
+                    return timeB - timeA; // Descending order (newest first)
+                });
+            });
+
+            // Count non-empty modalities
+            const modalityCount = Object.values(claimsByModality).filter(arr => arr.length > 0).length;
+            document.getElementById('claimTypeCount').textContent = `${modalityCount} claim types`;
+
+            let html = '';
+
+            // Story gist
+            html += `
+                <div class="story-gist">
+                    <div class="story-gist-text">${story.gist || story.topic || 'Loading story description...'}</div>
+                </div>
+            `;
+
+            // Modality branches - horizontal column layout
+            const modalityConfig = {
+                fact: { icon: '✓', label: 'Official Facts', color: '#3b82f6' },
+                reported: { icon: '📰', label: 'Reported Claims', color: '#8b5cf6' },
+                opinion: { icon: '💭', label: 'Opinions & Analysis', color: '#f59e0b' },
+                allegation: { icon: '⚠️', label: 'Allegations', color: '#ef4444' }
+            };
+
+            html += '<div class="modality-branches-container">';
+
+            Object.entries(claimsByModality).forEach(([modality, modalityClaims]) => {
+                if (modalityClaims.length === 0) return;
+
+                const config = modalityConfig[modality];
+                html += `
+                    <div class="modality-branch">
+                        <div class="modality-header ${modality}" onclick="expandModality('${modality}')">
+                            <div class="modality-label">
+                                <span>${config.icon}</span>
+                                <span>${config.label}</span>
+                            </div>
+                            <div class="modality-count">${modalityClaims.length} claim${modalityClaims.length !== 1 ? 's' : ''}</div>
+                        </div>
+
+                        <div class="modality-claims" id="${modality}-claims">
+                            ${modalityClaims.map(claim => {
+                                const confidence = claim.confidence || 'medium';
+                                const confidenceIcon = confidence === 'high' ? '🟢' : confidence === 'medium' ? '🟡' : '🔴';
+                                let claimText = claim.text || 'No text available';
+
+                                // Extract temporal information
+                                const eventTime = claim.event_time || claim.created_at;
+                                const timeDisplay = eventTime ? formatClaimTime(eventTime) : null;
+
+                                // Highlight entities inline in the claim text
+                                const entities = claim.entities || [];
+                                entities.forEach(entity => {
+                                    const name = entity.canonical_name;
+                                    // Skip entities without a name
+                                    if (!name) return;
+
+                                    const type = entity.type?.toLowerCase() || 'entity';
+                                    const icon = type === 'person' ? '👤' :
+                                                type === 'organization' ? '🏢' :
+                                                type === 'location' ? '📍' : '🏷️';
+
+                                    // Create case-insensitive regex to find entity name
+                                    const regex = new RegExp('\\\\b(' + name.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&') + ')\\\\b', 'gi');
+                                    claimText = claimText.replace(regex, '<mark class="entity-highlight ' + type + '" title="' + icon + ' ' + name + ' (' + type + ')">$1</mark>');
+                                });
+
+                                return `
+                                    <div class="claim-node" data-id="${claim.id}">
+                                        <div class="claim-node-header">
+                                            <span class="claim-icon">${confidenceIcon}</span>
+                                            <span class="claim-text">${claimText.substring(0, 150)}${claimText.length > 150 ? '...' : ''}</span>
+                                        </div>
+                                        ${timeDisplay ? '<div class="claim-metadata"><span class="claim-timestamp">🕐 ' + timeDisplay + '</span></div>' : ''}
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += '</div>'; // Close modality-branches-container
+
+            canvas.innerHTML = html;
+        }
+
+        // Toggle Modality Branch (expanded by default)
+        function expandModality(modality) {
+            const claimList = document.getElementById(`${modality}-claims`);
+            if (claimList) {
+                claimList.classList.toggle('collapsed');
+            }
+        }
+
+        // Vote to Commit Changes
+        function voteToCommit() {
+            alert('Vote to commit feature coming soon!\n\nThis will allow builders to vote on whether uncommitted changes should be merged into the next story version.');
+            // In production: POST /api/story/${storyId}/vote-commit
+        }
+
+        // Build New Story Version
+        function buildNewStory() {
+            const confirmed = confirm('Build new story version v0.4?\n\nThis will:\n✓ Commit all pending changes\n✓ Generate new narrative\n✓ Publish for review');
+            if (confirmed) {
+                alert('Building story v0.4...\n\nThis feature will trigger the story generation pipeline.');
+                // In production: POST /api/story/${storyId}/build-version
+            }
+        }
+
+        // Helper: Calculate Next Tranche
+        function calculateNextTranche(coherence) {
+            const tranches = [0.2, 0.4, 0.6, 0.8, 1.0];
+            for (let tranche of tranches) {
+                if (coherence < tranche) {
+                    return tranche;
+                }
+            }
+            return 1.0;
+        }
+
+        // Show Error
+        function showError(message) {
+            const canvas = document.getElementById('graphCanvas');
+            canvas.innerHTML = `
+                <div class="loading">
+                    <p style="color: var(--danger);">⚠️ ${message}</p>
+                </div>
+            `;
+        }
+
+        // ===== Add Evidence Panel Functions =====
+
+        // Toggle Evidence Panel
+        function toggleEvidencePanel() {
+            const panel = document.getElementById('evidencePanel');
+            panel.classList.toggle('open');
+        }
+
+        // Switch Evidence Tab
+        function switchEvidenceTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.panel-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+        }
+
+        // Submit URL Evidence
+        async function submitUrlEvidence() {
+            const urlInput = document.getElementById('evidenceUrl');
+            const url = urlInput.value.trim();
+
+            if (!url) {
+                alert('Please enter a URL');
+                return;
+            }
+
+            // Validate URL format
+            try {
+                new URL(url);
+            } catch (e) {
+                alert('Please enter a valid URL');
+                return;
+            }
+
+            console.log('Submitting URL evidence:', url);
+
+            // In production, this would POST to /api/story/{storyId}/evidence
+            // For now, show success message
+            alert(`URL submitted: ${url}\n\nIn production, this would:\n1. Fetch the article content\n2. Extract claims\n3. Add to the current story\n4. Refresh the evidence carousel`);
+
+            // Clear input and close panel
+            urlInput.value = '';
+            toggleEvidencePanel();
+
+            // TODO: Replace with actual API call
+            // await fetch(`/api/story/${currentStory.id}/evidence`, {
+            //     method: 'POST',
+            //     headers: { 'Content-Type': 'application/json' },
+            //     body: JSON.stringify({ type: 'url', url: url })
+            // });
+            // await loadStoryById(currentStory.id); // Refresh
+        }
+
+        // Submit Text Evidence
+        async function submitTextEvidence() {
+            const textInput = document.getElementById('evidenceText');
+            const sourceInput = document.getElementById('evidenceTextSource');
+            const text = textInput.value.trim();
+            const source = sourceInput.value.trim();
+
+            if (!text) {
+                alert('Please enter text content');
+                return;
+            }
+
+            console.log('Submitting text evidence:', { text, source });
+
+            // In production, this would POST to /api/story/{storyId}/evidence
+            alert(`Text submitted (${text.length} chars)\nSource: ${source || 'Not specified'}\n\nIn production, this would:\n1. Parse the text for claims\n2. Add to the current story\n3. Refresh the evidence carousel`);
+
+            // Clear inputs and close panel
+            textInput.value = '';
+            sourceInput.value = '';
+            toggleEvidencePanel();
+
+            // TODO: Replace with actual API call
+        }
+
+        // Handle File Selection
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Check file size (max 10MB)
+            const maxSize = 10 * 1024 * 1024;
+            if (file.size > maxSize) {
+                alert('File is too large. Maximum size is 10MB.');
+                return;
+            }
+
+            // Show file preview
+            const preview = document.getElementById('filePreview');
+            preview.innerHTML = `
+                <div style="padding: 12px; background: #f8f9fa; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="font-size: 32px;">📄</div>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; margin-bottom: 4px;">${file.name}</div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">
+                                ${(file.size / 1024).toFixed(1)} KB
+                            </div>
+                        </div>
+                        <button onclick="clearFileSelection()" style="background: none; border: none; font-size: 20px; cursor: pointer;">×</button>
+                    </div>
+                </div>
+            `;
+
+            // Enable submit button
+            document.getElementById('uploadSubmitBtn').disabled = false;
+        }
+
+        // Clear File Selection
+        function clearFileSelection() {
+            document.getElementById('fileInput').value = '';
+            document.getElementById('filePreview').innerHTML = '';
+            document.getElementById('uploadSubmitBtn').disabled = true;
+        }
+
+        // Submit File Evidence
+        async function submitFileEvidence() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert('Please select a file');
+                return;
+            }
+
+            console.log('Submitting file evidence:', file.name);
+
+            // In production, this would use FormData to upload the file
+            alert(`File ready to upload: ${file.name}\n\nIn production, this would:\n1. Upload the file to the server\n2. Extract text from the document\n3. Parse claims\n4. Add to the current story\n5. Refresh the evidence carousel`);
+
+            // Clear file and close panel
+            clearFileSelection();
+            toggleEvidencePanel();
+
+            // TODO: Replace with actual API call using FormData
+            // const formData = new FormData();
+            // formData.append('file', file);
+            // formData.append('story_id', currentStory.id);
+            // await fetch('/api/story/evidence/upload', {
+            //     method: 'POST',
+            //     body: formData
+            // });
+            // await loadStoryById(currentStory.id); // Refresh
+        }
+
+        // Setup drag-and-drop for file upload
+        window.addEventListener('DOMContentLoaded', () => {
+            const fileUploadArea = document.getElementById('fileUploadArea');
+
+            fileUploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                fileUploadArea.classList.add('drag-over');
+            });
+
+            fileUploadArea.addEventListener('dragleave', () => {
+                fileUploadArea.classList.remove('drag-over');
+            });
+
+            fileUploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                fileUploadArea.classList.remove('drag-over');
+
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    const fileInput = document.getElementById('fileInput');
+                    fileInput.files = files;
+                    handleFileSelect({ target: fileInput });
+                }
+            });
+        });
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
