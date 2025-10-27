@@ -1,7 +1,10 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import Header from './components/layout/Header'
 import { ensureUserId } from './userSession'
+
+// Declare Leaflet types
+declare const L: any
 
 interface EntityDetails {
   canonical_id: string
@@ -26,6 +29,52 @@ interface RelatedStory {
   description?: string
   created_at: string
   artifact_count: number
+}
+
+// Simple OpenStreetMap component for entity page
+function EntityLocationMap({ locationName }: { locationName: string }) {
+  const mapRef = useRef<HTMLDivElement>(null)
+  const mapInstanceRef = useRef<any>(null)
+
+  useEffect(() => {
+    if (!mapRef.current || typeof L === 'undefined') return
+
+    // Initialize map
+    if (!mapInstanceRef.current) {
+      mapInstanceRef.current = L.map(mapRef.current, {
+        scrollWheelZoom: false,
+        dragging: true,
+        zoomControl: true
+      })
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19
+      }).addTo(mapInstanceRef.current)
+
+      // Geocode and center on location
+      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locationName)}&limit=1`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.length > 0) {
+            const { lat, lon } = data[0]
+            const marker = L.marker([lat, lon]).addTo(mapInstanceRef.current)
+            marker.bindPopup(locationName).openPopup()
+            mapInstanceRef.current.setView([lat, lon], 5)
+          }
+        })
+        .catch(err => console.error('Failed to geocode:', err))
+    }
+
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove()
+        mapInstanceRef.current = null
+      }
+    }
+  }, [locationName])
+
+  return <div ref={mapRef} className="w-full h-full" />
 }
 
 const getEntityTypeConfig = (type: string) => {
@@ -378,6 +427,18 @@ function EntityPage() {
               )}
             </div>
           </div>
+
+          {/* Location Map - Only for Location entities */}
+          {entity.entity_type === 'Location' && (
+            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm mb-8">
+              <div className="p-10">
+                <h2 className="text-2xl font-bold text-slate-900 mb-6">Location Map</h2>
+                <div className="bg-slate-100 rounded-lg overflow-hidden border border-slate-200 h-96">
+                  <EntityLocationMap locationName={entity.canonical_name} />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Related Stories */}
           {relatedStories.length > 0 ? (

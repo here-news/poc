@@ -1,8 +1,11 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import Header from './components/layout/Header'
 import StoryChatSidebar from './components/layout/StoryChatSidebar'
 import { ensureUserId } from './userSession'
+
+// Declare Leaflet types
+declare const L: any
 
 interface StoryDetails {
   id: string
@@ -108,6 +111,243 @@ function renderContentWithEntityLinks(content: string): JSX.Element {
   return <>{parts}</>
 }
 
+// OpenStreetMap component using Leaflet with visual hierarchy
+function LocationMap({ locations, hoveredLocation }: { locations: Array<{ name: string }>, hoveredLocation: string | null }) {
+  const mapRef = useRef<HTMLDivElement>(null)
+  const mapInstanceRef = useRef<any>(null)
+  const markersRef = useRef<Map<string, any>>(new Map())
+  const geocodeCacheRef = useRef<Map<string, { lat: number, lon: number, type: string, boundingbox?: number[] }>>(new Map())
+  const [isInitialized, setIsInitialized] = useState(false)
+  const allMarkersLoadedRef = useRef(false)
+
+  // Determine location granularity and appropriate zoom level
+  const getLocationConfig = (locationType: string) => {
+    const type = locationType.toLowerCase()
+
+    if (type.includes('country') || type.includes('nation')) {
+      return { zoom: 4, color: '#3b82f6', size: 'large', radius: 12, label: 'Country' }
+    } else if (type.includes('state') || type.includes('province') || type.includes('region')) {
+      return { zoom: 6, color: '#10b981', size: 'medium', radius: 9, label: 'Region' }
+    } else if (type.includes('city') || type.includes('town') || type.includes('village')) {
+      return { zoom: 10, color: '#ef4444', size: 'small', radius: 7, label: 'City' }
+    } else {
+      // Default for unknown types
+      return { zoom: 7, color: '#8b5cf6', size: 'medium', radius: 8, label: 'Location' }
+    }
+  }
+
+  // Create custom marker with visual hierarchy
+  const createCustomMarker = (lat: number, lon: number, name: string, type: string, isHovered: boolean) => {
+    const config = getLocationConfig(type)
+    const radius = isHovered ? config.radius * 1.4 : config.radius
+    const opacity = isHovered ? 1 : 0.85
+
+    const icon = L.divIcon({
+      className: 'custom-marker',
+      html: `
+        <div style="
+          width: ${radius * 2}px;
+          height: ${radius * 2}px;
+          background: ${config.color};
+          border: 3px solid white;
+          border-radius: 50%;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+          opacity: ${opacity};
+          transition: all 0.3s ease;
+          transform: ${isHovered ? 'scale(1.2)' : 'scale(1)'};
+        "></div>
+      `,
+      iconSize: [radius * 2, radius * 2],
+      iconAnchor: [radius, radius]
+    })
+
+    return L.marker([lat, lon], { icon })
+  }
+
+  // Initialize map once
+  useEffect(() => {
+    if (!mapRef.current || typeof L === 'undefined' || mapInstanceRef.current) return
+
+    mapInstanceRef.current = L.map(mapRef.current, {
+      scrollWheelZoom: false,
+      dragging: true,
+      zoomControl: true,
+      zoomAnimation: true,
+      fadeAnimation: true,
+      markerZoomAnimation: true
+    })
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
+      maxZoom: 19
+    }).addTo(mapInstanceRef.current)
+
+    setIsInitialized(true)
+
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove()
+        mapInstanceRef.current = null
+      }
+    }
+  }, [])
+
+  // Load all location data on mount
+  useEffect(() => {
+    if (!isInitialized || allMarkersLoadedRef.current) return
+
+    const loadAllLocations = async () => {
+      const map = mapInstanceRef.current
+      const bounds = L.latLngBounds([])
+
+      for (const location of locations) {
+        if (geocodeCacheRef.current.has(location.name)) continue
+
+        try {
+          // Add delay to respect Nominatim rate limits
+          await new Promise(resolve => setTimeout(resolve, 100))
+
+          const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(location.name)}&limit=1`)
+          const data = await response.json()
+
+          if (data.length > 0) {
+            const result = data[0]
+            // Determine type - check multiple fields from Nominatim
+            let locType = result.type || 'unknown'
+            // Also check class and addresstype for better country detection
+            if (result.class === 'boundary' && result.type === 'administrative') {
+              // Check if it's a country-level administrative boundary
+              if (result.addresstype === 'country' || result.osm_type === 'relation') {
+                locType = 'country'
+              }
+            }
+            console.log(`Geocoded ${location.name}: type=${locType}, class=${result.class}, addresstype=${result.addresstype}`)
+            geocodeCacheRef.current.set(location.name, {
+              lat: parseFloat(result.lat),
+              lon: parseFloat(result.lon),
+              type: locType,
+              boundingbox: result.boundingbox
+            })
+          }
+        } catch (err) {
+          console.error('Failed to geocode location:', location.name, err)
+        }
+      }
+
+      // Add all markers
+      geocodeCacheRef.current.forEach((coords, name) => {
+        const marker = createCustomMarker(coords.lat, coords.lon, name, coords.type, false)
+        marker.bindPopup(`<b>${name}</b><br><small>${getLocationConfig(coords.type).label}</small>`)
+        marker.addTo(map)
+        markersRef.current.set(name, { marker, coords })
+        bounds.extend([coords.lat, coords.lon])
+      })
+
+      // Fit bounds with smart zoom limiting
+      if (bounds.isValid()) {
+        if (locations.length === 1) {
+          const singleCoords = geocodeCacheRef.current.get(locations[0].name)
+          if (singleCoords) {
+            const config = getLocationConfig(singleCoords.type)
+            map.setView([singleCoords.lat, singleCoords.lon], config.zoom)
+          }
+        } else {
+          map.fitBounds(bounds, {
+            padding: [40, 40],
+            maxZoom: 6,
+            animate: true,
+            duration: 0.8
+          })
+        }
+      }
+
+      allMarkersLoadedRef.current = true
+    }
+
+    loadAllLocations()
+  }, [locations, isInitialized])
+
+  // Handle hover interactions
+  useEffect(() => {
+    if (!mapInstanceRef.current || !allMarkersLoadedRef.current) return
+
+    const map = mapInstanceRef.current
+
+    if (hoveredLocation) {
+      const cached = geocodeCacheRef.current.get(hoveredLocation)
+      if (!cached) return
+
+      const config = getLocationConfig(cached.type)
+
+      // Update all markers: highlight hovered, dim others
+      markersRef.current.forEach((data, name) => {
+        const isHovered = name === hoveredLocation
+        data.marker.remove()
+        const newMarker = createCustomMarker(
+          data.coords.lat,
+          data.coords.lon,
+          name,
+          data.coords.type,
+          isHovered
+        )
+        newMarker.bindPopup(`<b>${name}</b><br><small>${getLocationConfig(data.coords.type).label}</small>`)
+        if (isHovered) {
+          newMarker.openPopup()
+        }
+        newMarker.addTo(map)
+        markersRef.current.set(name, { ...data, marker: newMarker })
+      })
+
+      // Smooth fly to hovered location with appropriate zoom
+      map.flyTo([cached.lat, cached.lon], config.zoom, {
+        duration: 0.6,
+        easeLinearity: 0.25
+      })
+    } else {
+      // Reset to overview when hoveredLocation is null
+      const bounds = L.latLngBounds([])
+
+      markersRef.current.forEach((data, name) => {
+        data.marker.remove()
+        const newMarker = createCustomMarker(
+          data.coords.lat,
+          data.coords.lon,
+          name,
+          data.coords.type,
+          false
+        )
+        newMarker.bindPopup(`<b>${name}</b><br><small>${getLocationConfig(data.coords.type).label}</small>`)
+        newMarker.addTo(map)
+        markersRef.current.set(name, { ...data, marker: newMarker })
+        bounds.extend([data.coords.lat, data.coords.lon])
+      })
+
+      // Fly back to overview
+      if (bounds.isValid()) {
+        if (locations.length === 1) {
+          const singleCoords = geocodeCacheRef.current.get(locations[0].name)
+          if (singleCoords) {
+            const config = getLocationConfig(singleCoords.type)
+            map.flyTo([singleCoords.lat, singleCoords.lon], config.zoom, {
+              duration: 0.6,
+              easeLinearity: 0.25
+            })
+          }
+        } else {
+          map.flyToBounds(bounds, {
+            padding: [40, 40],
+            maxZoom: 6,
+            duration: 0.6,
+            easeLinearity: 0.25
+          })
+        }
+      }
+    }
+  }, [hoveredLocation, locations])
+
+  return <div ref={mapRef} className="w-full h-full min-h-[200px]" />
+}
+
 // Entity link component with hover tooltip and floating headshot
 function EntityLink({ entityName }: { entityName: string }) {
   const [showTooltip, setShowTooltip] = useState(false)
@@ -170,9 +410,8 @@ function EntityLink({ entityName }: { entityName: string }) {
       },
       {
         threshold: 0,
-        // Trigger when element is approaching the middle of viewport
-        // Negative bottom margin means "trigger before it reaches the bottom"
-        rootMargin: '0px 0px -40% 0px'
+        // Slightly anticipatory - triggers when entering top 75% of viewport
+        rootMargin: '0px 0px -25% 0px'
       }
     )
 
@@ -492,6 +731,7 @@ function StoryPage() {
   const [error, setError] = useState<string | null>(null)
   const [chatOpen, setChatOpen] = useState(false)
   const [orgsExpanded, setOrgsExpanded] = useState(false)
+  const [hoveredLocation, setHoveredLocation] = useState<string | null>(null)
 
   // Pin state (mockup)
   const [isPinned, setIsPinned] = useState(false)
@@ -765,6 +1005,69 @@ function StoryPage() {
               </div>
             )}
 
+            {/* Locations Section - Horizontal with Map */}
+            {story.entities?.locations && story.entities.locations.length > 0 && (
+              <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                <div className="p-4 sm:p-6 md:p-8">
+                  <h2 className="text-lg font-bold text-slate-900 mb-4">Locations</h2>
+
+                  <div
+                    className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+                    onMouseLeave={() => {
+                      // Reset hover when mouse leaves the entire locations container
+                      setTimeout(() => setHoveredLocation(null), 100)
+                    }}
+                  >
+                    {/* Location chips - horizontal layout */}
+                    <div className="flex flex-wrap gap-2">
+                      {story.entities.locations.map((location: any) => (
+                        <Link
+                          key={location.id}
+                          to={`/locations/${location.id}/${location.name.toLowerCase().replace(/\s+/g, '-')}`}
+                          className={`inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-50 to-teal-50 hover:from-green-100 hover:to-teal-100 border rounded-full transition-all duration-200 group ${
+                            hoveredLocation === location.name
+                              ? 'border-green-400 shadow-md scale-105'
+                              : 'border-green-200 hover:border-green-300'
+                          }`}
+                          onMouseEnter={() => setHoveredLocation(location.name)}
+                        >
+                          {location.thumbnail ? (
+                            <img
+                              src={location.thumbnail}
+                              alt={location.name}
+                              className="w-6 h-6 rounded-full object-cover border border-green-200"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none'
+                              }}
+                            />
+                          ) : (
+                            <span className="text-sm">📍</span>
+                          )}
+                          <span className="text-sm font-medium text-slate-900 group-hover:text-green-700">
+                            {location.name}
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
+
+                    {/* Map with location markers using OpenStreetMap */}
+                    <div className="bg-slate-100 rounded-lg overflow-hidden border border-slate-200 h-48 lg:h-auto min-h-[200px] relative">
+                      <LocationMap
+                        locations={story.entities.locations}
+                        hoveredLocation={hoveredLocation}
+                      />
+                      {hoveredLocation && (
+                        <div className="absolute bottom-2 left-2 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-lg border border-green-300 pointer-events-none z-[1000]">
+                          <span className="text-xs font-semibold text-green-700">
+                            📍 {hoveredLocation}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Related Stories Section */}
             {story.related_stories && story.related_stories.length > 0 && (
@@ -801,43 +1104,6 @@ function StoryPage() {
 
           {/* Sidebar */}
           <aside className="space-y-3 sm:space-y-4 lg:space-y-5 lg:sticky lg:top-8 h-fit">
-            {/* Locations in Story */}
-            <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 shadow-sm">
-              <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-4">Locations</h3>
-              {story.entities?.locations && story.entities.locations.length > 0 ? (
-                <div className="space-y-2">
-                  {story.entities.locations.map((location: any) => (
-                    <Link
-                      key={location.id}
-                      to={`/locations/${location.id}/${location.name.toLowerCase().replace(/\s+/g, '-')}`}
-                      className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg transition-colors group"
-                    >
-                      {location.thumbnail ? (
-                        <img
-                          src={location.thumbnail}
-                          alt={location.name}
-                          className="w-12 h-12 rounded-full object-cover flex-shrink-0 border border-slate-200"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none'
-                            e.currentTarget.nextElementSibling?.classList.remove('hidden')
-                          }}
-                        />
-                      ) : null}
-                      <div className={`w-12 h-12 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 ${location.thumbnail ? 'hidden' : ''}`}>
-                        <span className="text-lg">📍</span>
-                      </div>
-                      <span className="text-sm text-slate-900 group-hover:text-blue-600 flex-1">{location.name}</span>
-                      <svg className="w-4 h-4 text-slate-400 group-hover:text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </Link>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-slate-500">No locations mentioned</p>
-              )}
-            </div>
-
             {/* Organizations in Story - Collapsible */}
             <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 shadow-sm">
               <button
