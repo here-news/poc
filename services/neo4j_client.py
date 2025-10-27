@@ -561,6 +561,186 @@ class Neo4jClient:
 
             return story_dict
 
+    def get_builder_stories(self) -> List[Dict]:
+        """Get list of all stories for builder interface."""
+        if not self.connected:
+            self._connect()
+        if not self.connected:
+            return []
+
+        cypher = """
+        MATCH (s:Story)
+        OPTIONAL MATCH (s)-[:HAS_ARTIFACT]->(p:Page)
+        OPTIONAL MATCH (p)-[:HAS_CLAIM]->(c:Claim)
+        WITH s,
+             count(DISTINCT p) as pageCount,
+             count(DISTINCT c) as claimCount,
+             coalesce(s.last_updated, s.created_at) as last_activity
+        RETURN s.id as id,
+               coalesce(s.title, s.topic) as topic,
+               s.gist as gist,
+               s.coherence_score as coherence,
+               s.status as status,
+               pageCount,
+               claimCount,
+               s.created_at as createdAt,
+               s.last_updated as updatedAt,
+               last_activity
+        ORDER BY last_activity DESC
+        """
+
+        with self.driver.session(database=self.database) as session:
+            result = session.run(cypher)
+            stories = []
+            for record in result:
+                story = dict(record)
+                # Serialize datetime fields
+                if 'createdAt' in story:
+                    story['createdAt'] = self._format_datetime(story['createdAt'])
+                if 'updatedAt' in story:
+                    story['updatedAt'] = self._format_datetime(story['updatedAt'])
+                if 'last_activity' in story:
+                    story['last_activity'] = self._format_datetime(story['last_activity'])
+                stories.append(story)
+            return stories
+
+    def get_builder_story(self, story_id: str) -> Optional[Dict]:
+        """Get story with claims, sources, and entities for builder interface."""
+        if not self.connected:
+            self._connect()
+        if not self.connected:
+            return None
+
+        cypher = """
+        MATCH (s:Story {id: $story_id})
+
+        // Get all claims with their sources
+        OPTIONAL MATCH (s)-[:HAS_ARTIFACT]->(p:Page)-[:HAS_CLAIM]->(c:Claim)
+
+        WITH s,
+             collect(DISTINCT c {
+                id: c.claim_id,
+                .text,
+                .modality,
+                .confidence,
+                .event_time,
+                .created_at,
+                source: p {
+                    .url,
+                    .title,
+                    .site,
+                    domain: p.domain,
+                    published_at: coalesce(p.published_at, p.pub_time),
+                    image_url: coalesce(p.thumbnail_url, p.image_url),
+                    author: coalesce(p.byline, p.author),
+                    .description,
+                    .gist
+                }
+             }) as claims,
+             collect(DISTINCT p {
+                .url,
+                .title,
+                .domain,
+                .site,
+                published_at: coalesce(p.published_at, p.pub_time),
+                image_url: coalesce(p.thumbnail_url, p.image_url),
+                author: coalesce(p.byline, p.author),
+                .description,
+                .gist
+             }) as sources,
+             collect(DISTINCT p) as pages_list,
+             collect(DISTINCT c) as claims_list
+
+        // Now get claim entities
+        UNWIND claims_list as claim
+        OPTIONAL MATCH (claim)-[r]->(e)
+        WHERE type(r) IN ['MENTIONS_PERSON', 'MENTIONS_ORG', 'MENTIONS_LOCATION', 'MENTIONS_ENTITY']
+          AND (e:Person OR e:Organization OR e:Location OR e:MediaSource)
+
+        WITH s, claims, sources, pages_list,
+             collect(DISTINCT {
+                claim_id: claim.claim_id,
+                canonical_name: e.canonical_name,
+                wikidata_qid: e.wikidata_qid,
+                wikidata_thumbnail: e.wikidata_thumbnail,
+                role: e.role,
+                type: labels(e)[0]
+             }) as claim_entities
+
+        // Now get page entities
+        UNWIND pages_list as page
+        OPTIONAL MATCH (page)-[r]->(e)
+        WHERE type(r) IN ['MENTIONS_PERSON', 'MENTIONS_ORG', 'MENTIONS_LOCATION', 'MENTIONS_ENTITY']
+          AND (e:Person OR e:Organization OR e:Location OR e:MediaSource)
+
+        RETURN s {
+            .id,
+            topic: coalesce(s.title, s.topic),
+            .gist,
+            .coherence_score,
+            .created_at,
+            updated_at: s.last_updated
+        } as story,
+        claims,
+        sources,
+        collect(DISTINCT {
+            page_url: page.url,
+            canonical_name: e.canonical_name,
+            wikidata_qid: e.wikidata_qid,
+            wikidata_thumbnail: e.wikidata_thumbnail,
+            role: e.role,
+            type: labels(e)[0]
+        }) as page_entities,
+        claim_entities
+        """
+
+        with self.driver.session(database=self.database) as session:
+            result = session.run(cypher, story_id=story_id)
+            record = result.single()
+            if not record:
+                return None
+
+            story_data = dict(record['story'])
+            claims = [dict(c) for c in record['claims'] if c['text']]  # Filter out empty claims
+            sources = [dict(s) for s in record['sources']]
+            claim_entities = [dict(e) for e in record['claim_entities'] if e.get('canonical_name')]
+            page_entities = [dict(e) for e in record['page_entities'] if e.get('canonical_name')]
+
+            # Serialize datetime fields
+            if 'created_at' in story_data:
+                story_data['created_at'] = self._format_datetime(story_data['created_at'])
+            if 'updated_at' in story_data:
+                story_data['updated_at'] = self._format_datetime(story_data['updated_at'])
+
+            for claim in claims:
+                if 'created_at' in claim:
+                    claim['created_at'] = self._format_datetime(claim['created_at'])
+                if 'event_time' in claim:
+                    claim['event_time'] = self._format_datetime(claim['event_time'])
+                if claim.get('source') and 'published_at' in claim['source']:
+                    claim['source']['published_at'] = self._format_datetime(claim['source']['published_at'])
+
+            for source in sources:
+                if 'published_at' in source:
+                    source['published_at'] = self._format_datetime(source['published_at'])
+
+            # Group claims by modality for threads
+            threads = {}
+            for claim in claims:
+                modality = claim.get('modality', 'unknown')
+                if modality not in threads:
+                    threads[modality] = []
+                threads[modality].append(claim)
+
+            return {
+                'story': story_data,
+                'claims': claims,
+                'sources': sources,
+                'claim_entities': claim_entities,
+                'page_entities': page_entities,
+                'threads': threads
+            }
+
     def get_story_graph(self, story_id: str) -> Optional[Dict]:
         """Get the graph structure for a story showing story -> claims -> artifacts."""
         if not self.connected:

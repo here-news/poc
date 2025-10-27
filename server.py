@@ -730,6 +730,48 @@ def _get_language_name(lang_code: str) -> str:
     }
     return language_names.get(lang_code.lower(), lang_code.upper())
 
+# Builder interface endpoints
+@app.get("/api/builder/stories")
+async def get_builder_stories():
+    """
+    Get list of all stories for builder interface
+
+    Returns:
+        List of stories with basic metadata sorted by last activity
+    """
+    try:
+        stories = neo4j_client.get_builder_stories()
+        return stories
+    except Exception as e:
+        print(f"Error fetching builder stories: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/builder/story/{story_id}")
+async def get_builder_story(story_id: str):
+    """
+    Get detailed story data for builder interface
+
+    Returns story with claims grouped into threads, sources, and entities
+    """
+    try:
+        story_data = neo4j_client.get_builder_story(story_id)
+
+        if not story_data:
+            raise HTTPException(status_code=404, detail=f"Story {story_id} not found")
+
+        return story_data
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error fetching builder story {story_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Builder interface UI route
+@app.get("/build/{story_id}")
+async def serve_builder(story_id: str):
+    """Serve the builder interface for a specific story"""
+    return FileResponse("templates/builder.html")
+
 # Serve static files and React app
 app.mount("/assets", StaticFiles(directory="dist/assets"), name="assets")
 

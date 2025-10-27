@@ -41,6 +41,7 @@ RUN npm run build
 # Copy Python server and services
 COPY server.py ./
 COPY services/ ./services/
+COPY templates/ ./templates/
 
 # Copy GCS credentials
 COPY sage-striker-294302-b89a8b7e205b.json ./

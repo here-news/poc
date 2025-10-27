@@ -1448,18 +1448,40 @@ function StoryPage() {
 
               return (
                 <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 shadow-sm">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Sources ({uniqueArtifacts.length})</h3>
-                    <button
-                      onClick={() => setSourcesOrderNewest(!sourcesOrderNewest)}
-                      className="flex items-center gap-1 px-2 py-1 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors"
-                      title={sourcesOrderNewest ? "Show oldest first" : "Show newest first"}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="font-semibold text-slate-700">
+                        Sources({uniqueArtifacts.length})
+                      </span>
+                      <span className="text-slate-400">by</span>
+                      <span className="font-semibold text-slate-700 flex items-center gap-1">
+                        <svg className="w-3.5 h-3.5 text-teal-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
+                        </svg>
+                        Builders({contributorCount})
+                      </span>
+                      <button
+                        onClick={() => setSourcesOrderNewest(!sourcesOrderNewest)}
+                        className="flex items-center justify-center w-6 h-6 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors"
+                        title={sourcesOrderNewest ? "Showing newest first - click for oldest" : "Showing oldest first - click for newest"}
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={sourcesOrderNewest ? "M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" : "M3 4h13M3 8h9m-9 4h9m5-4v12m0 0l-4-4m4 4l4-4"} />
+                        </svg>
+                      </button>
+                    </div>
+                    <a
+                      href={`/builder/${story.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-lg transition-colors shadow-sm hover:shadow-md whitespace-nowrap"
+                      title="Open in Builder View - Edit story collaboratively"
                     >
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={sourcesOrderNewest ? "M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" : "M3 4h13M3 8h9m-9 4h9m5-4v12m0 0l-4-4m4 4l4-4"} />
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
-                      {sourcesOrderNewest ? 'Newest' : 'Oldest'}
-                    </button>
+                      Build
+                    </a>
                   </div>
                   <div className="space-y-3">
                     {sortedArtifacts.map((artifact, idx) => {
