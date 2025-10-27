@@ -483,7 +483,12 @@ class Neo4jClient:
                 title: artifact.title,
                 domain: artifact.domain,
                 thumbnail_url: artifact.thumbnail_url,
-                created_at: artifact.created_at
+                created_at: artifact.created_at,
+                pub_date: artifact.pub_date,
+                pub_time: artifact.pub_time,
+                published_at: artifact.published_at,
+                publication_date: artifact.publication_date,
+                publish_date: artifact.publish_date
              }) as artifacts,
              collect(DISTINCT {
                 id: related_story.id,
@@ -702,6 +707,64 @@ class Neo4jClient:
 
             return {
                 'entity_type': record.get('entity_type'),
+                'canonical_id': record.get('canonical_id'),
+                'canonical_name': record.get('canonical_name'),
+                'wikidata_qid': record.get('wikidata_qid'),
+                'wikidata_thumbnail': record.get('wikidata_thumbnail'),
+                'description': record.get('description'),
+                'confidence': record.get('confidence'),
+                'mentions': record.get('mentions', []),
+                'context': context if context else None
+            }
+
+    def get_entity_by_domain(self, domain: str) -> Optional[Dict]:
+        """
+        Get organization entity by domain from Neo4j
+
+        Args:
+            domain: Organization domain (e.g., "apnews.com", "reuters.com")
+
+        Returns:
+            Entity dict with type, description, Wikidata QID, confidence, etc.
+        """
+        if not self.connected:
+            self._connect()
+        if not self.connected:
+            return None
+
+        cypher = """
+        MATCH (e:Organization)
+        WHERE e.domain = $domain
+        RETURN labels(e)[0] as entity_type,
+               e.canonical_id as canonical_id,
+               e.canonical_name as canonical_name,
+               e.wikidata_qid as wikidata_qid,
+               e.wikidata_thumbnail as wikidata_thumbnail,
+               e.description as description,
+               e.confidence as confidence,
+               e.mentions as mentions,
+               e.role as role,
+               e.domain as domain
+        LIMIT 1
+        """
+
+        with self.driver.session(database=self.database) as session:
+            result = session.run(cypher, domain=domain)
+            record = result.single()
+
+            if not record:
+                return None
+
+            # Build context object from role and domain
+            context = {}
+            if record.get('role'):
+                context['role'] = record.get('role')
+            if record.get('domain'):
+                context['domain'] = record.get('domain')
+
+            return {
+                'entity_type': record.get('entity_type'),
+                'id': record.get('canonical_id'),
                 'canonical_id': record.get('canonical_id'),
                 'canonical_name': record.get('canonical_name'),
                 'wikidata_qid': record.get('wikidata_qid'),

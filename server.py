@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -628,26 +628,36 @@ async def get_story_graph(story_id: str):
         return {"error": str(e)}, 500
 
 @app.get("/api/entity")
-async def get_entity_by_name(name: str):
+async def get_entity_by_name(name: str = None, domain: str = None):
     """
-    Get entity details by canonical name
+    Get entity details by canonical name or domain
 
     Query params:
         name: Entity canonical name (e.g., "Sam Altman", "OpenAI")
+        domain: Entity domain (e.g., "apnews.com", "reuters.com") - for organizations
 
     Returns:
         Entity metadata including type, description, Wikidata QID, confidence
     """
     try:
-        entity = neo4j_client.get_entity_by_name(name)
+        if domain:
+            entity = neo4j_client.get_entity_by_domain(domain)
+        elif name:
+            entity = neo4j_client.get_entity_by_name(name)
+        else:
+            raise HTTPException(status_code=400, detail="Either 'name' or 'domain' parameter is required")
 
         if not entity:
-            return {"error": f"Entity '{name}' not found"}, 404
+            identifier = domain if domain else name
+            raise HTTPException(status_code=404, detail=f"Entity '{identifier}' not found")
 
         return entity
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"Error fetching entity '{name}': {e}")
-        return {"error": str(e)}, 500
+        identifier = domain if domain else name
+        print(f"Error fetching entity '{identifier}': {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/entity/{entity_id}")
 async def get_entity_by_id(entity_id: str):
