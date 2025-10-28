@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
+import StoryGraph from './components/StoryGraph'
 
 interface Claim {
   id: string
@@ -298,7 +299,7 @@ function BuilderPageV4() {
     )
   }
 
-  const { story, claims, sources } = data
+  const { story, claims, sources, claim_entities, page_entities } = data
   const coherencePercent = Math.round((story.coherence_score || 0) * 100)
   const statusInfo = getStatusInfo(story.coherence_score || 0)
   const targetCoherence = 70
@@ -542,10 +543,80 @@ function BuilderPageV4() {
         </div>
 
         {/* MIDDLE - Thread Content */}
-        <div className="flex-1 bg-white overflow-y-auto">
-          <div className="p-6 max-w-5xl mx-auto">
-            {/* Evidence Thread */}
-            {activeThread === 'evidence' && (
+        <div className="flex-1 bg-white overflow-y-auto relative">
+          {/* Graph View - Full Canvas (no padding) */}
+          {activeThread === 'graph' ? (
+            <>
+              {/* React Flow Graph - Full Canvas */}
+              <div className="absolute inset-0">
+                <StoryGraph
+                  story={story}
+                  claims={claims}
+                  sources={sources}
+                  claim_entities={claim_entities || []}
+                />
+              </div>
+
+              {/* Floating Stats Panel - Bottom Left (Top) */}
+              <div className="absolute bottom-[180px] left-4 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 p-3 z-10">
+                <div className="text-xs font-semibold text-slate-700 mb-2">Stats</div>
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-slate-600">Sources:</span>
+                    <span className="font-semibold text-blue-900">{sources.length}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-slate-600">Claims:</span>
+                    <span className="font-semibold text-purple-900">{claims.length}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-slate-600">Entities:</span>
+                    <span className="font-semibold text-green-900">
+                      {new Set(claim_entities?.map(e => e.canonical_name) || []).size}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-slate-600">Links:</span>
+                    <span className="font-semibold text-amber-900">{claim_entities?.length || 0}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Floating Legend - Bottom Left */}
+              <div className="absolute bottom-4 left-4 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 p-3 z-10">
+                <div className="text-xs font-semibold text-slate-700 mb-2">Legend</div>
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded-full bg-gradient-to-br from-teal-400 to-teal-600"></div>
+                    <span className="text-slate-600">Story Core</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded bg-slate-100 border-2 border-slate-400"></div>
+                    <span className="text-slate-600">Claims (Top)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded bg-white border-2 border-blue-300"></div>
+                    <span className="text-slate-600">Sources (Bottom)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded-full bg-purple-100 border-2 border-purple-300"></div>
+                    <span className="text-slate-600">People (Left)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded-full bg-green-100 border-2 border-green-300"></div>
+                    <span className="text-slate-600">Orgs (Right)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded-full bg-amber-100 border-2 border-amber-300"></div>
+                    <span className="text-slate-600">Locations</span>
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="p-6 max-w-5xl mx-auto">
+              {/* Evidence Thread */}
+              {activeThread === 'evidence' && (
               <div>
                 <h2 className="text-lg font-semibold text-slate-900 mb-4">Evidence Sources ({sources.length})</h2>
 
@@ -715,18 +786,6 @@ function BuilderPageV4() {
               </div>
             )}
 
-            {/* Graph View Thread */}
-            {activeThread === 'graph' && (
-              <div>
-                <h2 className="text-lg font-semibold text-slate-900 mb-4">Graph View</h2>
-                <div className="text-center text-slate-500 py-12">
-                  <div className="text-5xl mb-4">🌳</div>
-                  <p>Graph visualization coming soon</p>
-                  <p className="text-sm mt-2">Visual tree: Story → Sections → Claims → Entities</p>
-                </div>
-              </div>
-            )}
-
             {/* Revisions Thread */}
             {activeThread === 'revisions' && (
               <div>
@@ -806,7 +865,8 @@ function BuilderPageV4() {
                 </div>
               </div>
             )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* RIGHT - Community Chat & Revisions */}
