@@ -273,39 +273,93 @@ function LocationMap({ locations, hoveredLocation }: { locations: Array<{ name: 
       const map = mapInstanceRef.current
       const bounds = L.latLngBounds([])
 
-      for (const location of locations) {
-        if (geocodeCacheRef.current.has(location.name)) continue
+      // Load from localStorage first
+      const loadFromCache = (name: string) => {
+        try {
+          const cached = localStorage.getItem(`geocode_${name}`)
+          if (cached) {
+            const data = JSON.parse(cached)
+            // Validate cache data structure
+            if (data.coords && data.coords.lat && data.coords.lon && data.timestamp) {
+              // Check if cache is less than 30 days old
+              if (Date.now() - data.timestamp < 30 * 24 * 60 * 60 * 1000) {
+                console.log(`✓ Cache hit for ${name}:`, data.coords)
+                geocodeCacheRef.current.set(name, data.coords)
+                return true
+              } else {
+                console.log(`✗ Cache expired for ${name}`)
+                localStorage.removeItem(`geocode_${name}`)
+              }
+            } else {
+              console.log(`✗ Invalid cache data for ${name}`)
+              localStorage.removeItem(`geocode_${name}`)
+            }
+          }
+        } catch (err) {
+          console.error('Failed to load from cache:', err)
+          localStorage.removeItem(`geocode_${name}`)
+        }
+        return false
+      }
+
+      // Geocode all locations in parallel
+      const geocodePromises = locations.map(async (location) => {
+        // Try cache first
+        if (loadFromCache(location.name)) {
+          return
+        }
 
         try {
-          // Add delay to respect Nominatim rate limits
-          await new Promise(resolve => setTimeout(resolve, 100))
+          // Add random jitter (50-150ms) to avoid rate limits
+          await new Promise(resolve => setTimeout(resolve, 50 + Math.random() * 100))
 
           const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(location.name)}&limit=1`)
           const data = await response.json()
 
           if (data.length > 0) {
             const result = data[0]
-            // Determine type - check multiple fields from Nominatim
             let locType = result.type || 'unknown'
-            // Also check class and addresstype for better country detection
             if (result.class === 'boundary' && result.type === 'administrative') {
-              // Check if it's a country-level administrative boundary
               if (result.addresstype === 'country' || result.osm_type === 'relation') {
                 locType = 'country'
               }
             }
-            console.log(`Geocoded ${location.name}: type=${locType}, class=${result.class}, addresstype=${result.addresstype}`)
-            geocodeCacheRef.current.set(location.name, {
+
+            const coords = {
               lat: parseFloat(result.lat),
               lon: parseFloat(result.lon),
               type: locType,
               boundingbox: result.boundingbox
+            }
+
+            console.log(`✓ Geocoded ${location.name}:`, {
+              display_name: result.display_name,
+              lat: coords.lat,
+              lon: coords.lon,
+              type: locType
             })
+
+            geocodeCacheRef.current.set(location.name, coords)
+
+            // Save to localStorage
+            try {
+              localStorage.setItem(`geocode_${location.name}`, JSON.stringify({
+                coords,
+                timestamp: Date.now()
+              }))
+            } catch (err) {
+              console.error('Failed to save to cache:', err)
+            }
+          } else {
+            console.warn(`✗ No geocoding results for ${location.name}`)
           }
         } catch (err) {
           console.error('Failed to geocode location:', location.name, err)
         }
-      }
+      })
+
+      // Wait for all geocoding to complete
+      await Promise.all(geocodePromises)
 
       // Add all markers
       geocodeCacheRef.current.forEach((coords, name) => {
