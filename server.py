@@ -4,12 +4,17 @@ from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
+import httpx
+import os
 
 from typing import Optional
 
 from services.task_store import task_store, TaskStatus
 from services.pubsub_publisher import pubsub_publisher
 from services.neo4j_client import neo4j_client
+
+# Load environment variables
+BACKEND_SERVICE_URL = os.getenv('BACKEND_SERVICE_URL', 'https://story-engine-here-3n5yrhhfpa-uc.a.run.app')
 
 app = FastAPI()
 
@@ -237,6 +242,100 @@ async def extract_url(submission: URLSubmission, request: Request):
         "user_id": user_id
     }
 
+@app.post("/api/story/{story_id}/add-page")
+async def add_page_to_story(story_id: str, submission: URLSubmission, request: Request):
+    """
+    Add page to story by calling Cloud Run service's /submit endpoint directly
+    with target_story_id as a form parameter.
+
+    This bypasses the webapp's task_store and directly calls the Cloud Run worker,
+    which will handle task creation and linking to the specified story.
+
+    Returns task_id for polling.
+    """
+    url = submission.url
+    print(f"📌 Adding page to story {story_id}: {url}")
+
+    # Call Cloud Run service's /submit endpoint with target_story_id as form parameter
+    # This is the correct way per backend team's recommendation
+    remote_url = "https://story-engine-here-3n5yrhhfpa-uc.a.run.app/submit"
+
+    try:
+        form_data = {
+            "url": url,
+            "target_story_id": story_id,
+            "response_format": "json"
+        }
+        print(f"📤 Sending to {remote_url}")
+        print(f"📤 Form data: {form_data}")
+
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+            response = await client.post(
+                remote_url,
+                data=form_data,
+                headers={"Content-Type": "application/x-www-form-urlencoded"}
+            )
+
+            print(f"📥 Response status: {response.status_code}")
+            print(f"📥 Response content-type: {response.headers.get('content-type')}")
+            print(f"📥 Response body (first 500 chars): {response.text[:500]}")
+
+            if response.status_code != 200:
+                error_detail = response.text
+                print(f"❌ Remote service error ({response.status_code}): {error_detail}")
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=f"Remote service error: {error_detail}"
+                )
+
+            # Parse JSON response
+            try:
+                result = response.json()
+                print(f"✓ Parsed result: {result}")
+
+                task_id = result.get("task_id")
+                if not task_id:
+                    print(f"⚠️  Warning: No task_id in response: {result}")
+                    raise HTTPException(
+                        status_code=500,
+                        detail="Remote service did not return a task_id"
+                    )
+
+                print(f"✓ Task created: {task_id} for story {story_id}")
+                return {
+                    "task_id": task_id,
+                    "story_id": story_id,
+                    "status": "submitted",
+                    "message": f"Extraction job submitted. Will link to story when complete."
+                }
+
+            except Exception as json_err:
+                print(f"❌ Failed to parse JSON response: {json_err}")
+                raise HTTPException(
+                    status_code=500,
+                    detail="Invalid JSON response from remote service"
+                )
+
+    except httpx.TimeoutException:
+        print(f"❌ Timeout calling remote service")
+        raise HTTPException(
+            status_code=504,
+            detail="Request to remote service timed out"
+        )
+
+    except HTTPException:
+        # Re-raise HTTPException without wrapping it
+        raise
+
+    except Exception as e:
+        print(f"❌ Error calling remote service: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to submit to remote service: {str(e)}"
+        )
+
 @app.get("/api/task/{task_id}")
 async def get_task_status(task_id: str):
     """Get extraction task status and result"""
@@ -266,6 +365,9 @@ async def get_task_status(task_id: str):
         # Include semantic data if available
         if task.semantic_data:
             response["semantic_data"] = task.semantic_data
+        # Include manual_link_result if this was a manual link task
+        if hasattr(task, 'manual_link_result') and task.manual_link_result:
+            response["manual_link_result"] = task.manual_link_result
     elif task.status == TaskStatus.BLOCKED:
         response["result"] = task.result
         response["blocked"] = {

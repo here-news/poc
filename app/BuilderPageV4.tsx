@@ -84,6 +84,18 @@ function BuilderPageV4() {
   const [claimVotes, setClaimVotes] = useState<Record<string, { up: number; down: number }>>({})
   const [chatMessage, setChatMessage] = useState('')
 
+  // Add evidence state - support multiple simultaneous tasks
+  const [addEvidenceUrl, setAddEvidenceUrl] = useState('')
+  const [processingTasks, setProcessingTasks] = useState<Array<{
+    taskId: string
+    url: string
+    status: 'processing' | 'completed' | 'error'
+    stage?: string
+    preview?: any
+    claimsCount?: number
+    errorMessage?: string
+  }>>([])
+
   // Search state
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
@@ -135,6 +147,18 @@ function BuilderPageV4() {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
+
+  // Store polling interval ref for cleanup
+  const pollingIntervalsRef = useRef<Map<string, NodeJS.Timeout>>(new Map())
+
+  // Cleanup polling on unmount or thread change
+  useEffect(() => {
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current)
+      }
+    }
+  }, [activeThread])
 
   // Search stories with debounce
   useEffect(() => {
@@ -273,6 +297,161 @@ function BuilderPageV4() {
         down: voteType === 'down' ? prev[claimId].down + 1 : prev[claimId].down
       }
     }))
+  }
+
+  // Add evidence handlers
+  const handleAddEvidence = async () => {
+    if (!addEvidenceUrl.trim() || !id) return
+
+    setAddEvidenceStatus('submitting')
+    setAddEvidenceMessage('Checking if page exists...')
+
+    try {
+      const response = await fetch(`/api/story/${id}/add-page`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: addEvidenceUrl.trim() })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        setAddEvidenceStatus('error')
+        const errorMsg = result.error || result.detail || result.message || `Failed to add evidence (${response.status})`
+        setAddEvidenceMessage(errorMsg)
+        console.error('Add evidence error:', result)
+        return
+      }
+
+      if (result.task_id) {
+        // Task created, start polling
+        setAddEvidenceTaskId(result.task_id)
+        setAddEvidenceStatus('polling')
+        setAddEvidenceMessage('Extracting claims from page...')
+        startPolling(result.task_id)
+      } else {
+        // Unexpected response - show what we got
+        setAddEvidenceStatus('error')
+        const errorMsg = result.error || result.message || 'Unexpected response from server'
+        setAddEvidenceMessage(errorMsg)
+        console.error('Unexpected result:', result)
+      }
+    } catch (err) {
+      console.error('Error adding evidence:', err)
+      setAddEvidenceStatus('error')
+      if (err instanceof Error) {
+        setAddEvidenceMessage(`Network error: ${err.message}`)
+      } else {
+        setAddEvidenceMessage('Network error. Please check your connection.')
+      }
+    }
+  }
+
+  const handleResetAddEvidence = () => {
+    setAddEvidenceStatus('idle')
+    setAddEvidenceMessage('')
+    setAddEvidenceResult(null)
+    setAddEvidenceTaskId(null)
+    setAddEvidencePreview(null)
+  }
+
+  const startPolling = (taskId: string) => {
+    // Clear any existing polling
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current)
+    }
+
+    pollingIntervalRef.current = setInterval(async () => {
+      try {
+        const response = await fetch(`/api/task/${taskId}`)
+        const task = await response.json()
+
+        if (!response.ok) {
+          if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current)
+          setAddEvidenceStatus('error')
+          setAddEvidenceMessage('Failed to check extraction status')
+          return
+        }
+
+        // Update progress message
+        if (task.current_stage) {
+          setAddEvidenceMessage(`${task.current_stage}...`)
+        }
+
+        // Capture preview if available (iFramely data)
+        if (task.preview_meta && !addEvidencePreview) {
+          setAddEvidencePreview({
+            title: task.preview_meta.title,
+            description: task.preview_meta.description,
+            image: task.preview_meta.thumbnail_url,
+            domain: task.preview_meta.site_name || new URL(task.url).hostname
+          })
+        }
+
+        if (task.status === 'completed') {
+          if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current)
+
+          console.log('Task completed:', task)  // Debug: see full task object
+
+          // Check if extraction actually succeeded
+          const claimsCount = task.semantic_data?.claims?.length || 0
+          const isReadable = task.result?.is_readable !== false
+          const hasContent = task.token_costs?.total > 0
+
+          // If extraction failed (no claims, not readable, or no tokens used)
+          if (claimsCount === 0 && (!isReadable || !hasContent)) {
+            setAddEvidenceStatus('error')
+            const reason = task.result?.block_detection
+              ? 'Article content is protected or blocked by the website'
+              : 'Unable to extract article content'
+            setAddEvidenceMessage(`Extraction completed but failed: ${reason}`)
+            return
+          }
+
+          // Success case
+          setAddEvidenceStatus('success')
+
+          // Show different message based on whether claims are available yet
+          if (claimsCount > 0) {
+            setAddEvidenceMessage(`✓ Successfully linked! Extracted ${claimsCount} claims.`)
+          } else {
+            setAddEvidenceMessage(`✓ Successfully linked article to story!`)
+          }
+
+          setAddEvidenceResult({
+            page_title: task.result?.title || task.preview_meta?.title || 'Article',
+            claims_extracted: claimsCount,
+            similarity_score: task.story_match?.match_score
+          })
+
+          // Refresh builder data after 3 seconds to show new source
+          setTimeout(() => {
+            if (id) {
+              console.log('Refreshing builder data to show new evidence...')
+              fetchBuilderData(id)
+            }
+            // Reset form state after another second
+            setTimeout(() => {
+              setAddEvidenceUrl('')
+              setAddEvidenceStatus('idle')
+              setAddEvidenceMessage('')
+              setAddEvidenceResult(null)
+              setAddEvidenceTaskId(null)
+              setAddEvidencePreview(null)
+            }, 1000)
+          }, 3000)
+        } else if (task.status === 'failed') {
+          if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current)
+          setAddEvidenceStatus('error')
+          setAddEvidenceMessage(task.error || 'Extraction failed')
+        }
+      } catch (err) {
+        console.error('Polling error:', err)
+        if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current)
+        setAddEvidenceStatus('error')
+        setAddEvidenceMessage('Lost connection while checking status')
+      }
+    }, 3000) // Poll every 3 seconds
   }
 
   if (loading) {
@@ -628,20 +807,138 @@ function BuilderPageV4() {
                     </svg>
                     <p className="text-sm font-semibold text-teal-900">Add new evidence source</p>
                   </div>
+
                   <input
                     type="text"
+                    value={addEvidenceUrl}
+                    onChange={(e) => setAddEvidenceUrl(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && addEvidenceStatus === 'idle') {
+                        handleAddEvidence()
+                      }
+                    }}
                     placeholder="Paste article URL (e.g., https://example.com/article)..."
                     className="w-full px-4 py-2.5 border border-teal-300 rounded-lg text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    disabled={addEvidenceStatus !== 'idle'}
                   />
-                  <button className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm">
-                    🔍 Extract Claims
-                  </button>
+
+                  {/* Status message */}
+                  {addEvidenceMessage && (
+                    <div className={`mb-3 px-4 py-2 rounded-lg text-sm ${
+                      addEvidenceStatus === 'success' ? 'bg-green-100 text-green-800' :
+                      addEvidenceStatus === 'error' ? 'bg-red-100 text-red-800' :
+                      'bg-blue-100 text-blue-800'
+                    }`}>
+                      {addEvidenceStatus === 'polling' && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                            <span>{addEvidenceMessage}</span>
+                          </div>
+                          {addEvidenceTaskId && (
+                            <div className="text-xs text-blue-600 font-mono mt-1">
+                              Task: {addEvidenceTaskId}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {(addEvidenceStatus === 'success' || addEvidenceStatus === 'error' || addEvidenceStatus === 'submitting') && (
+                        <div>
+                          <span>{addEvidenceMessage}</span>
+                          {addEvidenceTaskId && addEvidenceStatus === 'error' && (
+                            <div className="text-xs text-red-600 font-mono mt-1">
+                              Task: {addEvidenceTaskId}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* URL Preview - show during extraction */}
+                  {addEvidencePreview && addEvidenceStatus === 'polling' && (
+                    <div className="mb-3 p-3 bg-white rounded-lg border border-blue-200">
+                      <div className="flex gap-3">
+                        {addEvidencePreview.image && (
+                          <img
+                            src={addEvidencePreview.image}
+                            alt={addEvidencePreview.title}
+                            className="w-20 h-20 object-cover rounded flex-shrink-0"
+                            onError={(e) => { e.currentTarget.style.display = 'none' }}
+                          />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs text-blue-600 font-semibold mb-0.5">{addEvidencePreview.domain}</div>
+                          <div className="text-sm font-medium text-slate-900 line-clamp-2 mb-1">
+                            {addEvidencePreview.title}
+                          </div>
+                          {addEvidencePreview.description && (
+                            <div className="text-xs text-slate-600 line-clamp-2">
+                              {addEvidencePreview.description}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Result preview - show on success */}
+                  {addEvidenceResult && addEvidenceStatus === 'success' && (
+                    <div className="mb-3 p-4 bg-white rounded-lg border border-green-200">
+                      <div className="text-xs text-green-700 font-semibold mb-2">Linked Successfully</div>
+                      {addEvidenceResult.page_title && (
+                        <div className="text-sm text-slate-900 font-medium mb-1">{addEvidenceResult.page_title}</div>
+                      )}
+                      {addEvidenceResult.claims_extracted && (
+                        <div className="text-xs text-slate-600">
+                          {addEvidenceResult.claims_extracted} claims extracted
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleAddEvidence}
+                      disabled={!addEvidenceUrl.trim() || addEvidenceStatus !== 'idle'}
+                      className={`px-4 py-2 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm ${
+                        !addEvidenceUrl.trim() || addEvidenceStatus !== 'idle'
+                          ? 'bg-slate-400 cursor-not-allowed'
+                          : 'bg-teal-600 hover:bg-teal-700'
+                      }`}
+                    >
+                      {addEvidenceStatus === 'idle' ? '🔍 Extract Claims' :
+                       addEvidenceStatus === 'submitting' ? 'Checking...' :
+                       addEvidenceStatus === 'polling' ? 'Extracting...' :
+                       addEvidenceStatus === 'success' ? '✓ Added!' :
+                       '✗ Failed'}
+                    </button>
+
+                    {addEvidenceStatus === 'error' && (
+                      <button
+                        onClick={handleResetAddEvidence}
+                        className="px-4 py-2 text-slate-700 text-sm font-semibold rounded-lg transition-colors border border-slate-300 hover:bg-slate-50"
+                      >
+                        Try Again
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-3">
-                  {sources.map((source) => {
+                  {/* Sort sources by newest first */}
+                  {sources
+                    .slice()
+                    .sort((a, b) => {
+                      const dateA = a.published_at ? new Date(a.published_at).getTime() : 0
+                      const dateB = b.published_at ? new Date(b.published_at).getTime() : 0
+                      return dateB - dateA // Newest first
+                    })
+                    .map((source) => {
                     const sourceClaims = getClaimsForSource(source.url)
                     const isExpanded = expandedSources.has(source.url)
+                    // Use site name if available, otherwise domain
+                    const mediaOutlet = source.site || source.domain
 
                     return (
                       <div key={source.url} className="border border-slate-200 rounded-lg overflow-hidden">
@@ -663,7 +960,7 @@ function BuilderPageV4() {
 
                           <div className="flex-1 text-left min-w-0">
                             <div className="flex items-center gap-2 mb-1">
-                              <span className="text-xs font-semibold text-slate-500">[{source.domain}]</span>
+                              <span className="text-xs font-semibold text-teal-600">[{mediaOutlet}]</span>
                               <span className="text-sm font-medium text-slate-900 truncate">{source.title}</span>
                             </div>
                             <div className="flex items-center gap-3 text-xs text-slate-500">

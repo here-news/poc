@@ -29,13 +29,14 @@ class PubSubPublisher:
         """Get full topic path"""
         return self.publisher.topic_path(self.project_id, topic_name)
 
-    def publish_extraction_job(self, task_id: str, url: str) -> str:
+    def publish_extraction_job(self, task_id: str, url: str, attributes: Optional[dict] = None) -> str:
         """
         Publish extraction job to extraction-requests topic
 
         Args:
             task_id: Task ID
             url: URL to extract
+            attributes: Optional Pub/Sub attributes (e.g., target_story_id for manual curation)
 
         Returns:
             Message ID
@@ -47,15 +48,20 @@ class PubSubPublisher:
             "url": url
         }
 
-        # Publish message with stage attribute
+        # Build message attributes
+        msg_attributes = {"stage": "extraction"}
+        if attributes:
+            msg_attributes.update(attributes)
+
+        # Publish message with attributes
         future = self.publisher.publish(
             topic_path,
             json.dumps(data).encode("utf-8"),
-            stage="extraction"
+            **msg_attributes
         )
 
         message_id = future.result()
-        print(f"📤 Published extraction job: task_id={task_id}, message_id={message_id}")
+        print(f"📤 Published extraction job: task_id={task_id}, message_id={message_id}, attributes={msg_attributes}")
         return message_id
 
     def publish_cleaning_job(self, task_id: str) -> str:
