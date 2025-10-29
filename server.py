@@ -258,7 +258,7 @@ async def add_page_to_story(story_id: str, submission: URLSubmission, request: R
 
     # Call Cloud Run service's /submit endpoint with target_story_id as form parameter
     # This is the correct way per backend team's recommendation
-    remote_url = "https://story-engine-here-3n5yrhhfpa-uc.a.run.app/submit"
+    remote_url = "https://story-engine-here-179431661561.us-central1.run.app/submit"
 
     try:
         form_data = {
