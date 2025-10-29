@@ -195,8 +195,11 @@ export default function EvidenceManager({
           }
         }))
 
-        // Handle completion
-        if (task.status === 'completed') {
+        // Handle completion (or stuck tasks with completed_at)
+        const isCompleted = task.status === 'completed' ||
+                           (task.completed_at && task.status === 'processing')
+
+        if (isCompleted) {
           const interval = pollingIntervalsRef.current.get(taskId)
           if (interval) {
             clearInterval(interval)
@@ -209,12 +212,23 @@ export default function EvidenceManager({
           const claimsCount = task.semantic_data?.claims?.length || 0
           const isReadable = task.result?.is_readable !== false
           const hasContent = task.token_costs?.total > 0
+          const semantizationFailed = task.current_stage === 'semantization' &&
+                                     task.token_costs?.semantization === 0 &&
+                                     task.completed_at
 
-          if (claimsCount === 0 && (!isReadable || !hasContent)) {
-            // Extraction failed
-            const reason = task.result?.block_detection
-              ? 'Content protected/blocked'
-              : 'Unable to extract content'
+          if (claimsCount === 0) {
+            // Determine specific failure reason
+            let reason = 'Unable to extract content'
+            if (semantizationFailed) {
+              reason = 'Semantization failed - extracted content but no claims generated'
+            } else if (task.result?.block_detection) {
+              reason = 'Content protected/blocked'
+            } else if (!isReadable) {
+              reason = 'Article is not readable'
+            } else if (!hasContent) {
+              reason = 'No content extracted'
+            }
+
             setProcessingTasks(prev => prev.map(t =>
               t.taskId === taskId
                 ? { ...t, status: 'error', errorMessage: reason }
