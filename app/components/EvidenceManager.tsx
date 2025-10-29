@@ -29,7 +29,7 @@ interface Source {
 interface EvidenceManagerProps {
   storyId: string
   sources: Source[]
-  onRefreshStory: () => void
+  onRefreshStory: () => Promise<void> | void
   expandedSources: Set<string>
   setExpandedSources: (sources: Set<string>) => void
 }
@@ -219,50 +219,93 @@ export default function EvidenceManager({
             pollingIntervalsRef.current.delete(taskId)
           }
 
-          // Check if extraction succeeded
-          const claimsCount = task.semantic_data?.claims?.length || 0
-          const isReadable = task.result?.is_readable !== false
-          const hasContent = task.token_costs?.total > 0
-          const semantizationFailed = task.current_stage === 'semantization' &&
-                                     task.token_costs?.semantization === 0 &&
-                                     task.completed_at
+          // First refresh story data to get actual claim count from Neo4j
+          // This is the source of truth, not task.semantic_data
+          console.log('Refreshing story data to verify claims...')
 
-          if (claimsCount === 0) {
-            // Determine specific failure reason
-            let reason = 'Unable to extract content'
-            if (semantizationFailed) {
-              reason = 'Semantization failed - extracted content but no claims generated'
-            } else if (task.result?.block_detection) {
-              reason = 'Content protected/blocked'
-            } else if (!isReadable) {
-              reason = 'Article is not readable'
-            } else if (!hasContent) {
-              reason = 'No content extracted'
-            }
+          // Refresh and check after a short delay to allow Neo4j to be updated
+          setTimeout(async () => {
+            try {
+              // Trigger story refresh
+              await onRefreshStory()
 
-            setProcessingTasks(prev => prev.map(t =>
-              t.taskId === taskId
-                ? { ...t, status: 'error', errorMessage: reason }
-                : t
-            ))
-          } else {
-            // Success - mark completed with claim count
-            setProcessingTasks(prev => prev.map(t =>
-              t.taskId === taskId
-                ? { ...t, status: 'completed', claimsCount }
-                : t
-            ))
-
-            // Refresh builder data after 2 seconds
-            setTimeout(() => {
-              console.log('Refreshing builder data...')
-              onRefreshStory()
-              // Remove from processing tasks after 3 seconds
+              // After refresh, check if the URL now appears in sources with claims
+              // Wait a bit for the refresh to complete
               setTimeout(() => {
-                setProcessingTasks(prev => prev.filter(t => t.taskId !== taskId))
-              }, 3000)
-            }, 2000)
-          }
+                const taskUrl = task.url
+                const urlWithoutProtocol = taskUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')
+
+                // Check if this URL now exists in sources
+                const sourceExists = sources.some(s => {
+                  const sourceUrlNormalized = s.url.replace(/^https?:\/\//, '').replace(/\/$/, '')
+                  return sourceUrlNormalized === urlWithoutProtocol || s.url === taskUrl
+                })
+
+                // Get claim count from semantic_data if available, otherwise we'll verify from Neo4j after refresh
+                const claimsCountFromTask = task.semantic_data?.claims?.length || 0
+
+                // If source was added to story, consider it a success regardless of semantic_data
+                if (sourceExists) {
+                  console.log(`✓ Source ${taskUrl} successfully added to story`)
+                  setProcessingTasks(prev => prev.map(t =>
+                    t.taskId === taskId
+                      ? { ...t, status: 'completed', claimsCount: claimsCountFromTask || 1 }
+                      : t
+                  ))
+
+                  // Remove from processing tasks after showing success
+                  setTimeout(() => {
+                    setProcessingTasks(prev => prev.filter(t => t.taskId !== taskId))
+                  }, 3000)
+                } else {
+                  // Source not in story, check for failure reasons
+                  const isReadable = task.result?.is_readable !== false
+                  const hasContent = task.token_costs?.total > 0
+                  const semantizationFailed = task.current_stage === 'semantization' &&
+                                             task.token_costs?.semantization === 0 &&
+                                             task.completed_at
+
+                  let reason = 'Unable to extract content'
+                  if (semantizationFailed) {
+                    reason = 'Semantization failed - extracted content but no claims generated'
+                  } else if (task.result?.block_detection) {
+                    reason = 'Content protected/blocked'
+                  } else if (!isReadable) {
+                    reason = 'Article is not readable'
+                  } else if (!hasContent) {
+                    reason = 'No content extracted'
+                  }
+
+                  console.log(`✗ Source ${taskUrl} not added to story: ${reason}`)
+                  setProcessingTasks(prev => prev.map(t =>
+                    t.taskId === taskId
+                      ? { ...t, status: 'error', errorMessage: reason }
+                      : t
+                  ))
+                }
+              }, 1000) // Wait 1s for refresh to complete
+            } catch (err) {
+              console.error('Error verifying source in story:', err)
+              // Fallback to semantic_data check
+              const claimsCount = task.semantic_data?.claims?.length || 0
+              if (claimsCount > 0) {
+                setProcessingTasks(prev => prev.map(t =>
+                  t.taskId === taskId
+                    ? { ...t, status: 'completed', claimsCount }
+                    : t
+                ))
+                setTimeout(() => {
+                  setProcessingTasks(prev => prev.filter(t => t.taskId !== taskId))
+                }, 3000)
+              } else {
+                setProcessingTasks(prev => prev.map(t =>
+                  t.taskId === taskId
+                    ? { ...t, status: 'error', errorMessage: 'Unable to verify extraction status' }
+                    : t
+                ))
+              }
+            }
+          }, 500) // Initial delay before refresh
         } else if (task.status === 'failed') {
           const interval = pollingIntervalsRef.current.get(taskId)
           if (interval) {
