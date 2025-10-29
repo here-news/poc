@@ -328,12 +328,17 @@ function BuilderPageV4() {
     if (existingSource) {
       // Highlight existing source instead of re-adding
       setExpandedSources(new Set([existingSource.url]))
-      // Scroll to it
+      // Scroll to it with visual feedback
       setTimeout(() => {
-        document.querySelector(`[data-source-url="${CSS.escape(existingSource.url)}"]`)?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center'
-        })
+        const card = document.querySelector(`[data-source-url="${CSS.escape(existingSource.url)}"]`)
+        if (card) {
+          card.classList.add('ring-4', 'ring-teal-500', 'ring-offset-2')
+          setTimeout(() => card.classList.remove('ring-4', 'ring-teal-500', 'ring-offset-2'), 3000)
+          card.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+          })
+        }
       }, 100)
       setAddEvidenceUrl('')
       return
