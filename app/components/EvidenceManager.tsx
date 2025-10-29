@@ -200,13 +200,24 @@ export default function EvidenceManager({
                            (task.completed_at && task.status === 'processing')
 
         if (isCompleted) {
+          console.log('Task completed:', task)
+
+          // Wait for semantic_data to be available before deciding success/failure
+          // Sometimes task status is "completed" but semantic_data is still being written
+          const hasSemanticData = task.semantic_data !== undefined && task.semantic_data !== null
+
+          if (!hasSemanticData && task.token_costs?.semantization > 0) {
+            // Semantization ran but data not available yet, keep polling
+            console.log('Waiting for semantic_data to be available...')
+            return
+          }
+
+          // Stop polling - we have enough info to determine success/failure
           const interval = pollingIntervalsRef.current.get(taskId)
           if (interval) {
             clearInterval(interval)
             pollingIntervalsRef.current.delete(taskId)
           }
-
-          console.log('Task completed:', task)
 
           // Check if extraction succeeded
           const claimsCount = task.semantic_data?.claims?.length || 0
