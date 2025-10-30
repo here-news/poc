@@ -1106,10 +1106,11 @@ function StoryPage() {
           <div className="space-y-4 sm:space-y-6">
             {/* Title & Summary - Merged */}
             <div className="bg-gradient-to-br from-blue-50 via-white to-purple-50 border-2 border-blue-200 rounded-2xl overflow-hidden shadow-md relative">
+
               {/* Pin Button - At Corner */}
               <button
                 onClick={() => setIsPinned(!isPinned)}
-                className={`absolute top-2 left-2 transition-all duration-300 ${
+                className={`absolute top-2 left-2 z-20 transition-all duration-300 ${
                   isPinned ? 'text-yellow-500' : 'text-slate-400 hover:text-slate-600'
                 }`}
                 style={{
@@ -1124,7 +1125,7 @@ function StoryPage() {
                 </svg>
               </button>
 
-              <div className="p-6 sm:p-8 md:p-10">
+              <div className="relative z-10 p-6 sm:p-8 md:p-10">
                 {/* Title */}
                 <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 sm:mb-6 leading-tight text-slate-900 tracking-tight">{story.title}</h1>
 
