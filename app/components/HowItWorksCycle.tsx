@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 
 const HowItWorksCycle = () => {
   const [isHovered, setIsHovered] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(false)
 
   const steps = [
     { icon: '📥', title: 'Submit', description: 'Evidence URL' },
@@ -12,43 +13,61 @@ const HowItWorksCycle = () => {
 
   return (
     <div
-      className="relative bg-gradient-to-br from-blue-50 to-purple-50 border border-blue-200 rounded-2xl p-6 cursor-pointer transition-all duration-300 hover:shadow-lg overflow-hidden"
+      className="relative bg-gradient-to-br from-blue-50 to-purple-50 border border-blue-200 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-lg"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Rotating cycle background */}
-      <div className="absolute inset-0 pointer-events-none">
-        <svg className="w-full h-full" viewBox="0 0 300 300" preserveAspectRatio="none">
-          <defs>
-            <linearGradient id="cycleGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="rgb(59, 130, 246)" stopOpacity="0.1" />
-              <stop offset="50%" stopColor="rgb(59, 130, 246)" stopOpacity="0.4" />
-              <stop offset="100%" stopColor="rgb(59, 130, 246)" stopOpacity="0.1" />
-            </linearGradient>
-          </defs>
-
-          {/* Animated rotating border showing cycle */}
-          <rect
-            x="2"
-            y="2"
-            width="296"
-            height="296"
-            rx="16"
-            fill="none"
-            stroke="url(#cycleGradient)"
-            strokeWidth="3"
-            strokeDasharray={isHovered ? "20 10" : "0"}
-            className={`transition-all duration-500 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
-            style={{
-              animation: isHovered ? 'rotateBorder 3s linear infinite' : 'none'
-            }}
-          />
+      {/* Collapsible Header */}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full px-4 py-3 flex items-center justify-between hover:bg-blue-100/30 transition-colors relative z-10"
+        aria-label="Toggle how it works"
+      >
+        <h3 className="font-semibold text-slate-900 text-sm">How it works</h3>
+        <svg
+          className={`w-4 h-4 text-slate-600 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
-      </div>
+      </button>
 
-      <h3 className="font-semibold text-slate-900 mb-4 relative z-10">How it works</h3>
+      {/* Rotating cycle background */}
+      {isExpanded && (
+        <div className="absolute inset-0 pointer-events-none">
+          <svg className="w-full h-full" viewBox="0 0 300 300" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="cycleGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="rgb(59, 130, 246)" stopOpacity="0.1" />
+                <stop offset="50%" stopColor="rgb(59, 130, 246)" stopOpacity="0.4" />
+                <stop offset="100%" stopColor="rgb(59, 130, 246)" stopOpacity="0.1" />
+              </linearGradient>
+            </defs>
 
-      <div className="space-y-3 relative z-10">
+            {/* Animated rotating border showing cycle */}
+            <rect
+              x="2"
+              y="2"
+              width="296"
+              height="296"
+              rx="16"
+              fill="none"
+              stroke="url(#cycleGradient)"
+              strokeWidth="3"
+              strokeDasharray={isHovered ? "20 10" : "0"}
+              className={`transition-all duration-500 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
+              style={{
+                animation: isHovered ? 'rotateBorder 3s linear infinite' : 'none'
+              }}
+            />
+          </svg>
+        </div>
+      )}
+
+      {isExpanded && (
+        <div className="px-4 pb-4 space-y-3 relative z-10">
         {steps.map((step, index) => (
           <div key={index}>
             {/* Step */}
@@ -104,7 +123,8 @@ const HowItWorksCycle = () => {
           </svg>
           <span className="text-xs font-medium">Cycles continuously</span>
         </div>
-      </div>
+        </div>
+      )}
 
       {/* Animation keyframes */}
       <style>{`

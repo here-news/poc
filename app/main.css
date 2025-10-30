@@ -11,43 +11,49 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom slider styling for maturity filter */
-input[type="range"].slider {
+/* Custom range input styling - make completely transparent */
+input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
-  height: 8px;
-  border-radius: 4px;
+  background: transparent;
   outline: none;
 }
 
-input[type="range"].slider::-webkit-slider-thumb {
+/* Hide the track */
+input[type="range"]::-webkit-slider-runnable-track {
+  background: transparent;
+  border: none;
+}
+
+input[type="range"]::-moz-range-track {
+  background: transparent;
+  border: none;
+}
+
+/* Make thumb invisible but interactable - large hit area */
+input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #059669 0%, #0891b2 100%);
-  cursor: pointer;
-  border: 2px solid white;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  transition: transform 0.15s ease-in-out;
+  width: 40px;
+  height: 40px;
+  background: transparent;
+  cursor: grab;
+  border: none;
 }
 
-input[type="range"].slider::-webkit-slider-thumb:hover {
-  transform: scale(1.15);
+input[type="range"]::-webkit-slider-thumb:active {
+  cursor: grabbing;
 }
 
-input[type="range"].slider::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #059669 0%, #0891b2 100%);
-  cursor: pointer;
-  border: 2px solid white;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  transition: transform 0.15s ease-in-out;
+input[type="range"]::-moz-range-thumb {
+  width: 40px;
+  height: 40px;
+  background: transparent;
+  cursor: grab;
+  border: none;
 }
 
-input[type="range"].slider::-moz-range-thumb:hover {
-  transform: scale(1.15);
+input[type="range"]::-moz-range-thumb:active {
+  cursor: grabbing;
 }
+

@@ -11,25 +11,30 @@ interface GrowingStory {
   updated_at?: string
 }
 
-function GrowingStories() {
+interface GrowingStoriesProps {
+  maxCoherence?: number
+}
+
+function GrowingStories({ maxCoherence = 0.7 }: GrowingStoriesProps) {
   const [stories, setStories] = useState<GrowingStory[]>([])
   const [loading, setLoading] = useState(true)
   const [isExpanded, setIsExpanded] = useState(true) // Start expanded by default
 
   useEffect(() => {
-    console.log('[GrowingStories] Component mounted')
+    console.log('[GrowingStories] Component mounted or maxCoherence changed:', maxCoherence)
     fetchGrowingStories()
     // Refresh every 60 seconds
     const interval = setInterval(fetchGrowingStories, 60000)
     return () => clearInterval(interval)
-  }, [])
+  }, [maxCoherence])
 
   const fetchGrowingStories = async () => {
     try {
-      console.log('[GrowingStories] Fetching low maturity stories...')
-      // Fetch stories with low maturity (0-70%): both Emerging and Growing
+      console.log('[GrowingStories] Fetching stories below threshold:', maxCoherence)
+      // Fetch stories BELOW the main pane threshold (complementary filtering)
+      // If main pane shows 40%+, sidebar shows 0-40%
       // API already sorts by last_activity DESC, so newest stories come first
-      const response = await fetch('/api/stories?limit=5&min_coherence=0&max_coherence=0.7')
+      const response = await fetch(`/api/stories?limit=5&min_coherence=0&max_coherence=${maxCoherence}`)
       const data = await response.json()
 
       if (data.stories) {
@@ -97,7 +102,7 @@ function GrowingStories() {
 
       {/* Story List */}
       {isExpanded && (
-        <div className="px-3 pb-3 space-y-2 max-h-64 overflow-y-auto">
+        <div className="px-3 pb-3 space-y-2">
           {loading ? (
             <div className="text-center py-4">
               <div className="inline-block w-4 h-4 border-2 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mb-2" />

@@ -56,6 +56,12 @@ function LiveSignals() {
   // Debounced value for fetching (updates after user stops sliding)
   const [debouncedCoherence, setDebouncedCoherence] = useState(minCoherence)
 
+  // Geo scope filter - persist in localStorage (stub for now)
+  const [geoScope, setGeoScope] = useState<number>(() => {
+    const saved = localStorage.getItem('geo_scope')
+    return saved ? parseFloat(saved) : 0.5 // Default: middle (global)
+  })
+
   // Pin states (mockup) - using story IDs as keys
   const [pinnedStories, setPinnedStories] = useState<Set<string>>(new Set())
 
@@ -68,6 +74,25 @@ function LiveSignals() {
 
     return () => clearTimeout(timer)
   }, [minCoherence])
+
+  // Persist geo scope changes
+  useEffect(() => {
+    localStorage.setItem('geo_scope', geoScope.toString())
+  }, [geoScope])
+
+  // Helper to get maturity icon based on value
+  const getMaturityIcon = (value: number) => {
+    if (value <= 0.3) return '🌱'
+    if (value <= 0.6) return '🌿'
+    return '🌳'
+  }
+
+  // Helper to get geo icon based on value
+  const getGeoIcon = (value: number) => {
+    if (value <= 0.35) return '🏘️'
+    if (value <= 0.65) return '🌍'
+    return '🌌'
+  }
 
   const togglePin = (storyId: string, event: React.MouseEvent) => {
     event.preventDefault() // Prevent navigation to story
@@ -238,24 +263,87 @@ function LiveSignals() {
   return (
     <section className="space-y-4 sm:space-y-6">
       <div className="bg-white/70 backdrop-blur-sm border border-white/60 rounded-3xl p-4 sm:p-6 shadow-sm">
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <h2 className="text-xl font-semibold text-slate-800">Recent Threads</h2>
-            <p className="text-sm text-slate-500">
-              Active story threads from the community
-              {isRefreshing && (
-                <span className="ml-2 inline-flex items-center gap-1 text-blue-600">
-                  <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Updating...
-                </span>
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          {/* Left: Sliders container */}
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Geo Scope Slider - Wider */}
+            <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg">
+              <span className="text-[10px] text-slate-500">Local</span>
+              <div className="relative w-48 h-8 flex items-center">
+                {/* Track background */}
+                <div className="absolute inset-0 top-1/2 -translate-y-1/2 h-2 bg-gradient-to-r from-orange-300 via-blue-400 to-purple-500 rounded-full" />
+
+                {/* Native range input */}
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={geoScope}
+                  onChange={(e) => setGeoScope(parseFloat(e.target.value))}
+                  className="relative w-full h-full bg-transparent appearance-none cursor-grab active:cursor-grabbing z-10"
+                />
+
+                {/* Custom visual thumb */}
+                <div
+                  className="absolute top-1/2 pointer-events-none"
+                  style={{
+                    left: `calc(${geoScope * 100}%)`,
+                    transform: 'translate(-50%, -50%)',
+                    transition: 'none'
+                  }}
+                >
+                  <div className="w-8 h-8 rounded-full bg-white border-2 border-purple-400 shadow-lg flex items-center justify-center">
+                    <span className="text-lg leading-none">{getGeoIcon(geoScope)}</span>
+                  </div>
+                </div>
+              </div>
+              <span className="text-[10px] text-slate-500">Universe</span>
+            </div>
+
+            {/* Thread Maturity Slider - Standard width */}
+            <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg relative">
+              <span className="text-[10px] text-slate-500">Emerging</span>
+              <div className="relative w-36 h-8 flex items-center">
+                {/* Track background */}
+                <div className="absolute inset-0 top-1/2 -translate-y-1/2 h-2 bg-gradient-to-r from-green-300 via-teal-300 to-blue-400 rounded-full" />
+
+                {/* Native range input */}
+                <input
+                  type="range"
+                  min="0"
+                  max="0.7"
+                  step="0.1"
+                  value={minCoherence}
+                  onChange={(e) => setMinCoherence(parseFloat(e.target.value))}
+                  className="relative w-full h-full bg-transparent appearance-none cursor-grab active:cursor-grabbing z-10"
+                />
+
+                {/* Custom visual thumb */}
+                <div
+                  className="absolute top-1/2 pointer-events-none"
+                  style={{
+                    left: `calc(${(minCoherence / 0.7) * 100}%)`,
+                    transform: 'translate(-50%, -50%)',
+                    transition: 'none'
+                  }}
+                >
+                  <div className="w-8 h-8 rounded-full bg-white border-2 border-teal-400 shadow-lg flex items-center justify-center">
+                    <span className="text-lg leading-none">{getMaturityIcon(minCoherence)}</span>
+                  </div>
+                </div>
+              </div>
+              <span className="text-[10px] text-slate-500">Mature</span>
+              {/* Applying indicator when debouncing */}
+              {minCoherence !== debouncedCoherence && (
+                <div className="absolute -top-5 right-0 text-[10px] text-slate-500 italic animate-pulse">
+                  Applying...
+                </div>
               )}
-            </p>
+            </div>
           </div>
 
-          {/* Manual Refresh Button + New Stories Badge + Maturity Filter */}
+          {/* Right: Badges and Buttons */}
           <div className="flex items-center gap-2 flex-wrap">
             {newStoriesCount > 0 && (
               <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-100 text-emerald-700 text-sm font-medium rounded-full animate-pulse">
@@ -266,54 +354,30 @@ function LiveSignals() {
               </span>
             )}
 
-            {/* Maturity Filter Slider */}
-            <div className="flex items-center gap-3 px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg min-w-[240px] relative">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">
-                  {minCoherence === 0 ? '🌱' : minCoherence < 0.7 ? '🌿' : '🌳'}
-                </span>
-                <div className="text-left">
-                  <div className="text-xs text-slate-600 font-medium">Min Maturity</div>
-                  <div className="text-xs font-bold text-slate-700">
-                    {minCoherence === 0 ? 'All' : minCoherence < 0.7 ? `${Math.round(minCoherence * 100)}%+` : 'Mature'}
-                  </div>
-                </div>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="0.7"
-                step="0.1"
-                value={minCoherence}
-                onChange={(e) => setMinCoherence(parseFloat(e.target.value))}
-                className="flex-1 h-2 bg-gradient-to-r from-green-300 via-teal-300 to-blue-400 rounded-lg appearance-none cursor-pointer slider"
-                style={{
-                  background: `linear-gradient(to right, rgb(134 239 172) 0%, rgb(134 239 172) ${(minCoherence / 0.7) * 100}%, rgb(226 232 240) ${(minCoherence / 0.7) * 100}%, rgb(226 232 240) 100%)`
-                }}
-              />
-              {/* Applying indicator when debouncing */}
-              {minCoherence !== debouncedCoherence && (
-                <div className="absolute -bottom-6 right-0 text-xs text-slate-500 italic animate-pulse">
-                  Applying...
-                </div>
-              )}
-            </div>
+            {isRefreshing && (
+              <span className="inline-flex items-center gap-1 text-blue-600">
+                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span className="text-xs">Updating...</span>
+              </span>
+            )}
 
             <button
               onClick={() => fetchStories(true)}
               disabled={isRefreshing}
-              className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center justify-center p-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
               title="Refresh stories"
             >
               <svg
-                className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`}
+                className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
-              Refresh
             </button>
           </div>
         </div>

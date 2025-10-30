@@ -4,6 +4,7 @@ import LiveSignals from './components/layout/LiveSignals'
 import SubmissionInput from './components/SubmissionInput'
 import SubmissionResult from './components/SubmissionResult'
 import HowItWorksCycle from './components/HowItWorksCycle'
+import GrowingStories from './components/chat/GrowingStories'
 import { useSubmissions } from './hooks/useSubmissions'
 import { ensureUserId } from './userSession'
 
@@ -11,9 +12,29 @@ function SimplifiedHome() {
   const [userId, setUserId] = useState('')
   const { submissions, submitInput } = useSubmissions(userId)
 
+  // Read maturity filter from localStorage to coordinate with GrowingStories
+  const [minCoherence, setMinCoherence] = useState<number>(() => {
+    const saved = localStorage.getItem('story_min_coherence')
+    return saved ? parseFloat(saved) : 0.4
+  })
+
   useEffect(() => {
     const uid = ensureUserId()
     setUserId(uid)
+  }, [])
+
+  // Listen for localStorage changes to sync with LiveSignals slider
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const saved = localStorage.getItem('story_min_coherence')
+      if (saved) {
+        setMinCoherence(parseFloat(saved))
+      }
+    }
+
+    // Poll localStorage every 500ms for changes (localStorage event doesn't fire in same tab)
+    const interval = setInterval(handleStorageChange, 500)
+    return () => clearInterval(interval)
   }, [])
 
   return (
@@ -46,6 +67,14 @@ function SimplifiedHome() {
               <SubmissionInput onSubmit={submitInput} />
             </div>
 
+            {/* How it works - Collapsible */}
+            <HowItWorksCycle />
+
+            {/* Growing Stories */}
+            <div className="bg-white/90 backdrop-blur-sm border border-white/60 rounded-2xl shadow-sm overflow-hidden">
+              <GrowingStories maxCoherence={minCoherence} />
+            </div>
+
             {/* Recent Submissions */}
             {submissions.length > 0 && (
               <div className="bg-white/90 backdrop-blur-sm border border-white/60 rounded-2xl p-4 sm:p-6 shadow-sm">
@@ -62,11 +91,6 @@ function SimplifiedHome() {
                 )}
               </div>
             )}
-
-            {/* How it works - Animated Cycle (hidden on mobile) */}
-            <div className="hidden lg:block">
-              <HowItWorksCycle />
-            </div>
           </aside>
         </div>
       </div>
