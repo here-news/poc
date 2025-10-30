@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import ReactFlow, {
   Node,
   Edge,
@@ -32,6 +33,7 @@ interface Source {
 }
 
 interface Entity {
+  canonical_id: string
   canonical_name: string
   type: string
   role?: string
@@ -51,12 +53,36 @@ interface StoryGraphProps {
 }
 
 const StoryGraph: React.FC<StoryGraphProps> = ({ story, claims, sources, claim_entities }) => {
+  const navigate = useNavigate()
+
   console.log('StoryGraph rendering:', {
     story: story.id,
     claimsCount: claims.length,
     sourcesCount: sources.length,
     entitiesCount: claim_entities.length
   })
+
+  // Helper to create slug from entity name
+  const slugify = (text: string): string => {
+    return text
+      .toLowerCase()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .trim()
+  }
+
+  // Helper to get entity page URL
+  const getEntityUrl = (entity: Entity): string => {
+    const slug = slugify(entity.canonical_name)
+    const typeMap: Record<string, string> = {
+      'Person': 'people',
+      'Organization': 'organizations',
+      'Location': 'locations'
+    }
+    const entityType = typeMap[entity.type] || 'entities'
+    return `/${entityType}/${entity.canonical_id}/${slug}`
+  }
 
   // Create nodes and edges from data with grouped layout
   const { nodes: initialNodes, edges: initialEdges } = useMemo(() => {
@@ -248,7 +274,14 @@ const StoryGraph: React.FC<StoryGraphProps> = ({ story, claims, sources, claim_e
         },
         data: {
           label: (
-            <div className="text-center" title={`${entity.canonical_name}${entity.role ? ` - ${entity.role}` : ''}`}>
+            <div
+              className="text-center cursor-pointer hover:scale-105 transition-transform"
+              title={`${entity.canonical_name}${entity.role ? ` - ${entity.role}` : ''}\nClick to view profile`}
+              onClick={(e) => {
+                e.stopPropagation()
+                navigate(getEntityUrl(entity))
+              }}
+            >
               {entity.wikidata_thumbnail ? (
                 <img
                   src={entity.wikidata_thumbnail}
@@ -286,6 +319,7 @@ const StoryGraph: React.FC<StoryGraphProps> = ({ story, claims, sources, claim_e
           alignItems: 'center',
           justifyContent: 'center',
           boxShadow: '0 4px 12px rgba(192, 132, 252, 0.3)',
+          cursor: 'pointer',
         },
       })
 
@@ -315,7 +349,14 @@ const StoryGraph: React.FC<StoryGraphProps> = ({ story, claims, sources, claim_e
         },
         data: {
           label: (
-            <div className="text-center" title={entity.canonical_name}>
+            <div
+              className="text-center cursor-pointer hover:scale-105 transition-transform"
+              title={`${entity.canonical_name}\nClick to view profile`}
+              onClick={(e) => {
+                e.stopPropagation()
+                navigate(getEntityUrl(entity))
+              }}
+            >
               {entity.wikidata_thumbnail ? (
                 <img
                   src={entity.wikidata_thumbnail}
@@ -348,6 +389,7 @@ const StoryGraph: React.FC<StoryGraphProps> = ({ story, claims, sources, claim_e
           alignItems: 'center',
           justifyContent: 'center',
           boxShadow: '0 4px 12px rgba(52, 211, 153, 0.3)',
+          cursor: 'pointer',
         },
       })
 
@@ -384,7 +426,14 @@ const StoryGraph: React.FC<StoryGraphProps> = ({ story, claims, sources, claim_e
         position: pos,
         data: {
           label: (
-            <div className="text-center" title={entity.canonical_name}>
+            <div
+              className="text-center cursor-pointer hover:scale-105 transition-transform"
+              title={`${entity.canonical_name}\nClick to view profile`}
+              onClick={(e) => {
+                e.stopPropagation()
+                navigate(getEntityUrl(entity))
+              }}
+            >
               {entity.wikidata_thumbnail ? (
                 <img
                   src={entity.wikidata_thumbnail}
@@ -417,6 +466,7 @@ const StoryGraph: React.FC<StoryGraphProps> = ({ story, claims, sources, claim_e
           alignItems: 'center',
           justifyContent: 'center',
           boxShadow: '0 4px 12px rgba(251, 191, 36, 0.3)',
+          cursor: 'pointer',
         },
       })
 

@@ -92,8 +92,21 @@ class Neo4jClient:
             })
         return stories
 
-    def get_story_summaries(self, limit: int = 20, offset: int = 0) -> List[Dict]:
-        """Fetch enriched story summaries suitable for homepage and chat."""
+    def get_story_summaries(
+        self,
+        limit: int = 20,
+        offset: int = 0,
+        min_coherence: float = 0.0,
+        max_coherence: float = 1.0
+    ) -> List[Dict]:
+        """Fetch enriched story summaries suitable for homepage and chat.
+
+        Args:
+            limit: Number of stories to return
+            offset: Number of stories to skip
+            min_coherence: Minimum coherence score (0-1)
+            max_coherence: Maximum coherence score (0-1)
+        """
         if not self.connected:
             self._connect()
         if not self.connected:
@@ -101,6 +114,8 @@ class Neo4jClient:
 
         cypher = """
         MATCH (story:Story)
+        WHERE coalesce(story.coherence_score, 0) >= $min_coherence
+          AND coalesce(story.coherence_score, 0) <= $max_coherence
         // Match all artifact types (Page, File, Image, Video) using base Artifact label
         // For now only Page exists, but this is future-proof
         OPTIONAL MATCH (story)-[:HAS_ARTIFACT]->(artifact)
@@ -138,7 +153,13 @@ class Neo4jClient:
         """
 
         with self.driver.session(database=self.database) as session:
-            result = session.run(cypher, limit=limit, offset=offset)
+            result = session.run(
+                cypher,
+                limit=limit,
+                offset=offset,
+                min_coherence=min_coherence,
+                max_coherence=max_coherence
+            )
             summaries: List[Dict] = []
             for record in result:
                 summary = self._record_to_summary(record)
@@ -660,6 +681,7 @@ class Neo4jClient:
         WITH s, claims, sources, pages_list,
              collect(DISTINCT {
                 claim_id: claim.claim_id,
+                canonical_id: e.canonical_id,
                 canonical_name: e.canonical_name,
                 wikidata_qid: e.wikidata_qid,
                 wikidata_thumbnail: e.wikidata_thumbnail,
@@ -685,6 +707,7 @@ class Neo4jClient:
         sources,
         collect(DISTINCT {
             page_url: page.url,
+            canonical_id: e.canonical_id,
             canonical_name: e.canonical_name,
             wikidata_qid: e.wikidata_qid,
             wikidata_thumbnail: e.wikidata_thumbnail,

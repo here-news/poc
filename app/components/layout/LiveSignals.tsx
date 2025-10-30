@@ -47,8 +47,27 @@ function LiveSignals() {
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [scrollProgress, setScrollProgress] = useState(0) // 0-1, how close to triggering load
 
+  // Maturity filter - persist in localStorage
+  const [minCoherence, setMinCoherence] = useState<number>(() => {
+    const saved = localStorage.getItem('story_min_coherence')
+    return saved ? parseFloat(saved) : 0.4 // Default: Filter out Emerging stories
+  })
+
+  // Debounced value for fetching (updates after user stops sliding)
+  const [debouncedCoherence, setDebouncedCoherence] = useState(minCoherence)
+
   // Pin states (mockup) - using story IDs as keys
   const [pinnedStories, setPinnedStories] = useState<Set<string>>(new Set())
+
+  // Debounce the coherence value - wait 500ms after user stops sliding
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedCoherence(minCoherence)
+      localStorage.setItem('story_min_coherence', minCoherence.toString())
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [minCoherence])
 
   const togglePin = (storyId: string, event: React.MouseEvent) => {
     event.preventDefault() // Prevent navigation to story
@@ -64,9 +83,9 @@ function LiveSignals() {
     })
   }
 
-  // Auto-refresh every 30 seconds
+  // Auto-refresh every 30 seconds, re-fetch when debouncedCoherence changes
   useEffect(() => {
-    console.log('[LiveSignals] Component mounted, starting auto-refresh')
+    console.log('[LiveSignals] Component mounted or filter changed, starting auto-refresh')
     fetchStories() // Initial fetch
 
     const interval = setInterval(() => {
@@ -78,7 +97,7 @@ function LiveSignals() {
       console.log('[LiveSignals] Component unmounted, clearing interval')
       clearInterval(interval)
     }
-  }, [])
+  }, [debouncedCoherence])
 
   // Scroll tension effect for loading more
   useEffect(() => {
@@ -129,7 +148,7 @@ function LiveSignals() {
         setIsRefreshing(true)
       }
 
-      const response = await fetch('/api/stories?limit=12')
+      const response = await fetch(`/api/stories?limit=12&min_coherence=${debouncedCoherence}`)
       const data = await response.json()
 
       if (data.error) {
@@ -184,7 +203,7 @@ function LiveSignals() {
     try {
       setIsLoadingMore(true)
       const offset = stories.length
-      const response = await fetch(`/api/stories?limit=12&offset=${offset}`)
+      const response = await fetch(`/api/stories?limit=12&offset=${offset}&min_coherence=${debouncedCoherence}`)
       const data = await response.json()
 
       if (!data.error && data.stories) {
@@ -236,8 +255,8 @@ function LiveSignals() {
             </p>
           </div>
 
-          {/* Manual Refresh Button + New Stories Badge */}
-          <div className="flex items-center gap-2">
+          {/* Manual Refresh Button + New Stories Badge + Maturity Filter */}
+          <div className="flex items-center gap-2 flex-wrap">
             {newStoriesCount > 0 && (
               <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-100 text-emerald-700 text-sm font-medium rounded-full animate-pulse">
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -246,6 +265,40 @@ function LiveSignals() {
                 {newStoriesCount} new {newStoriesCount === 1 ? 'story' : 'stories'}
               </span>
             )}
+
+            {/* Maturity Filter Slider */}
+            <div className="flex items-center gap-3 px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg min-w-[240px] relative">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">
+                  {minCoherence === 0 ? '🌱' : minCoherence < 0.7 ? '🌿' : '🌳'}
+                </span>
+                <div className="text-left">
+                  <div className="text-xs text-slate-600 font-medium">Min Maturity</div>
+                  <div className="text-xs font-bold text-slate-700">
+                    {minCoherence === 0 ? 'All' : minCoherence < 0.7 ? `${Math.round(minCoherence * 100)}%+` : 'Mature'}
+                  </div>
+                </div>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="0.7"
+                step="0.1"
+                value={minCoherence}
+                onChange={(e) => setMinCoherence(parseFloat(e.target.value))}
+                className="flex-1 h-2 bg-gradient-to-r from-green-300 via-teal-300 to-blue-400 rounded-lg appearance-none cursor-pointer slider"
+                style={{
+                  background: `linear-gradient(to right, rgb(134 239 172) 0%, rgb(134 239 172) ${(minCoherence / 0.7) * 100}%, rgb(226 232 240) ${(minCoherence / 0.7) * 100}%, rgb(226 232 240) 100%)`
+                }}
+              />
+              {/* Applying indicator when debouncing */}
+              {minCoherence !== debouncedCoherence && (
+                <div className="absolute -bottom-6 right-0 text-xs text-slate-500 italic animate-pulse">
+                  Applying...
+                </div>
+              )}
+            </div>
+
             <button
               onClick={() => fetchStories(true)}
               disabled={isRefreshing}

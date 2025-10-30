@@ -515,7 +515,37 @@ function BuilderPageV4() {
 
           {/* Story Title + Gist */}
           <div className="mb-2">
-            <h1 className="text-lg font-bold text-slate-900 mb-1.5">{story.topic}</h1>
+            <div className="flex items-start justify-between gap-4 mb-1.5">
+              <h1 className="text-lg font-bold text-slate-900">{story.topic}</h1>
+
+              {/* Compact Maturity Indicator */}
+              <div className="flex items-center gap-3 flex-shrink-0">
+                <div className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${statusInfo.color} border`}>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm">{statusInfo.icon}</span>
+                    <span>{statusInfo.label}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="text-right">
+                    <div className="text-xs font-semibold text-slate-700 leading-tight">Story Maturity</div>
+                    <div className="text-xs text-slate-500 leading-tight">{claims.length} claims • {sources.length} sources</div>
+                  </div>
+                  <div className="relative w-24 h-2 bg-white rounded-full overflow-hidden border border-slate-200">
+                    <div
+                      className={`absolute top-0 left-0 h-full transition-all duration-500 ${
+                        coherencePercent >= targetCoherence ? 'bg-green-500' : 'bg-amber-500'
+                      }`}
+                      style={{ width: `${coherencePercent}%` }}
+                    />
+                    <div className="absolute top-0 h-full w-0.5 bg-teal-600 z-10" style={{ left: `${targetCoherence}%` }} />
+                  </div>
+                  <span className="text-sm font-bold text-slate-900 w-8 text-right">{coherencePercent}%</span>
+                </div>
+              </div>
+            </div>
+
             {story.gist && (
               <div className="bg-slate-50 rounded-lg px-3 py-2 border border-slate-200">
                 <p className="text-xs text-slate-700 leading-relaxed line-clamp-2">{story.gist}</p>
@@ -523,39 +553,6 @@ function BuilderPageV4() {
             )}
           </div>
 
-          {/* Coherence Bar */}
-          <div className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-lg p-3 border border-slate-200">
-            <div className="flex items-center gap-4">
-              <div className={`flex-shrink-0 px-3 py-2 rounded-lg text-xs font-semibold ${statusInfo.color} border`}>
-                <div className="text-base mb-0.5">{statusInfo.icon}</div>
-                <div>{statusInfo.label}</div>
-              </div>
-
-              <div className="flex-1">
-                <div className="flex items-center justify-between mb-1.5">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-slate-700">Story Maturity</span>
-                    <span className="text-xs text-slate-500">({claims.length} claims, {sources.length} sources)</span>
-                  </div>
-                  <span className="text-sm font-bold text-slate-900">{coherencePercent}%</span>
-                </div>
-                <div className="relative h-3 bg-white rounded-full overflow-hidden border border-slate-200">
-                  <div
-                    className={`absolute top-0 left-0 h-full transition-all duration-500 ${
-                      coherencePercent >= targetCoherence ? 'bg-green-500' : 'bg-amber-500'
-                    }`}
-                    style={{ width: `${coherencePercent}%` }}
-                  />
-                  <div className="absolute top-0 h-full w-0.5 bg-teal-600 z-10" style={{ left: `${targetCoherence}%` }} />
-                </div>
-              </div>
-
-              <div className="flex-shrink-0 text-xs text-slate-600 pl-4 border-l border-slate-300">
-                <div className="font-semibold text-teal-600 mb-1">Target: {targetCoherence}%</div>
-                <div className="text-slate-500">+{Math.ceil((targetCoherence - coherencePercent) / 10)} perspectives</div>
-              </div>
-            </div>
-          </div>
         </div>
       </header>
 
