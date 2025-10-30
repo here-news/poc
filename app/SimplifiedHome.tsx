@@ -67,14 +67,6 @@ function SimplifiedHome() {
               <SubmissionInput onSubmit={submitInput} />
             </div>
 
-            {/* How it works - Collapsible */}
-            <HowItWorksCycle />
-
-            {/* Growing Stories */}
-            <div className="bg-white/90 backdrop-blur-sm border border-white/60 rounded-2xl shadow-sm overflow-hidden">
-              <GrowingStories maxCoherence={minCoherence} />
-            </div>
-
             {/* Recent Submissions */}
             {submissions.length > 0 && (
               <div className="bg-white/90 backdrop-blur-sm border border-white/60 rounded-2xl p-4 sm:p-6 shadow-sm">
@@ -91,6 +83,14 @@ function SimplifiedHome() {
                 )}
               </div>
             )}
+
+            {/* How it works - Collapsible */}
+            <HowItWorksCycle />
+
+            {/* Growing Stories */}
+            <div className="bg-white/90 backdrop-blur-sm border border-white/60 rounded-2xl shadow-sm overflow-hidden">
+              <GrowingStories maxCoherence={minCoherence} />
+            </div>
           </aside>
         </div>
       </div>
