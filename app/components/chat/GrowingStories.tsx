@@ -17,6 +17,7 @@ function GrowingStories() {
   const [isExpanded, setIsExpanded] = useState(true) // Start expanded by default
 
   useEffect(() => {
+    console.log('[GrowingStories] Component mounted')
     fetchGrowingStories()
     // Refresh every 60 seconds
     const interval = setInterval(fetchGrowingStories, 60000)
@@ -25,12 +26,14 @@ function GrowingStories() {
 
   const fetchGrowingStories = async () => {
     try {
+      console.log('[GrowingStories] Fetching low maturity stories...')
       // Fetch stories with low maturity (0-70%): both Emerging and Growing
       // API already sorts by last_activity DESC, so newest stories come first
       const response = await fetch('/api/stories?limit=5&min_coherence=0&max_coherence=0.7')
       const data = await response.json()
 
       if (data.stories) {
+        console.log('[GrowingStories] Fetched', data.stories.length, 'stories')
         setStories(data.stories.map((s: any) => ({
           id: s.id,
           title: s.title,
@@ -40,9 +43,11 @@ function GrowingStories() {
           last_updated_human: s.last_updated_human,
           updated_at: s.updated_at
         })))
+      } else {
+        console.log('[GrowingStories] No stories in response')
       }
     } catch (err) {
-      console.error('Error fetching growing stories:', err)
+      console.error('[GrowingStories] Error fetching:', err)
     } finally {
       setLoading(false)
     }
@@ -55,11 +60,12 @@ function GrowingStories() {
   }
 
   return (
-    <div className="border-t border-slate-200 bg-gradient-to-r from-emerald-50 to-teal-50">
+    <div className="border-t-2 border-emerald-300 bg-gradient-to-r from-emerald-50 to-teal-50">
       {/* Header - Collapsible */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full px-4 py-3 flex items-center justify-between hover:bg-emerald-100/50 transition-colors"
+        aria-label="Toggle low maturity threads"
       >
         <div className="flex items-center gap-2 flex-1">
           <span className="text-lg">🌱🌿</span>
