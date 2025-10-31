@@ -6,6 +6,7 @@ from pydantic import BaseModel
 import uvicorn
 import httpx
 import os
+import re
 from openai import OpenAI
 
 from typing import Optional, List, Dict
@@ -188,6 +189,10 @@ def _get_story_claims(story_id: str) -> List[Dict]:
                 })
         return claims
 
+def _strip_entity_markup(text: str) -> str:
+    """Remove entity markup [[Name]] from text, leaving just the name."""
+    return re.sub(r'\[\[([^\]]+)\]\]', r'\1', text)
+
 def _build_story_context(story: Dict, claims: List[Dict]) -> str:
     """Build formatted context string for the LLM."""
     context_parts = []
@@ -195,13 +200,15 @@ def _build_story_context(story: Dict, claims: List[Dict]) -> str:
     # Title and description
     context_parts.append(f"Title: {story.get('title', 'Untitled')}")
     if story.get('description'):
-        context_parts.append(f"\nSummary: {story['description']}")
+        clean_description = _strip_entity_markup(story['description'])
+        context_parts.append(f"\nSummary: {clean_description}")
 
     # Full content if available
     if story.get('content'):
-        # Truncate if too long (keep first 2000 chars)
-        content = story['content'][:2000]
-        if len(story['content']) > 2000:
+        # Strip entity markup and truncate if too long
+        clean_content = _strip_entity_markup(story['content'])
+        content = clean_content[:4000]
+        if len(clean_content) > 4000:
             content += "... [truncated]"
         context_parts.append(f"\nContent: {content}")
 
