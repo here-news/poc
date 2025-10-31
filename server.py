@@ -111,16 +111,17 @@ async def chat_with_story(story_id: str, chat_message: StoryChatMessage):
         messages = [
             {
                 "role": "system",
-                "content": f"""You are a helpful assistant that answers questions about news stories based on verified information.
+                "content": f"""You are a concise assistant that answers questions about news stories based on verified information.
 
 Story Context:
 {context}
 
 Guidelines:
-- Answer questions based only on the provided story information
-- Be factual and cite specific claims when relevant
-- If information isn't in the story, say so clearly
-- Keep responses concise but informative
+- Answer in 2-3 sentences maximum
+- Use only the provided story information
+- Be direct and factual - no filler words
+- If information isn't available, say so in one sentence
+- Cite specific claims when relevant
 - Maintain a neutral, journalistic tone"""
             }
         ]
@@ -135,12 +136,12 @@ Guidelines:
             "content": chat_message.message
         })
 
-        # Call OpenAI API (using gpt-4o-mini for cost efficiency)
+        # Call OpenAI API (using gpt-4o-mini for cost efficiency and speed)
         response = openai_client.chat.completions.create(
             model="gpt-4o-mini",
             messages=messages,
-            temperature=0.7,
-            max_tokens=500
+            temperature=0.5,  # Lower temp for more focused, concise responses
+            max_tokens=200    # Reduced for brevity (roughly 2-3 sentences)
         )
 
         assistant_message = response.choices[0].message.content
