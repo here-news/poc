@@ -341,7 +341,11 @@ export default function EvidenceManager({
       clearInterval(existingInterval)
     }
 
-    const interval = setInterval(async () => {
+    // Track poll count for exponential backoff
+    let pollCount = 0
+    const maxInterval = 15000 // Max 15 seconds between polls
+
+    const poll = async () => {
       try {
         const response = await fetch(`/api/task/${taskId}`)
         const task = await response.json()
@@ -621,10 +625,23 @@ export default function EvidenceManager({
         console.log(`⏳ Will retry polling task ${taskId} on next interval`)
         // Don't stop polling or mark as error on transient network issues
       }
-    }, 3000) // Poll every 3 seconds
 
-    // Store interval for cleanup
-    pollingIntervalsRef.current.set(taskId, interval)
+      // Exponential backoff: start at 3s, increase to 5s, 8s, 12s, max 15s
+      pollCount++
+      const nextInterval = Math.min(
+        3000 + (pollCount * 1000), // Add 1s per poll, starting from 3s
+        maxInterval
+      )
+
+      console.log(`⏰ Next poll for ${taskId} in ${nextInterval/1000}s (poll #${pollCount})`)
+
+      // Schedule next poll
+      const timeout = setTimeout(poll, nextInterval)
+      pollingIntervalsRef.current.set(taskId, timeout as any)
+    }
+
+    // Start first poll immediately
+    poll()
   }
 
   return (
