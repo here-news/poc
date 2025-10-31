@@ -6,8 +6,9 @@ from pydantic import BaseModel
 import uvicorn
 import httpx
 import os
+from openai import OpenAI
 
-from typing import Optional
+from typing import Optional, List, Dict
 
 from services.task_store import task_store, TaskStatus
 from services.pubsub_publisher import pubsub_publisher
@@ -15,6 +16,10 @@ from services.neo4j_client import neo4j_client
 
 # Load environment variables
 BACKEND_SERVICE_URL = os.getenv('BACKEND_SERVICE_URL', 'https://story-engine-here-3n5yrhhfpa-uc.a.run.app')
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+
+# Initialize OpenAI client
+openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
 app = FastAPI()
 
@@ -39,6 +44,10 @@ class SeedSubmission(BaseModel):
 class StorySearchRequest(BaseModel):
     query: str
     limit: Optional[int] = 5
+
+class StoryChatMessage(BaseModel):
+    message: str
+    conversation_history: Optional[List[Dict[str, str]]] = []
 
 # API endpoints
 @app.get("/api/health")
@@ -69,6 +78,148 @@ async def get_story_by_id(story_id: str):
             "success": False,
             "error": str(e)
         }, 500
+
+@app.post("/api/story/{story_id}/chat")
+async def chat_with_story(story_id: str, chat_message: StoryChatMessage):
+    """
+    Chat about a specific story using OpenAI.
+    Loads story context including title, description, content, and claims.
+
+    Args:
+        story_id: The story ID
+        chat_message: Contains user message and optional conversation history
+
+    Returns:
+        AI-generated response based on story context
+    """
+    if not openai_client:
+        raise HTTPException(status_code=500, detail="OpenAI API key not configured")
+
+    try:
+        # Get story data
+        story = neo4j_client.get_story_by_id(story_id)
+        if not story:
+            raise HTTPException(status_code=404, detail=f"Story {story_id} not found")
+
+        # Get claims associated with this story's artifacts
+        claims = _get_story_claims(story_id)
+
+        # Build context for the LLM
+        context = _build_story_context(story, claims)
+
+        # Build conversation messages
+        messages = [
+            {
+                "role": "system",
+                "content": f"""You are a helpful assistant that answers questions about news stories based on verified information.
+
+Story Context:
+{context}
+
+Guidelines:
+- Answer questions based only on the provided story information
+- Be factual and cite specific claims when relevant
+- If information isn't in the story, say so clearly
+- Keep responses concise but informative
+- Maintain a neutral, journalistic tone"""
+            }
+        ]
+
+        # Add conversation history if provided
+        if chat_message.conversation_history:
+            messages.extend(chat_message.conversation_history)
+
+        # Add current user message
+        messages.append({
+            "role": "user",
+            "content": chat_message.message
+        })
+
+        # Call OpenAI API (using gpt-4o-mini for cost efficiency)
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            temperature=0.7,
+            max_tokens=500
+        )
+
+        assistant_message = response.choices[0].message.content
+
+        return {
+            "success": True,
+            "response": assistant_message,
+            "story_id": story_id
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error in story chat: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+def _get_story_claims(story_id: str) -> List[Dict]:
+    """Get all claims associated with a story's artifacts."""
+    if not neo4j_client.connected:
+        neo4j_client._connect()
+    if not neo4j_client.connected:
+        return []
+
+    cypher = """
+    MATCH (story:Story {id: $story_id})-[:HAS_ARTIFACT]->(artifact)
+    OPTIONAL MATCH (artifact)-[:HAS_CLAIM]->(claim:Claim)
+    WHERE claim IS NOT NULL
+    RETURN claim.text as text,
+           claim.confidence as confidence,
+           claim.type as type,
+           claim.created_at as created_at
+    ORDER BY claim.created_at DESC
+    """
+
+    with neo4j_client.driver.session(database=neo4j_client.database) as session:
+        result = session.run(cypher, story_id=story_id)
+        claims = []
+        for record in result:
+            if record["text"]:
+                claims.append({
+                    "text": record["text"],
+                    "confidence": record.get("confidence"),
+                    "type": record.get("type")
+                })
+        return claims
+
+def _build_story_context(story: Dict, claims: List[Dict]) -> str:
+    """Build formatted context string for the LLM."""
+    context_parts = []
+
+    # Title and description
+    context_parts.append(f"Title: {story.get('title', 'Untitled')}")
+    if story.get('description'):
+        context_parts.append(f"\nSummary: {story['description']}")
+
+    # Full content if available
+    if story.get('content'):
+        # Truncate if too long (keep first 2000 chars)
+        content = story['content'][:2000]
+        if len(story['content']) > 2000:
+            content += "... [truncated]"
+        context_parts.append(f"\nContent: {content}")
+
+    # Claims
+    if claims:
+        context_parts.append(f"\n\nVerified Claims ({len(claims)}):")
+        for i, claim in enumerate(claims[:10], 1):  # Limit to 10 claims
+            context_parts.append(f"{i}. {claim['text']}")
+
+    # Metadata
+    metadata = []
+    if story.get('artifact_count'):
+        metadata.append(f"{story['artifact_count']} sources")
+    if story.get('people_count'):
+        metadata.append(f"{story['people_count']} people mentioned")
+    if metadata:
+        context_parts.append(f"\n\nMetadata: {', '.join(metadata)}")
+
+    return '\n'.join(context_parts)
 
 @app.get("/api/stories")
 async def get_stories(

@@ -15,30 +15,70 @@ function StoryChatSidebar({ storyId, storyTitle, isOpen, onToggle }: StoryChatSi
       content: `I can help you understand this story: "${storyTitle}". Ask me anything about the claims, sources, or related information.`
     }
   ])
+  const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const trimmed = input.trim()
-    if (!trimmed) return
+    if (!trimmed || isLoading) return
 
     // Add user message
-    setMessages((prev) => [...prev, { role: 'user', content: trimmed }])
+    const userMessage = { role: 'user' as const, content: trimmed }
+    setMessages((prev) => [...prev, userMessage])
     setInput('')
+    setIsLoading(true)
 
-    // Simulate assistant response (TODO: Connect to real chat API)
-    setTimeout(() => {
+    try {
+      // Build conversation history (exclude the initial welcome message)
+      const conversationHistory = messages.slice(1).map(msg => ({
+        role: msg.role,
+        content: msg.content
+      }))
+
+      const response = await fetch(`/api/story/${storyId}/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: trimmed,
+          conversation_history: conversationHistory
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`)
+      }
+
+      const data = await response.json()
+
+      if (data.success && data.response) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            content: data.response
+          }
+        ])
+      } else {
+        throw new Error('Invalid response from server')
+      }
+    } catch (error) {
+      console.error('Error chatting with story:', error)
       setMessages((prev) => [
         ...prev,
         {
           role: 'assistant',
-          content: `This is a placeholder response for: "${trimmed}". In production, this would connect to a story-aware chat API with context about story ${storyId}.`
+          content: 'Sorry, I encountered an error processing your question. Please try again.'
         }
       ])
-    }, 500)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -113,6 +153,20 @@ function StoryChatSidebar({ storyId, storyTitle, isOpen, onToggle }: StoryChatSi
               </div>
             </div>
           ))}
+          {isLoading && (
+            <div className="flex justify-start">
+              <div className="max-w-[80%] rounded-lg px-4 py-2 bg-slate-100 text-slate-900">
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-1">
+                    <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                  <span className="text-xs text-slate-500">Thinking...</span>
+                </div>
+              </div>
+            </div>
+          )}
           <div ref={messagesEndRef} />
         </div>
 
@@ -129,7 +183,7 @@ function StoryChatSidebar({ storyId, storyTitle, isOpen, onToggle }: StoryChatSi
             />
             <button
               onClick={handleSend}
-              disabled={!input.trim()}
+              disabled={!input.trim() || isLoading}
               className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

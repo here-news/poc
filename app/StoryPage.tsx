@@ -1656,8 +1656,8 @@ function StoryPage() {
         </main>
       </div>
 
-      {/* Story Chat Sidebar */}
-      {story && (
+      {/* Story Chat Sidebar - Only show for mature stories (coherence > 0.5) */}
+      {story && (story.coherence_score || 0) > 0.5 && (
         <StoryChatSidebar
           storyId={story.id}
           storyTitle={story.title}
