@@ -3,6 +3,9 @@ import { useParams, Link } from 'react-router-dom'
 import Header from './components/layout/Header'
 import StoryChatSidebar from './components/layout/StoryChatSidebar'
 import { ensureUserId } from './userSession'
+import { StoryContentRenderer } from './components/story/StoryContentRenderer'
+import type { CitationMetadata, EntityMetadata } from './types/story'
+import { parseContent } from './utils/CitationParser'
 
 // Declare Leaflet types
 declare const L: any
@@ -151,8 +154,31 @@ function formatRelativeTime(timestamp: string): string {
 // The hardcoded mapping function has been removed in favor of database lookups
 
 // Helper function to render content with entity links and tooltips
-function renderContentWithEntityLinks(content: string): JSX.Element {
-  // Pattern: [[Entity Name]] - new markup format from story synthesis
+/**
+ * Render story content with citation and entity markup
+ * Supports both new format ({{cite:...}}, [[...|...]]) and legacy format ([[...]])
+ */
+function renderContentWithCitations(
+  content: string,
+  citationsMetadata?: Record<string, CitationMetadata>,
+  entitiesMetadata?: Record<string, EntityMetadata>,
+  onCitationClick?: (pageIds: string[]) => void
+): JSX.Element {
+  // If we have citations_metadata, use new StoryContentRenderer
+  if (citationsMetadata || content.includes('{{cite:')) {
+    return (
+      <StoryContentRenderer
+        content={content}
+        citationsMetadata={citationsMetadata}
+        entitiesMetadata={entitiesMetadata}
+        onCitationClick={onCitationClick}
+        isDev={import.meta.env.DEV}
+        LegacyEntityComponent={EntityLink}
+      />
+    )
+  }
+
+  // Legacy format: [[Entity Name]] only (backwards compatibility)
   const entityPattern = /\[\[([^\]]+)\]\]/g
   const parts: (string | JSX.Element)[] = []
   let lastIndex = 0
@@ -164,7 +190,7 @@ function renderContentWithEntityLinks(content: string): JSX.Element {
       parts.push(content.substring(lastIndex, match.index))
     }
 
-    // Add entity link with hover tooltip
+    // Add legacy entity link
     const entityName = match[1]
     parts.push(
       <EntityLink
@@ -863,6 +889,8 @@ function StoryPage() {
   const [sourcesOrderNewest, setSourcesOrderNewest] = useState(false)
   const [sourceVotes, setSourceVotes] = useState<{ [url: string]: { upvotes: number, downvotes: number, userVote: 'up' | 'down' | null } }>({})
   const [mediaEntities, setMediaEntities] = useState<{ [domain: string]: any }>({})
+  const [highlightedSourceId, setHighlightedSourceId] = useState<string | null>(null)
+  const [pageIdToCitationNumber, setPageIdToCitationNumber] = useState<Map<string, number>>(new Map())
 
   // Pin state (mockup)
   const [isPinned, setIsPinned] = useState(false)
@@ -974,6 +1002,25 @@ function StoryPage() {
       fetchMediaEntities()
     }
   }, [story?.artifacts])
+
+  // Build citation number mapping when story content changes
+  useEffect(() => {
+    if (story?.content) {
+      const parsed = parseContent(story.content)
+      const numbers = new Map<string, number>()
+      let counter = 1
+
+      for (const citation of parsed.citations) {
+        for (const pageId of citation.pageIds) {
+          if (!numbers.has(pageId)) {
+            numbers.set(pageId, counter++)
+          }
+        }
+      }
+
+      setPageIdToCitationNumber(numbers)
+    }
+  }, [story?.content])
 
   // Handle voting
   const handleVote = (url: string, voteType: 'up' | 'down') => {
@@ -1246,7 +1293,59 @@ function StoryPage() {
                         }
                       `}</style>
                       <div className="story-content">
-                        {renderContentWithEntityLinks(story.content)}
+                        {renderContentWithCitations(
+                          story.content,
+                          // Build citationsMetadata from artifacts array
+                          story.artifacts ? Object.fromEntries(
+                            (story.artifacts as any[])
+                              .filter(a => a.id || a.page_id)
+                              .map(a => [
+                                a.id || a.page_id,
+                                {
+                                  url: a.url,
+                                  title: a.title,
+                                  domain: a.site || a.domain,
+                                  pub_time: a.pub_time || a.published_at || a.pub_date,
+                                  snippet: a.gist || a.snippet || ''
+                                }
+                              ])
+                          ) : (story as any).story_content?.citations_metadata,
+                          (story as any).story_content?.entities_metadata,
+                          // Citation click handler - scroll to sidebar source
+                          (pageIds: string[]) => {
+                            // Highlight and scroll to first cited source
+                            if (pageIds.length > 0) {
+                              const firstPageId = pageIds[0]
+                              console.log('Citation clicked - Page IDs:', pageIds, 'First:', firstPageId)
+                              setHighlightedSourceId(firstPageId)
+
+                              setTimeout(() => {
+                                const element = document.querySelector(`[data-source-id="${firstPageId}"]`) as HTMLElement
+                                if (element) {
+                                  console.log('Found element with title:', element.querySelector('a')?.textContent)
+                                  // Find the scrollable sources-list container
+                                  const sourcesList = document.getElementById('sources-list')
+                                  if (sourcesList) {
+                                    // Calculate element position relative to the sources-list container
+                                    const elementTop = element.offsetTop
+                                    const sourcesListHeight = sourcesList.clientHeight
+                                    const elementHeight = element.clientHeight
+
+                                    // Scroll to center the element in the sources-list
+                                    const scrollTo = elementTop - (sourcesListHeight / 2) + (elementHeight / 2)
+                                    sourcesList.scrollTo({
+                                      top: scrollTo,
+                                      behavior: 'smooth'
+                                    })
+                                  }
+                                }
+                              }, 100)
+
+                              // Clear highlight after 3 seconds
+                              setTimeout(() => setHighlightedSourceId(null), 3000)
+                            }
+                          }
+                        )}
                         <span className="text-slate-600 italic"> ── φ HERE.news</span>
                       </div>
                     </div>
@@ -1538,7 +1637,7 @@ function StoryPage() {
                       Build
                     </a>
                   </div>
-                  <div className="space-y-3">
+                  <div id="sources-list" className="space-y-3 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 300px)' }}>
                     {sortedArtifacts.map((artifact, idx) => {
                       // Get canonical name from fetched media entity or fall back to domain
                       const mediaEntity = artifact.domain ? mediaEntities[artifact.domain] : null
@@ -1567,10 +1666,29 @@ function StoryPage() {
                         console.log('Final pubDate used:', pubDate)
                       }
 
+                      const isHighlighted = artifact.id && highlightedSourceId === artifact.id
+                      const citationNumber = artifact.id ? pageIdToCitationNumber.get(artifact.id) : undefined
+
                       return (
-                        <div key={artifact.url} className="border border-slate-200 rounded-lg p-3 hover:border-slate-300 transition-colors">
-                          {/* Header with logo and media name */}
+                        <div
+                          key={artifact.url}
+                          data-source-id={artifact.id}
+                          className={`border rounded-lg p-3 transition-all duration-300 ${
+                            isHighlighted
+                              ? 'border-blue-500 bg-blue-50 shadow-lg'
+                              : 'border-slate-200 hover:border-slate-300'
+                          }`}
+                        >
+                          {/* Header with citation number, logo and media name */}
                           <div className="flex items-start gap-2 mb-2">
+                            {citationNumber !== undefined && (
+                              <div
+                                className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold"
+                                title={`Citation [${citationNumber}]`}
+                              >
+                                {citationNumber}
+                              </div>
+                            )}
                             {artifact.domain && artifact.domain !== 'null' ? (
                               <img
                                 src={`https://www.google.com/s2/favicons?domain=${artifact.domain}&sz=64`}
