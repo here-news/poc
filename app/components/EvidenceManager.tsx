@@ -141,16 +141,19 @@ export default function EvidenceManager({
       return
     }
 
-    if (processingTasks.length > 0) {
+    // Only save tasks that are still processing (not completed or error)
+    const activeTasks = processingTasks.filter(t => t.status === 'processing')
+
+    if (activeTasks.length > 0) {
       try {
-        console.log(`Saving ${processingTasks.length} tasks to localStorage`)
-        localStorage.setItem(storageKey, JSON.stringify(processingTasks))
+        console.log(`Saving ${activeTasks.length} active tasks to localStorage (filtered from ${processingTasks.length} total)`)
+        localStorage.setItem(storageKey, JSON.stringify(activeTasks))
       } catch (err) {
         console.error('Failed to save processing tasks:', err)
       }
     } else {
       // Only remove from storage when explicitly emptied (after initialization)
-      console.log('Removing tasks from localStorage (array is empty)')
+      console.log('Removing tasks from localStorage (no active tasks)')
       localStorage.removeItem(storageKey)
     }
   }, [processingTasks, storageKey])
@@ -196,7 +199,7 @@ export default function EvidenceManager({
         // Stop polling
         const interval = pollingIntervalsRef.current.get(task.taskId)
         if (interval) {
-          clearInterval(interval)
+          clearTimeout(interval)
           pollingIntervalsRef.current.delete(task.taskId)
         }
 
@@ -220,7 +223,7 @@ export default function EvidenceManager({
   useEffect(() => {
     return () => {
       // Clear all polling intervals
-      pollingIntervalsRef.current.forEach((interval) => clearInterval(interval))
+      pollingIntervalsRef.current.forEach((interval) => clearTimeout(interval))
       pollingIntervalsRef.current.clear()
     }
   }, [])
@@ -338,7 +341,7 @@ export default function EvidenceManager({
     // Clear existing interval for this task if any
     const existingInterval = pollingIntervalsRef.current.get(taskId)
     if (existingInterval) {
-      clearInterval(existingInterval)
+      clearTimeout(existingInterval)
     }
 
     // Track poll count for exponential backoff
@@ -350,11 +353,19 @@ export default function EvidenceManager({
         const response = await fetch(`/api/task/${taskId}`)
         const task = await response.json()
 
+        // DEBUG: Log what we received from API
+        console.log(`📡 Poll response for ${taskId}:`, {
+          status: task.status,
+          current_stage: task.current_stage,
+          completed_at: task.completed_at,
+          has_preview: !!task.preview_meta
+        })
+
         if (!response.ok) {
           // Stop polling and mark as error
           const interval = pollingIntervalsRef.current.get(taskId)
           if (interval) {
-            clearInterval(interval)
+            clearTimeout(interval)
             pollingIntervalsRef.current.delete(taskId)
           }
           setProcessingTasks(prev => prev.map(t =>
@@ -398,34 +409,40 @@ export default function EvidenceManager({
 
         // IMPORTANT: Check if source already exists in story (might be completed but backend didn't update status)
         const taskUrl = task.url
-        const urlWithoutProtocol = taskUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')
-        const sourceAlreadyInStory = sources.some(s => {
-          const sourceUrlNormalized = s.url.replace(/^https?:\/\//, '').replace(/\/$/, '')
-          return sourceUrlNormalized === urlWithoutProtocol || s.url === taskUrl
-        })
+        if (!taskUrl) {
+          // Task doesn't have URL yet (temp task or error) - skip source check and continue polling
+          console.log(`⏭️ Task ${taskId} has no URL yet, continuing polling`)
+          // Don't return - let it schedule next poll at bottom
+        } else {
+          const urlWithoutProtocol = taskUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')
+          const sourceAlreadyInStory = sources.some(s => {
+            const sourceUrlNormalized = s.url.replace(/^https?:\/\//, '').replace(/\/$/, '')
+            return sourceUrlNormalized === urlWithoutProtocol || s.url === taskUrl
+          })
 
-        if (sourceAlreadyInStory) {
-          // Source was successfully added! Mark as completed even if backend status isn't updated
-          console.log(`✅ Source ${taskUrl} found in story - marking as completed (NO REFRESH NEEDED)`)
-          const interval = pollingIntervalsRef.current.get(taskId)
-          if (interval) {
-            clearInterval(interval)
-            pollingIntervalsRef.current.delete(taskId)
+          if (sourceAlreadyInStory) {
+            // Source was successfully added! Mark as completed even if backend status isn't updated
+            console.log(`✅ Source ${taskUrl} found in story - marking as completed (NO REFRESH NEEDED)`)
+            const interval = pollingIntervalsRef.current.get(taskId)
+            if (interval) {
+              clearTimeout(interval)
+              pollingIntervalsRef.current.delete(taskId)
+            }
+
+            const claimsCount = task.semantic_data?.claims?.length || 1
+            setProcessingTasks(prev => prev.map(t =>
+              t.taskId === taskId
+                ? { ...t, status: 'completed', claimsCount }
+                : t
+            ))
+
+            // Remove from processing tasks immediately - no need to show success since it's already in list
+            setTimeout(() => {
+              console.log(`🗑️ Removing completed task ${taskId} from UI (already in story)`)
+              setProcessingTasks(prev => prev.filter(t => t.taskId !== taskId))
+            }, 1500) // Reduced from 3s
+            return // Stop polling - don't schedule next
           }
-
-          const claimsCount = task.semantic_data?.claims?.length || 1
-          setProcessingTasks(prev => prev.map(t =>
-            t.taskId === taskId
-              ? { ...t, status: 'completed', claimsCount }
-              : t
-          ))
-
-          // Remove from processing tasks immediately - no need to show success since it's already in list
-          setTimeout(() => {
-            console.log(`🗑️ Removing completed task ${taskId} from UI (already in story)`)
-            setProcessingTasks(prev => prev.filter(t => t.taskId !== taskId))
-          }, 1500) // Reduced from 3s
-          return
         }
 
         // If still actively processing OR in any active stage, keep polling
@@ -437,8 +454,8 @@ export default function EvidenceManager({
               ? { ...t, stage: task.current_stage }
               : t
           ))
-          return // Keep polling
-        }
+          // Don't return - let it schedule next poll at bottom
+        } else {
 
         // Handle completion - ONLY if truly completed or explicitly failed
         const isCompleted = task.status === 'completed' ||
@@ -466,7 +483,7 @@ export default function EvidenceManager({
             // Stop polling
             const interval = pollingIntervalsRef.current.get(taskId)
             if (interval) {
-              clearInterval(interval)
+              clearTimeout(interval)
               pollingIntervalsRef.current.delete(taskId)
             }
 
@@ -498,9 +515,13 @@ export default function EvidenceManager({
           // Stop polling - we have enough info to determine success/failure
           const interval = pollingIntervalsRef.current.get(taskId)
           if (interval) {
-            clearInterval(interval)
+            clearTimeout(interval)
             pollingIntervalsRef.current.delete(taskId)
           }
+
+          // DON'T mark as completed yet - wait for verification to finish
+          // This keeps task in localStorage during verification period
+          // If page refreshes, task will be restored and error can be shown
 
           // First refresh story data to get actual claim count from Neo4j
           // This is the source of truth, not task.semantic_data
@@ -609,7 +630,7 @@ export default function EvidenceManager({
         } else if (task.status === 'failed') {
           const interval = pollingIntervalsRef.current.get(taskId)
           if (interval) {
-            clearInterval(interval)
+            clearTimeout(interval)
             pollingIntervalsRef.current.delete(taskId)
           }
           setProcessingTasks(prev => prev.map(t =>
@@ -618,6 +639,7 @@ export default function EvidenceManager({
               : t
           ))
         }
+        } // Close else block from line 458
       } catch (err) {
         console.error('⚠️ Polling error for task:', taskId, err)
         // Don't immediately give up - just log and continue polling
@@ -704,7 +726,7 @@ export default function EvidenceManager({
               onClick={() => {
                 console.log('🗑️ Manually clearing all processing tasks')
                 // Stop all polling
-                pollingIntervalsRef.current.forEach((interval) => clearInterval(interval))
+                pollingIntervalsRef.current.forEach((interval) => clearTimeout(interval))
                 pollingIntervalsRef.current.clear()
                 // Clear tasks
                 setProcessingTasks([])

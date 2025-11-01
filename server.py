@@ -186,9 +186,9 @@ def _get_story_claims(story_id: str) -> List[Dict]:
     RETURN claim.text as text,
            claim.confidence as confidence,
            claim.type as type,
-           claim.created_at as created_at,
+           COALESCE(claim.event_time, artifact.pub_time) as created_at,
            artifact.url as source_url
-    ORDER BY claim.created_at DESC
+    ORDER BY COALESCE(claim.event_time, artifact.pub_time) DESC
     """
 
     with neo4j_client.driver.session(database=neo4j_client.database) as session:

@@ -500,9 +500,12 @@ class Neo4jClient:
              count(DISTINCT location) + count(DISTINCT artifact_location) as location_count,
              collect(DISTINCT location) + collect(DISTINCT artifact_location) as all_locations,
              collect(DISTINCT {
+                id: artifact.id,
                 url: artifact.url,
                 title: artifact.title,
                 domain: artifact.domain,
+                site: artifact.site,
+                gist: artifact.gist,
                 thumbnail_url: artifact.thumbnail_url,
                 created_at: artifact.created_at,
                 pub_date: artifact.pub_date,
