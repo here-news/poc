@@ -212,10 +212,10 @@ def _build_story_context(story: Dict, claims: List[Dict]) -> str:
             content += "... [truncated]"
         context_parts.append(f"\nContent: {content}")
 
-    # Claims
+    # Claims (up to 50)
     if claims:
-        context_parts.append(f"\n\nVerified Claims ({len(claims)}):")
-        for i, claim in enumerate(claims[:10], 1):  # Limit to 10 claims
+        context_parts.append(f"\n\nVerified Claims ({len(claims[:50])}):")
+        for i, claim in enumerate(claims[:50], 1):
             context_parts.append(f"{i}. {claim['text']}")
 
     # Metadata
