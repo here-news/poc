@@ -5,7 +5,29 @@ interface StoryChatSidebarProps {
   storyTitle: string
   isOpen: boolean
   onToggle: () => void
-  claims?: Array<{ text: string; confidence?: number }>
+  claims?: Array<{ text: string; confidence?: number; created_at?: string; source_url?: string }>
+}
+
+// Helper function to format relative time
+function formatRelativeTime(timestamp: string | undefined): string {
+  if (!timestamp) return ''
+
+  try {
+    const date = new Date(timestamp)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffSecs = Math.floor(diffMs / 1000)
+    const diffMins = Math.floor(diffSecs / 60)
+    const diffHours = Math.floor(diffMins / 60)
+    const diffDays = Math.floor(diffHours / 24)
+
+    if (diffDays > 0) return `${diffDays}d ago`
+    if (diffHours > 0) return `${diffHours}h ago`
+    if (diffMins > 0) return `${diffMins}m ago`
+    return 'just now'
+  } catch {
+    return ''
+  }
 }
 
 function StoryChatSidebar({ storyId, storyTitle, isOpen, onToggle, claims = [] }: StoryChatSidebarProps) {
@@ -133,8 +155,22 @@ function StoryChatSidebar({ storyId, storyTitle, isOpen, onToggle, claims = [] }
           </span>
           {isExpanded && numbers[0] <= claims.length && (
             <span className="block mt-2 p-3 bg-blue-50 border-l-4 border-blue-400 rounded text-xs text-slate-700 leading-relaxed">
-              <span className="font-semibold text-blue-700">Claim {numbers[0]}: </span>
-              {claims[numbers[0] - 1]?.text}
+              <div className="flex items-start justify-between gap-2 mb-1">
+                <span className="font-semibold text-blue-700">Claim {numbers[0]}:</span>
+                {claims[numbers[0] - 1]?.created_at && (
+                  <a
+                    href={claims[numbers[0] - 1]?.source_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-slate-500 hover:text-blue-600 text-[10px] flex-shrink-0 underline cursor-pointer transition-colors"
+                    title="View source article"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {formatRelativeTime(claims[numbers[0] - 1]?.created_at)}
+                  </a>
+                )}
+              </div>
+              <div>{claims[numbers[0] - 1]?.text}</div>
             </span>
           )}
         </span>
