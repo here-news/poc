@@ -891,6 +891,7 @@ function StoryPage() {
   const [mediaEntities, setMediaEntities] = useState<{ [domain: string]: any }>({})
   const [highlightedSourceId, setHighlightedSourceId] = useState<string | null>(null)
   const [pageIdToCitationNumber, setPageIdToCitationNumber] = useState<Map<string, number>>(new Map())
+  const [storyClaims, setStoryClaims] = useState<Array<{ text: string; confidence?: number }>>([])
 
   // Pin state (mockup)
   const [isPinned, setIsPinned] = useState(false)
@@ -1021,6 +1022,20 @@ function StoryPage() {
       setPageIdToCitationNumber(numbers)
     }
   }, [story?.content])
+
+  // Fetch claims for the story
+  useEffect(() => {
+    if (story?.id) {
+      fetch(`/api/story/${story.id}/claims`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && Array.isArray(data.claims)) {
+            setStoryClaims(data.claims)
+          }
+        })
+        .catch(err => console.error('Failed to fetch claims:', err))
+    }
+  }, [story?.id])
 
   // Handle voting
   const handleVote = (url: string, voteType: 'up' | 'down') => {
@@ -1781,6 +1796,7 @@ function StoryPage() {
           storyTitle={story.title}
           isOpen={chatOpen}
           onToggle={() => setChatOpen(!chatOpen)}
+          claims={storyClaims}
         />
       )}
     </div>

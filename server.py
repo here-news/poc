@@ -80,6 +80,19 @@ async def get_story_by_id(story_id: str):
             "error": str(e)
         }, 500
 
+@app.get("/api/story/{story_id}/claims")
+async def get_story_claims(story_id: str):
+    """Get claims for a specific story."""
+    try:
+        claims = _get_story_claims(story_id)
+        return {
+            "success": True,
+            "claims": claims
+        }
+    except Exception as e:
+        print(f"Error fetching story claims: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/api/story/{story_id}/chat")
 async def chat_with_story(story_id: str, chat_message: StoryChatMessage):
     """
@@ -122,7 +135,7 @@ Guidelines:
 - Use only the provided story information
 - Be direct and factual - no filler words
 - If information isn't available, say so in one sentence
-- Cite specific claims when relevant
+- When citing claims, reference them by number (e.g., "Claim 5 states..." or "Claims 3 and 7 confirm...")
 - Maintain a neutral, journalistic tone"""
             }
         ]

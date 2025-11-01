@@ -5,9 +5,10 @@ interface StoryChatSidebarProps {
   storyTitle: string
   isOpen: boolean
   onToggle: () => void
+  claims?: Array<{ text: string; confidence?: number }>
 }
 
-function StoryChatSidebar({ storyId, storyTitle, isOpen, onToggle }: StoryChatSidebarProps) {
+function StoryChatSidebar({ storyId, storyTitle, isOpen, onToggle, claims = [] }: StoryChatSidebarProps) {
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([
     {
@@ -16,6 +17,7 @@ function StoryChatSidebar({ storyId, storyTitle, isOpen, onToggle }: StoryChatSi
     }
   ])
   const [isLoading, setIsLoading] = useState(false)
+  const [expandedClaims, setExpandedClaims] = useState<Map<string, number>>(new Map()) // Map of messageIdx-claimNum to expanded state
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -88,6 +90,67 @@ function StoryChatSidebar({ storyId, storyTitle, isOpen, onToggle }: StoryChatSi
     }
   }
 
+  // Parse message content to render claim references as clickable elements with inline expansion
+  const renderMessageContent = (content: string, messageIdx: number) => {
+    // Match patterns like "Claim 5" or "Claims 3 and 7" or "Claims 3, 7, and 12"
+    const claimPattern = /\b[Cc]laim[s]?\s+((?:\d+(?:\s+and\s+\d+|,\s*\d+)*(?:\s+and\s+\d+)?)|(?:\d+))/g
+    const parts: (string | JSX.Element)[] = []
+    let lastIndex = 0
+    let match
+
+    while ((match = claimPattern.exec(content)) !== null) {
+      // Add text before match
+      if (match.index > lastIndex) {
+        parts.push(content.substring(lastIndex, match.index))
+      }
+
+      // Extract claim numbers
+      const numbersText = match[1]
+      const numbers = numbersText.match(/\d+/g)?.map(n => parseInt(n)) || []
+
+      // Add clickable claim reference with inline expansion
+      const claimKey = `${messageIdx}-${numbers[0]}`
+      const isExpanded = expandedClaims.has(claimKey)
+
+      parts.push(
+        <span key={`claim-${match.index}`} className="inline-block">
+          <span
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-semibold cursor-pointer hover:bg-blue-200 transition-colors"
+            onClick={() => {
+              setExpandedClaims(prev => {
+                const newMap = new Map(prev)
+                if (newMap.has(claimKey)) {
+                  newMap.delete(claimKey)
+                } else {
+                  newMap.set(claimKey, numbers[0])
+                }
+                return newMap
+              })
+            }}
+            title="Click to view claim text"
+          >
+            Claim{numbers.length > 1 ? 's' : ''} {numbers.join(', ')}
+          </span>
+          {isExpanded && numbers[0] <= claims.length && (
+            <span className="block mt-2 p-3 bg-blue-50 border-l-4 border-blue-400 rounded text-xs text-slate-700 leading-relaxed">
+              <span className="font-semibold text-blue-700">Claim {numbers[0]}: </span>
+              {claims[numbers[0] - 1]?.text}
+            </span>
+          )}
+        </span>
+      )
+
+      lastIndex = match.index + match[0].length
+    }
+
+    // Add remaining text
+    if (lastIndex < content.length) {
+      parts.push(content.substring(lastIndex))
+    }
+
+    return parts.length > 0 ? parts : content
+  }
+
   return (
     <>
       {/* Floating Chat Button (when collapsed) */}
@@ -149,7 +212,9 @@ function StoryChatSidebar({ storyId, storyTitle, isOpen, onToggle }: StoryChatSi
                     : 'bg-slate-100 text-slate-900'
                 }`}
               >
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                  {msg.role === 'assistant' ? renderMessageContent(msg.content, idx) : msg.content}
+                </p>
               </div>
             </div>
           ))}
