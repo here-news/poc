@@ -196,11 +196,18 @@ def _get_story_claims(story_id: str) -> List[Dict]:
         claims = []
         for record in result:
             if record["text"]:
+                # Convert Neo4j datetime to ISO string if present
+                created_at = record.get("created_at")
+                if created_at and hasattr(created_at, 'isoformat'):
+                    created_at = created_at.isoformat()
+                elif created_at:
+                    created_at = str(created_at)
+
                 claims.append({
                     "text": record["text"],
                     "confidence": record.get("confidence"),
                     "type": record.get("type"),
-                    "created_at": record.get("created_at"),
+                    "created_at": created_at,
                     "source_url": record.get("source_url")
                 })
         return claims

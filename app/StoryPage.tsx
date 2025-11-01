@@ -1030,6 +1030,7 @@ function StoryPage() {
         .then(res => res.json())
         .then(data => {
           if (data.success && Array.isArray(data.claims)) {
+            console.log('Fetched claims:', data.claims.slice(0, 2)) // Debug: check first 2 claims
             setStoryClaims(data.claims)
           }
         })

@@ -153,24 +153,28 @@ function StoryChatSidebar({ storyId, storyTitle, isOpen, onToggle, claims = [] }
           >
             Claim{numbers.length > 1 ? 's' : ''} {numbers.join(', ')}
           </span>
-          {isExpanded && numbers[0] <= claims.length && (
-            <span className="block mt-2 p-3 bg-blue-50 border-l-4 border-blue-400 rounded text-xs text-slate-700 leading-relaxed">
-              <div className="flex items-start justify-between gap-2 mb-1">
-                <span className="font-semibold text-blue-700">Claim {numbers[0]}:</span>
-                {claims[numbers[0] - 1]?.created_at && (
-                  <a
-                    href={claims[numbers[0] - 1]?.source_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-slate-500 hover:text-blue-600 text-[10px] flex-shrink-0 underline cursor-pointer transition-colors"
-                    title="View source article"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {formatRelativeTime(claims[numbers[0] - 1]?.created_at)}
-                  </a>
-                )}
-              </div>
-              <div>{claims[numbers[0] - 1]?.text}</div>
+          {isExpanded && (
+            <span className="block mt-2 space-y-2">
+              {numbers.filter(num => num <= claims.length).map(num => (
+                <span key={num} className="block p-3 bg-blue-50 border-l-4 border-blue-400 rounded text-xs text-slate-700 leading-relaxed">
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <span className="font-semibold text-blue-700">Claim {num}:</span>
+                    {claims[num - 1]?.created_at && (
+                      <a
+                        href={claims[num - 1]?.source_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-slate-500 hover:text-blue-600 text-[10px] flex-shrink-0 underline cursor-pointer transition-colors"
+                        title="View source article"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {formatRelativeTime(claims[num - 1]?.created_at)}
+                      </a>
+                    )}
+                  </div>
+                  <div>{claims[num - 1]?.text}</div>
+                </span>
+              ))}
             </span>
           )}
         </span>
