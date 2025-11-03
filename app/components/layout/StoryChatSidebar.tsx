@@ -115,7 +115,7 @@ function StoryChatSidebar({ storyId, storyTitle, isOpen, onToggle, claims = [] }
   // Parse message content to render claim references as clickable elements with inline expansion
   const renderMessageContent = (content: string, messageIdx: number) => {
     // Match patterns like "Claim 5" or "Claims 3 and 7" or "Claims 3, 7, and 12"
-    const claimPattern = /\b[Cc]laim[s]?\s+((?:\d+(?:\s+and\s+\d+|,\s*\d+)*(?:\s+and\s+\d+)?)|(?:\d+))/g
+    const claimPattern = /\b[Cc]laim[s]?\s+(\d+(?:(?:,\s*(?:and\s+)?|\s+and\s+)\d+)*)/g
     const parts: (string | JSX.Element)[] = []
     let lastIndex = 0
     let match

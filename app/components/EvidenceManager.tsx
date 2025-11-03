@@ -141,8 +141,12 @@ export default function EvidenceManager({
       return
     }
 
-    // Only save tasks that are still processing (not completed or error)
-    const activeTasks = processingTasks.filter(t => t.status === 'processing')
+    // Only save tasks that are still processing (not completed, error, or about to be removed)
+    // Exclude tasks marked as completed to prevent restoration loop
+    const activeTasks = processingTasks.filter(t =>
+      t.status === 'processing' &&
+      !t.taskId.startsWith('temp_') // Also exclude temp tasks
+    )
 
     if (activeTasks.length > 0) {
       try {
@@ -519,9 +523,15 @@ export default function EvidenceManager({
             pollingIntervalsRef.current.delete(taskId)
           }
 
-          // DON'T mark as completed yet - wait for verification to finish
-          // This keeps task in localStorage during verification period
-          // If page refreshes, task will be restored and error can be shown
+          // IMMEDIATELY mark as completed in state to prevent localStorage restoration loop
+          // The localStorage filter checks status === 'processing', so changing to 'completed'
+          // ensures this task won't be saved and restored on next render
+          const claimsCount = task.semantic_data?.claims?.length || 0
+          setProcessingTasks(prev => prev.map(t =>
+            t.taskId === taskId
+              ? { ...t, status: 'completed', claimsCount }
+              : t
+          ))
 
           // First refresh story data to get actual claim count from Neo4j
           // This is the source of truth, not task.semantic_data
@@ -555,20 +565,24 @@ export default function EvidenceManager({
                   totalSources: sources.length
                 })
 
-                // If source was added to story, consider it a success regardless of semantic_data
-                if (sourceExists) {
-                  console.log(`✅ SUCCESS: Source ${taskUrl} found in story sources`)
-                  setProcessingTasks(prev => prev.map(t =>
-                    t.taskId === taskId
-                      ? { ...t, status: 'completed', claimsCount: claimsCountFromTask || 1 }
-                      : t
-                  ))
+                // If source was added to story OR task succeeded with claims, consider it a success
+                if (sourceExists || (claimsCountFromTask > 0 && task.status === 'completed')) {
+                  if (sourceExists) {
+                    console.log(`✅ SUCCESS: Source ${taskUrl} found in story sources`)
+                  } else {
+                    console.log(`✅ SUCCESS: Task completed with ${claimsCountFromTask} claims (source will appear after synthesis)`)
+                  }
 
-                  // Remove from processing tasks after showing success
-                  setTimeout(() => {
-                    console.log(`🗑️ Auto-removing completed task ${taskId} from UI`)
-                    setProcessingTasks(prev => prev.filter(t => t.taskId !== taskId))
-                  }, 3000)
+                  // Stop polling immediately
+                  const interval = pollingIntervalsRef.current.get(taskId)
+                  if (interval) {
+                    clearTimeout(interval)
+                    pollingIntervalsRef.current.delete(taskId)
+                  }
+
+                  // Remove from processing tasks immediately to prevent localStorage restoration
+                  console.log(`🗑️ Removing completed task ${taskId} from processing list`)
+                  setProcessingTasks(prev => prev.filter(t => t.taskId !== taskId))
                 } else {
                   // Source not in story - BUT might still be processing in background
                   // Be defensive: check if we have evidence that it truly failed
@@ -598,11 +612,27 @@ export default function EvidenceManager({
                   }
 
                   console.log(`❌ FAILURE: Source ${taskUrl} not in story - ${reason}`)
+
+                  // IMPORTANT: Stop polling when task fails
+                  const interval = pollingIntervalsRef.current.get(taskId)
+                  if (interval) {
+                    clearTimeout(interval)
+                    pollingIntervalsRef.current.delete(taskId)
+                    console.log(`🛑 Stopped polling for failed task ${taskId}`)
+                  }
+
+                  // Mark as error briefly to show user, then remove from processing
                   setProcessingTasks(prev => prev.map(t =>
                     t.taskId === taskId
                       ? { ...t, status: 'error', errorMessage: reason }
                       : t
                   ))
+
+                  // Remove failed task after showing error
+                  setTimeout(() => {
+                    console.log(`🗑️ Removing failed task ${taskId} from processing list`)
+                    setProcessingTasks(prev => prev.filter(t => t.taskId !== taskId))
+                  }, 5000) // Show error for 5 seconds before removing
                 }
               }, 2000) // Increased from 1s to 2s for Neo4j write delay
             } catch (err) {
@@ -628,16 +658,27 @@ export default function EvidenceManager({
             }
           }, 500) // Initial delay before refresh
         } else if (task.status === 'failed') {
+          console.log(`❌ Task ${taskId} failed:`, task.error || 'Extraction failed')
+
+          // Stop polling immediately
           const interval = pollingIntervalsRef.current.get(taskId)
           if (interval) {
             clearTimeout(interval)
             pollingIntervalsRef.current.delete(taskId)
           }
+
+          // Mark as error and update to 'failed' status to prevent localStorage save
           setProcessingTasks(prev => prev.map(t =>
             t.taskId === taskId
-              ? { ...t, status: 'error', errorMessage: task.error || 'Extraction failed' }
+              ? { ...t, status: 'failed', errorMessage: task.error || 'Extraction failed' }
               : t
           ))
+
+          // Remove failed task after showing error briefly
+          setTimeout(() => {
+            console.log(`🗑️ Removing failed task ${taskId} from processing list`)
+            setProcessingTasks(prev => prev.filter(t => t.taskId !== taskId))
+          }, 5000)
         }
         } // Close else block from line 458
       } catch (err) {
@@ -655,11 +696,17 @@ export default function EvidenceManager({
         maxInterval
       )
 
-      console.log(`⏰ Next poll for ${taskId} in ${nextInterval/1000}s (poll #${pollCount})`)
+      // Only schedule next poll if this task is still being tracked
+      // (it might have been removed/completed during the async operations above)
+      if (pollingIntervalsRef.current.has(taskId) || pollCount === 0) {
+        console.log(`⏰ Next poll for ${taskId} in ${nextInterval/1000}s (poll #${pollCount})`)
 
-      // Schedule next poll
-      const timeout = setTimeout(poll, nextInterval)
-      pollingIntervalsRef.current.set(taskId, timeout as any)
+        // Schedule next poll
+        const timeout = setTimeout(poll, nextInterval)
+        pollingIntervalsRef.current.set(taskId, timeout as any)
+      } else {
+        console.log(`⏹️ Skipping poll scheduling for ${taskId} - interval was cleared (task completed/failed)`)
+      }
     }
 
     // Start first poll immediately

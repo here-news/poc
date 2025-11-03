@@ -31,10 +31,42 @@ export function EntityLink({
   isDev = false
 }: EntityLinkProps) {
   const [showTooltip, setShowTooltip] = useState(false)
+  const [showHeadshot, setShowHeadshot] = useState(false)
+  const [hasLoadedHeadshot, setHasLoadedHeadshot] = useState(false)
   const tooltipRef = useRef<HTMLDivElement>(null)
+  const linkRef = useRef<HTMLSpanElement>(null)
 
   const metadata = entitiesMetadata[canonicalId]
   const hasMissingMetadata = !metadata
+
+  // Intersection Observer for lazy loading headshots
+  React.useEffect(() => {
+    if (!linkRef.current || hasLoadedHeadshot || !metadata?.image_url) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !hasLoadedHeadshot) {
+            setHasLoadedHeadshot(true)
+            // Show headshot with delay for animation
+            setTimeout(() => setShowHeadshot(true), 100)
+          }
+        })
+      },
+      {
+        rootMargin: '50px',
+        threshold: 0.1
+      }
+    )
+
+    observer.observe(linkRef.current)
+
+    return () => {
+      if (linkRef.current) {
+        observer.unobserve(linkRef.current)
+      }
+    }
+  }, [hasLoadedHeadshot, metadata?.image_url])
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -73,9 +105,10 @@ export function EntityLink({
   return (
     <span
       className="entity-link-wrapper"
-      style={{ position: 'relative', display: 'inline' }}
+      style={{ position: 'relative', display: 'inline-block' }}
     >
       <span
+        ref={linkRef}
         className={`entity-link ${hasMissingMetadata && isDev ? 'entity-error' : ''}`}
         onClick={handleClick}
         onMouseEnter={handleMouseEnter}
@@ -96,6 +129,31 @@ export function EntityLink({
           </span>
         )}
       </span>
+
+      {/* Floating headshot with animation (legacy design) */}
+      {showHeadshot && metadata?.image_url && (
+        <span
+          className={`inline-block align-middle mx-1 sm:mx-2 transition-all duration-500 ease-out ${
+            showHeadshot ? 'opacity-100 scale-100' : 'opacity-0 scale-0'
+          }`}
+          style={{
+            animation: 'fadeInScale 0.5s ease-out'
+          }}
+        >
+          <img
+            src={metadata.image_url}
+            alt={metadata.name}
+            className="w-10 h-10 sm:w-16 sm:h-16 rounded-full object-cover border-2 shadow-lg"
+            style={{
+              borderColor: entityColor
+            }}
+            onError={(e) => {
+              e.currentTarget.style.display = 'none'
+              setShowHeadshot(false)
+            }}
+          />
+        </span>
+      )}
 
       {/* Tooltip with entity info */}
       {showTooltip && metadata && (
@@ -120,22 +178,6 @@ export function EntityLink({
             lineHeight: '1.4'
           }}
         >
-          {/* Entity image (if available) */}
-          {metadata.image_url && (
-            <div style={{ marginBottom: '8px' }}>
-              <img
-                src={metadata.image_url}
-                alt={metadata.name}
-                style={{
-                  width: '100%',
-                  maxHeight: '120px',
-                  objectFit: 'cover',
-                  borderRadius: '4px'
-                }}
-              />
-            </div>
-          )}
-
           {/* Entity name and type */}
           <div
             style={{

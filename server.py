@@ -93,6 +93,19 @@ async def get_story_claims(story_id: str):
         print(f"Error fetching story claims: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/story/{story_id}/entities")
+async def get_story_entities(story_id: str):
+    """Get entities for a specific story from graph relationships."""
+    try:
+        entities = _get_story_entities(story_id)
+        return {
+            "success": True,
+            "entities": entities
+        }
+    except Exception as e:
+        print(f"Error fetching story entities: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/api/story/{story_id}/chat")
 async def chat_with_story(story_id: str, chat_message: StoryChatMessage):
     """
@@ -211,6 +224,55 @@ def _get_story_claims(story_id: str) -> List[Dict]:
                     "source_url": record.get("source_url")
                 })
         return claims
+
+def _get_story_entities(story_id: str) -> Dict:
+    """Get all entities associated with a story from graph relationships."""
+    if not neo4j_client.connected:
+        neo4j_client._connect()
+    if not neo4j_client.connected:
+        return {"persons": [], "organizations": [], "locations": []}
+
+    cypher = """
+    MATCH (story:Story {id: $story_id})-[:HAS_ARTIFACT]->(page:Page)
+    MATCH (page)-[:MENTIONS_ENTITY]->(entity)
+    RETURN DISTINCT
+           labels(entity)[0] as entity_type,
+           entity.canonical_id as canonical_id,
+           entity.canonical_name as name,
+           entity.wikidata_qid as qid,
+           entity.wikidata_thumbnail as image_url,
+           entity.description as description,
+           entity.confidence as confidence
+    ORDER BY entity.canonical_name
+    """
+
+    with neo4j_client.driver.session(database=neo4j_client.database) as session:
+        result = session.run(cypher, story_id=story_id)
+        entities = {
+            "persons": [],
+            "organizations": [],
+            "locations": []
+        }
+
+        for record in result:
+            entity_type = record.get("entity_type", "").lower()
+            entity_data = {
+                "canonical_id": record.get("canonical_id"),
+                "name": record.get("name"),
+                "qid": record.get("qid"),
+                "image_url": record.get("image_url"),
+                "description": record.get("description"),
+                "confidence": record.get("confidence")
+            }
+
+            if entity_type == "person":
+                entities["persons"].append(entity_data)
+            elif entity_type == "organization":
+                entities["organizations"].append(entity_data)
+            elif entity_type == "location":
+                entities["locations"].append(entity_data)
+
+        return entities
 
 def _strip_entity_markup(text: str) -> str:
     """Remove entity markup [[Name]] from text, leaving just the name."""

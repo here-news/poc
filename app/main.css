@@ -57,3 +57,15 @@ input[type="range"]::-moz-range-thumb:active {
   cursor: grabbing;
 }
 
+/* Entity headshot fade-in animation */
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+

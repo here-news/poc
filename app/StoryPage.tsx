@@ -892,6 +892,7 @@ function StoryPage() {
   const [highlightedSourceId, setHighlightedSourceId] = useState<string | null>(null)
   const [pageIdToCitationNumber, setPageIdToCitationNumber] = useState<Map<string, number>>(new Map())
   const [storyClaims, setStoryClaims] = useState<Array<{ text: string; confidence?: number }>>([])
+  const [storyEntities, setStoryEntities] = useState<Record<string, any>>({})
 
   // Pin state (mockup)
   const [isPinned, setIsPinned] = useState(false)
@@ -1035,6 +1036,61 @@ function StoryPage() {
           }
         })
         .catch(err => console.error('Failed to fetch claims:', err))
+    }
+  }, [story?.id])
+
+  // Fetch entities for the story
+  useEffect(() => {
+    if (story?.id) {
+      fetch(`/api/story/${story.id}/entities`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.entities) {
+            // Build an object of canonical_id -> entity data for quick lookup
+            const entitiesObj: Record<string, any> = {}
+
+            // Add all persons
+            data.entities.persons?.forEach((entity: any) => {
+              entitiesObj[entity.canonical_id] = {
+                name: entity.name,
+                qid: entity.qid || '',
+                description: entity.description || '',
+                image_url: entity.image_url || '',
+                entity_type: 'person',
+                claim_count: 0  // TODO: Add claim count from API
+              }
+            })
+
+            // Add all organizations
+            data.entities.organizations?.forEach((entity: any) => {
+              entitiesObj[entity.canonical_id] = {
+                name: entity.name,
+                qid: entity.qid || '',
+                description: entity.description || '',
+                image_url: entity.image_url || '',
+                entity_type: 'organization',
+                claim_count: 0  // TODO: Add claim count from API
+              }
+            })
+
+            // Add all locations
+            data.entities.locations?.forEach((entity: any) => {
+              entitiesObj[entity.canonical_id] = {
+                name: entity.name,
+                qid: entity.qid || '',
+                description: entity.description || '',
+                image_url: entity.image_url || '',
+                entity_type: 'location',
+                claim_count: 0  // TODO: Add claim count from API
+              }
+            })
+
+            setStoryEntities(entitiesObj)
+            console.log('Fetched entities:', Object.keys(entitiesObj).length, 'total')
+            console.log('Sample entity (Margaret Atwood):', entitiesObj['cc3b29eb'])
+          }
+        })
+        .catch(err => console.error('Failed to fetch entities:', err))
     }
   }, [story?.id])
 
@@ -1326,7 +1382,7 @@ function StoryPage() {
                                 }
                               ])
                           ) : (story as any).story_content?.citations_metadata,
-                          (story as any).story_content?.entities_metadata,
+                          storyEntities,
                           // Citation click handler - scroll to sidebar source
                           (pageIds: string[]) => {
                             // Highlight and scroll to first cited source
