@@ -650,8 +650,11 @@ class Neo4jClient:
         cypher = """
         MATCH (s:Story {id: $story_id})
 
-        // Get all claims with their sources
-        OPTIONAL MATCH (s)-[:HAS_ARTIFACT]->(p:Page)-[:HAS_CLAIM]->(c:Claim)
+        // Get all pages (artifacts) for this story
+        OPTIONAL MATCH (s)-[:HAS_ARTIFACT]->(p:Page)
+
+        // Get all claims from those pages
+        OPTIONAL MATCH (p)-[:HAS_CLAIM]->(c:Claim)
 
         WITH s,
              collect(DISTINCT c {
@@ -687,27 +690,33 @@ class Neo4jClient:
              collect(DISTINCT p) as pages_list,
              collect(DISTINCT c) as claims_list
 
-        // Now get claim entities
-        UNWIND claims_list as claim
+        // Get claim entities (handle empty claims gracefully)
+        WITH s, claims, sources, pages_list,
+             CASE WHEN size(claims_list) > 0 THEN claims_list ELSE [null] END as claims_to_process
+        UNWIND claims_to_process as claim
         OPTIONAL MATCH (claim)-[r]->(e)
-        WHERE type(r) IN ['MENTIONS_PERSON', 'MENTIONS_ORG', 'MENTIONS_LOCATION', 'MENTIONS_ENTITY']
+        WHERE claim IS NOT NULL
+          AND type(r) IN ['MENTIONS_PERSON', 'MENTIONS_ORG', 'MENTIONS_LOCATION', 'MENTIONS_ENTITY']
           AND (e:Person OR e:Organization OR e:Location OR e:MediaSource)
 
         WITH s, claims, sources, pages_list,
-             collect(DISTINCT {
-                claim_id: claim.claim_id,
-                canonical_id: e.canonical_id,
-                canonical_name: e.canonical_name,
-                wikidata_qid: e.wikidata_qid,
-                wikidata_thumbnail: e.wikidata_thumbnail,
-                role: e.role,
-                type: labels(e)[0]
-             }) as claim_entities
+             [x IN collect(DISTINCT {
+                 claim_id: claim.claim_id,
+                 canonical_id: e.canonical_id,
+                 canonical_name: e.canonical_name,
+                 wikidata_qid: e.wikidata_qid,
+                 wikidata_thumbnail: e.wikidata_thumbnail,
+                 role: e.role,
+                 type: labels(e)[0]
+             }) WHERE x.canonical_id IS NOT NULL] as claim_entities
 
-        // Now get page entities
-        UNWIND pages_list as page
+        // Get page entities (handle empty pages gracefully)
+        WITH s, claims, sources, claim_entities,
+             CASE WHEN size(pages_list) > 0 THEN pages_list ELSE [null] END as pages_to_process
+        UNWIND pages_to_process as page
         OPTIONAL MATCH (page)-[r]->(e)
-        WHERE type(r) IN ['MENTIONS_PERSON', 'MENTIONS_ORG', 'MENTIONS_LOCATION', 'MENTIONS_ENTITY']
+        WHERE page IS NOT NULL
+          AND type(r) IN ['MENTIONS_PERSON', 'MENTIONS_ORG', 'MENTIONS_LOCATION', 'MENTIONS_ENTITY']
           AND (e:Person OR e:Organization OR e:Location OR e:MediaSource)
 
         RETURN s {
@@ -720,7 +729,7 @@ class Neo4jClient:
         } as story,
         claims,
         sources,
-        collect(DISTINCT {
+        [x IN collect(DISTINCT {
             page_url: page.url,
             canonical_id: e.canonical_id,
             canonical_name: e.canonical_name,
@@ -728,7 +737,7 @@ class Neo4jClient:
             wikidata_thumbnail: e.wikidata_thumbnail,
             role: e.role,
             type: labels(e)[0]
-        }) as page_entities,
+        }) WHERE x.canonical_id IS NOT NULL] as page_entities,
         claim_entities
         """
 
