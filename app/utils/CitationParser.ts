@@ -49,9 +49,9 @@ function parseCitations(content: string): {
   const citations: Citation[] = []
   const warnings: string[] = []
 
-  // Regex to match {{cite:page_id1,page_id2,...}}
-  // Matches: {{cite:UUID,UUID,...}} with optional spaces after commas
-  const citationRegex = /\{\{cite:([a-f0-9\-,\s]+)\}\}/gi
+  // Regex to match {{cite:page_id1,page_id2,...}} or {{cite:page_id,domain.com}}
+  // Matches: {{cite:UUID,UUID,...}} or {{cite:UUID,domain}} with optional metadata after comma
+  const citationRegex = /\{\{cite:([^}]+)\}\}/gi
 
   let match: RegExpExecArray | null
   while ((match = citationRegex.exec(content)) !== null) {
@@ -215,7 +215,7 @@ export function parseContent(content: string): ParsedContent {
  */
 export function stripMarkup(content: string): string {
   return content
-    .replace(/\{\{cite:[a-f0-9\-,]+\}\}/gi, '')
+    .replace(/\{\{cite:[^}]+\}\}/gi, '')  // Remove all citation markup
     .replace(/\[\[([^\|\]]+)\|([^\]]+)\]\]/g, '$1') // Keep entity name, remove ID
     .trim()
 }

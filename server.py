@@ -232,15 +232,25 @@ def _get_story_entities(story_id: str) -> Dict:
     if not neo4j_client.connected:
         return {"persons": [], "organizations": [], "locations": []}
 
+    # Use Story-[:MENTIONS]->Entity relationships (created during synthesis)
+    # NOT Page-[:MENTIONS_ENTITY]->Entity (those don't exist)
     cypher = """
-    MATCH (story:Story {id: $story_id})-[:HAS_ARTIFACT]->(page:Page)
-    MATCH (page)-[:MENTIONS_ENTITY]->(entity)
+    MATCH (story:Story {id: $story_id})
+    OPTIONAL MATCH (story)-[:MENTIONS]->(person:Person)
+    OPTIONAL MATCH (story)-[:MENTIONS_ORG]->(org:Organization)
+    OPTIONAL MATCH (story)-[:MENTIONS_LOCATION]->(location:Location)
+    WITH story,
+         collect(DISTINCT person) as people,
+         collect(DISTINCT org) as orgs,
+         collect(DISTINCT location) as locations
+    UNWIND people + orgs + locations as entity
+    WHERE entity IS NOT NULL
     RETURN DISTINCT
            labels(entity)[0] as entity_type,
            entity.canonical_id as canonical_id,
            entity.canonical_name as name,
            entity.wikidata_qid as qid,
-           entity.wikidata_thumbnail as image_url,
+           entity.wikidata_thumbnail as wikidata_thumbnail,
            entity.description as description,
            entity.confidence as confidence
     ORDER BY entity.canonical_name
@@ -260,7 +270,7 @@ def _get_story_entities(story_id: str) -> Dict:
                 "canonical_id": record.get("canonical_id"),
                 "name": record.get("name"),
                 "qid": record.get("qid"),
-                "image_url": record.get("image_url"),
+                "wikidata_thumbnail": record.get("wikidata_thumbnail"),
                 "description": record.get("description"),
                 "confidence": record.get("confidence")
             }
@@ -945,10 +955,30 @@ async def get_story_details(story_id: str):
         if not story:
             return {"error": "Story not found"}, 404
 
+        # Build citations dictionary from artifacts (pages)
+        # Citations reference page IDs in {{cite:page_id}} markup
+        artifacts = story.get('artifacts', [])
+        print(f"📚 Building citations for story {story_id}: found {len(artifacts)} artifacts")
+
+        citations = {}
+        for artifact in artifacts:
+            if artifact and artifact.get('id'):
+                page_id = artifact['id']
+                citations[page_id] = {
+                    'url': artifact.get('url', ''),
+                    'title': artifact.get('title', ''),
+                    'domain': artifact.get('domain', ''),
+                    'pub_time': artifact.get('pub_time') or artifact.get('published_at') or artifact.get('publish_date'),
+                    'snippet': artifact.get('gist', '')
+                }
+
+        print(f"📚 Built {len(citations)} citations")
+
         return {
             "id": story.get('id'),
             "title": story.get('title'),
             "description": story.get('description'),
+            "content": story.get('content'),  # Full story content with entity/citation markup
             "category": story.get('category', 'global'),
             "artifact_count": story.get('artifact_count', 0),
             "claim_count": story.get('claim_count', 0),
@@ -961,7 +991,11 @@ async def get_story_details(story_id: str):
             "verified_claims": story.get('verified_claims', story.get('claim_count', 0)),
             "total_claims": story.get('total_claims', story.get('claim_count', 0) * 2),
             "confidence": story.get('confidence', 72),
-            "revision": story.get('revision', 'v0.45')
+            "revision": story.get('revision', 'v0.45'),
+            "citations": citations,  # Build from artifacts for {{cite:id}} markup rendering
+            "people_entities": story.get('people_entities', []),  # Entity data for inline markup
+            "org_entities": story.get('org_entities', []),
+            "location_entities": story.get('location_entities', [])
         }
     except Exception as e:
         print(f"Error fetching story {story_id}: {e}")

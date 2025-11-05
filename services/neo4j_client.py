@@ -343,11 +343,14 @@ class Neo4jClient:
         updated_at = self._format_datetime(record.get('updated_at'))
         last_activity = self._format_datetime(record.get('last_activity'))
 
+        content = record.get('content')
+        print(f"📄 Story {record.get('id')}: content={'YES' if content else 'NO'} ({len(content) if content else 0} chars)")
+
         summary = {
             'id': record.get('id'),
             'title': record.get('title') or 'Untitled Story',
             'description': record.get('description') or '',
-            'content': record.get('content') or '',
+            'content': content or '',
             'coherence_score': record.get('coherence_score'),
             'artifact_count': record.get('artifact_count', 0),
             'claim_count': record.get('claim_count', 0),
@@ -530,6 +533,7 @@ class Neo4jClient:
                story.gist as description,
                story.content as content,
                story.coherence_score as coherence_score,
+               story.citations as citations,
                artifact_count,
                claim_count,
                people_count,
@@ -577,11 +581,18 @@ class Neo4jClient:
             org_entities = record.get('org_entities', [])
             location_entities = record.get('location_entities', [])
 
+            print(f"📊 Story {story_id}: people={len(people_entities)}, orgs={len(org_entities)}, locations={len(location_entities)}")
+
             story_dict['entities'] = {
                 'people': people_entities,
                 'organizations': org_entities,
                 'locations': location_entities
             }
+
+            # Also add flat entity lists for API response
+            story_dict['people_entities'] = people_entities
+            story_dict['org_entities'] = org_entities
+            story_dict['location_entities'] = location_entities
 
             return story_dict
 

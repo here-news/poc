@@ -4,7 +4,7 @@ interface ProcessingTask {
   taskId: string
   url: string
   normalizedUrl: string
-  status: 'processing' | 'completed' | 'error'
+  status: 'processing' | 'completed' | 'error' | 'timeout'
   stage?: string
   preview?: {
     title: string
@@ -348,6 +348,10 @@ export default function EvidenceManager({
       clearTimeout(existingInterval)
     }
 
+    // Set a placeholder to indicate polling is active for this task
+    // This prevents the "interval was cleared" check from failing
+    pollingIntervalsRef.current.set(taskId, 0 as any)
+
     // Track poll count for exponential backoff
     let pollCount = 0
     const maxInterval = 15000 // Max 15 seconds between polls
@@ -449,21 +453,11 @@ export default function EvidenceManager({
           }
         }
 
-        // If still actively processing OR in any active stage, keep polling
-        if (isActivelyProcessing || (isInActiveStage && task.status === 'processing')) {
-          console.log(`⏳ Task ${taskId} still processing - stage: ${task.current_stage}, status: ${task.status}`)
-          // Update stage in UI
-          setProcessingTasks(prev => prev.map(t =>
-            t.taskId === taskId
-              ? { ...t, stage: task.current_stage }
-              : t
-          ))
-          // Don't return - let it schedule next poll at bottom
-        } else {
-
-        // Handle completion - ONLY if truly completed or explicitly failed
+        // Handle completion FIRST - check if task has completed_at timestamp
+        // This takes priority over stage checking because a task can have completed_at
+        // but still show an active stage (like "semantization") in the response
         const isCompleted = task.status === 'completed' ||
-                           (task.completed_at && task.status === 'processing' && !isInActiveStage)
+                           (task.completed_at && task.status === 'processing')
 
         if (isCompleted) {
           console.log('✅ Task marked as completed:', {
@@ -506,16 +500,6 @@ export default function EvidenceManager({
             return
           }
 
-          // Wait for semantic_data to be available before deciding success/failure
-          // Sometimes task status is "completed" but semantic_data is still being written
-          const hasSemanticData = task.semantic_data !== undefined && task.semantic_data !== null
-
-          if (!hasSemanticData && task.token_costs?.semantization > 0) {
-            // Semantization ran but data not available yet, keep polling
-            console.log('Waiting for semantic_data to be available...')
-            return
-          }
-
           // Stop polling - we have enough info to determine success/failure
           const interval = pollingIntervalsRef.current.get(taskId)
           if (interval) {
@@ -523,13 +507,57 @@ export default function EvidenceManager({
             pollingIntervalsRef.current.delete(taskId)
           }
 
-          // IMMEDIATELY mark as completed in state to prevent localStorage restoration loop
-          // The localStorage filter checks status === 'processing', so changing to 'completed'
-          // ensures this task won't be saved and restored on next render
+          // Check for extraction failures FIRST - before waiting for semantic_data
+          const extractionFailed = task.result?.status === 'error' ||
+                                   task.result?.is_readable === false ||
+                                   task.result?.error_message
+
           const claimsCount = task.semantic_data?.claims?.length || 0
+          const hasSemanticData = task.semantic_data !== undefined && task.semantic_data !== null
+
+          // If extraction failed or no claims, mark as failed immediately
+          if (extractionFailed || (hasSemanticData && claimsCount === 0)) {
+            console.log(`❌ Task ${taskId} failed:`, {
+              extractionFailed,
+              claimsCount,
+              error: task.result?.error_message || 'No claims extracted'
+            })
+
+            setProcessingTasks(prev => prev.map(t =>
+              t.taskId === taskId
+                ? {
+                    ...t,
+                    status: 'failed',
+                    errorMessage: task.result?.error_message || 'Extraction failed - no content extracted'
+                  }
+                : t
+            ))
+
+            // Remove failed task after showing error
+            setTimeout(() => {
+              console.log(`🗑️ Removing failed task ${taskId}`)
+              setProcessingTasks(prev => prev.filter(t => t.taskId !== taskId))
+            }, 5000)
+            return
+          }
+
+          // Wait for semantic_data if semantization ran but data not available yet
+          if (!hasSemanticData && task.token_costs?.semantization > 0) {
+            console.log('⏳ Waiting for semantic_data to be available...')
+            // Update to show "verifying" state
+            setProcessingTasks(prev => prev.map(t =>
+              t.taskId === taskId
+                ? { ...t, stage: 'verifying', status: 'completed' }
+                : t
+            ))
+            return // Keep polling
+          }
+
+          // IMMEDIATELY mark as completed in state to prevent localStorage restoration loop
+          // Update stage to show we're verifying the results
           setProcessingTasks(prev => prev.map(t =>
             t.taskId === taskId
-              ? { ...t, status: 'completed', claimsCount }
+              ? { ...t, status: 'completed', stage: 'verifying', claimsCount }
               : t
           ))
 
@@ -657,6 +685,16 @@ export default function EvidenceManager({
               }
             }
           }, 500) // Initial delay before refresh
+        } else if (task.status === 'processing') {
+          // Task is still actively processing
+          console.log(`⏳ Task ${taskId} still processing - stage: ${task.current_stage}, status: ${task.status}`)
+          // Update stage in UI
+          setProcessingTasks(prev => prev.map(t =>
+            t.taskId === taskId
+              ? { ...t, stage: task.current_stage }
+              : t
+          ))
+          // Don't return - let it schedule next poll at bottom
         } else if (task.status === 'failed') {
           console.log(`❌ Task ${taskId} failed:`, task.error || 'Extraction failed')
 
@@ -680,7 +718,6 @@ export default function EvidenceManager({
             setProcessingTasks(prev => prev.filter(t => t.taskId !== taskId))
           }, 5000)
         }
-        } // Close else block from line 458
       } catch (err) {
         console.error('⚠️ Polling error for task:', taskId, err)
         // Don't immediately give up - just log and continue polling
@@ -791,11 +828,12 @@ export default function EvidenceManager({
               className={`border-2 rounded-lg p-4 transition-all relative ${
                 task.status === 'processing' ? 'border-blue-300 bg-blue-50/50' :
                 task.status === 'completed' ? 'border-green-300 bg-green-50/50' :
+                task.status === 'timeout' ? 'border-yellow-300 bg-yellow-50/50' :
                 'border-red-300 bg-red-50/50'
               }`}
             >
-              {/* Dismiss button for error tasks */}
-              {task.status === 'error' && (
+              {/* Dismiss button for error and timeout tasks */}
+              {(task.status === 'error' || task.status === 'timeout') && (
                 <button
                   onClick={() => {
                     console.log(`Manually dismissing task ${task.taskId}`)
@@ -824,6 +862,9 @@ export default function EvidenceManager({
                     {task.status === 'completed' && (
                       <div className="text-green-600 flex-shrink-0">✓</div>
                     )}
+                    {task.status === 'timeout' && (
+                      <div className="text-yellow-600 flex-shrink-0">⏱</div>
+                    )}
                     {task.status === 'error' && (
                       <div className="text-red-600 flex-shrink-0">✗</div>
                     )}
@@ -839,15 +880,17 @@ export default function EvidenceManager({
                   {task.status === 'processing' && (
                     <div className="mt-2 mb-2">
                       <div className="flex items-center gap-1 text-xs">
-                        {['preview', 'extraction', 'cleaning', 'resolution', 'semantization'].map((stage, idx) => {
+                        {['preview', 'extraction', 'cleaning', 'resolution', 'semantization', 'story_matching'].map((stage, idx) => {
                           const isCurrent = task.stage === stage
-                          const isPast = ['preview', 'extraction', 'cleaning', 'resolution', 'semantization'].indexOf(task.stage || '') > idx
-                          const stageLabels = {
+                          const isPast = ['preview', 'extraction', 'cleaning', 'resolution', 'semantization', 'story_matching'].indexOf(task.stage || '') > idx
+                          const stageLabels: Record<string, string> = {
                             preview: 'Preview',
                             extraction: 'Extract',
                             cleaning: 'Clean',
                             resolution: 'Resolve',
-                            semantization: 'Analyze'
+                            semantization: 'Analyze',
+                            story_matching: 'Match Story',
+                            verifying: 'Verifying'
                           }
 
                           return (
@@ -866,7 +909,7 @@ export default function EvidenceManager({
                                 {isPast && '✓ '}
                                 {stageLabels[stage as keyof typeof stageLabels]}
                               </div>
-                              {idx < 4 && (
+                              {idx < 5 && (
                                 <div className={`w-2 h-0.5 ${isPast ? 'bg-green-300' : 'bg-slate-200'}`}></div>
                               )}
                             </div>
@@ -876,13 +919,25 @@ export default function EvidenceManager({
                     </div>
                   )}
 
+                  {/* Show verifying status separately */}
+                  {task.stage === 'verifying' && (
+                    <div className="mt-2 text-xs">
+                      <div className="px-2 py-0.5 rounded bg-blue-100 text-blue-700 font-medium inline-block">
+                        ⏳ Verifying results...
+                      </div>
+                    </div>
+                  )}
+
                   <div className="text-xs text-slate-600">
-                    {task.status === 'completed' && task.claimsCount !== undefined && (
+                    {task.status === 'completed' && task.stage !== 'verifying' && task.claimsCount !== undefined && (
                       <span className="text-green-700 font-medium">
                         ✓ Extracted {task.claimsCount} claims
                       </span>
                     )}
-                    {task.status === 'error' && (
+                    {task.status === 'timeout' && (
+                      <span className="text-yellow-700 font-medium">⏱ {task.errorMessage || 'Story matching timed out'}</span>
+                    )}
+                    {(task.status === 'error' || task.status === 'failed') && (
                       <span className="text-red-700">{task.errorMessage || 'Failed'}</span>
                     )}
                   </div>

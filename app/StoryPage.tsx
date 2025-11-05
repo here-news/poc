@@ -56,6 +56,31 @@ interface StoryDetails {
     organizations: Array<{ id: string; name: string }>
     locations: Array<{ id: string; name: string }>
   }
+  citations?: Record<string, {
+    url: string
+    title: string
+    domain: string
+    pub_time?: string
+    snippet?: string
+  }>
+  people_entities?: Array<{
+    id: string
+    name: string
+    thumbnail?: string
+    qid?: string
+    description?: string
+  }>
+  org_entities?: Array<{
+    id: string
+    name: string
+    thumbnail?: string
+    domain?: string
+  }>
+  location_entities?: Array<{
+    id: string
+    name: string
+    thumbnail?: string
+  }>
 }
 
 // Helper function to strip markup from text (for summaries)
@@ -771,7 +796,7 @@ function EntityLink({ entityName }: { entityName: string }) {
           }}
         >
           <img
-            src={entityData.wikidata_thumbnail}
+            src={entityData.wikidata_thumbnail.replace(/ /g, '%20')}
             alt={entityData.canonical_name || entityName}
             className="w-10 h-10 sm:w-16 sm:h-16 rounded-full object-cover border-2 border-blue-300 shadow-lg"
             onError={(e) => {
@@ -809,7 +834,7 @@ function EntityLink({ entityName }: { entityName: string }) {
               {entityData.wikidata_thumbnail ? (
                 <div className="mb-3 flex justify-center">
                   <img
-                    src={entityData.wikidata_thumbnail}
+                    src={entityData.wikidata_thumbnail.replace(/ /g, '%20')}
                     alt={entityData.canonical_name}
                     className="w-32 h-32 object-cover rounded-lg border border-slate-200"
                     onError={(e) => {
@@ -1039,60 +1064,59 @@ function StoryPage() {
     }
   }, [story?.id])
 
-  // Fetch entities for the story
+  // Build entities from story data
   useEffect(() => {
-    if (story?.id) {
-      fetch(`/api/story/${story.id}/entities`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.success && data.entities) {
-            // Build an object of canonical_id -> entity data for quick lookup
-            const entitiesObj: Record<string, any> = {}
+    if (story) {
+      // Build entity lookup by BOTH ID and NAME (for resilience to entity deduplication)
+      const entitiesObj: Record<string, any> = {}
 
-            // Add all persons
-            data.entities.persons?.forEach((entity: any) => {
-              entitiesObj[entity.canonical_id] = {
-                name: entity.name,
-                qid: entity.qid || '',
-                description: entity.description || '',
-                image_url: entity.image_url || '',
-                entity_type: 'person',
-                claim_count: 0  // TODO: Add claim count from API
-              }
-            })
+      // Add all persons
+      story.people_entities?.forEach((entity: any) => {
+        const entityData = {
+          name: entity.name,
+          qid: entity.qid || '',
+          description: entity.description || '',
+          wikidata_thumbnail: entity.thumbnail || '',
+          entity_type: 'person',
+          claim_count: 0
+        }
+        // Store by both ID and NAME for lookup flexibility
+        entitiesObj[entity.id] = entityData
+        entitiesObj[entity.name] = entityData
+      })
 
-            // Add all organizations
-            data.entities.organizations?.forEach((entity: any) => {
-              entitiesObj[entity.canonical_id] = {
-                name: entity.name,
-                qid: entity.qid || '',
-                description: entity.description || '',
-                image_url: entity.image_url || '',
-                entity_type: 'organization',
-                claim_count: 0  // TODO: Add claim count from API
-              }
-            })
+      // Add all organizations
+      story.org_entities?.forEach((entity: any) => {
+        const entityData = {
+          name: entity.name,
+          qid: entity.qid || '',
+          description: entity.description || '',
+          wikidata_thumbnail: entity.thumbnail || '',
+          entity_type: 'organization',
+          claim_count: 0
+        }
+        entitiesObj[entity.id] = entityData
+        entitiesObj[entity.name] = entityData
+      })
 
-            // Add all locations
-            data.entities.locations?.forEach((entity: any) => {
-              entitiesObj[entity.canonical_id] = {
-                name: entity.name,
-                qid: entity.qid || '',
-                description: entity.description || '',
-                image_url: entity.image_url || '',
-                entity_type: 'location',
-                claim_count: 0  // TODO: Add claim count from API
-              }
-            })
+      // Add all locations
+      story.location_entities?.forEach((entity: any) => {
+        const entityData = {
+          name: entity.name,
+          qid: entity.qid || '',
+          description: entity.description || '',
+          wikidata_thumbnail: entity.thumbnail || '',
+          entity_type: 'location',
+          claim_count: 0
+        }
+        entitiesObj[entity.id] = entityData
+        entitiesObj[entity.name] = entityData
+      })
 
-            setStoryEntities(entitiesObj)
-            console.log('Fetched entities:', Object.keys(entitiesObj).length, 'total')
-            console.log('Sample entity (Margaret Atwood):', entitiesObj['cc3b29eb'])
-          }
-        })
-        .catch(err => console.error('Failed to fetch entities:', err))
+      setStoryEntities(entitiesObj)
+      console.log('Built entities from story data:', Object.keys(entitiesObj).length, 'entries (by ID + NAME)')
     }
-  }, [story?.id])
+  }, [story])
 
   // Handle voting
   const handleVote = (url: string, voteType: 'up' | 'down') => {
@@ -1248,15 +1272,15 @@ function StoryPage() {
                 {/* Title */}
                 <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 sm:mb-6 leading-tight text-slate-900 tracking-tight">{story.title}</h1>
 
-                {/* Summary with Quote Styling */}
+                {/* Summary with Quote Styling - Use clean description (gist) */}
                 <div className="relative">
                   <div className="absolute -left-4 top-0 text-7xl text-blue-200 font-serif leading-none select-none">"</div>
-                  <p className="relative text-xl leading-relaxed text-slate-800 font-medium pl-8">
-                    {stripMarkup(story.description)}
+                  <div className="relative text-xl leading-relaxed text-slate-800 font-medium pl-8">
+                    {story.description}
                     <span className="text-sm text-slate-500 ml-3 font-normal">
                       • {story.last_updated ? formatRelativeTime(story.last_updated) : story.last_updated_human}
                     </span>
-                  </p>
+                  </div>
                 </div>
 
                 {/* Tipping Visual Bar - Flow: Coherence ← Builders ← Fund ← Tip */}

@@ -4,7 +4,7 @@ export interface EntityMetadata {
   name: string
   qid: string
   description: string
-  image_url?: string
+  wikidata_thumbnail?: string
   entity_type: string
   claim_count: number
 }
@@ -36,12 +36,13 @@ export function EntityLink({
   const tooltipRef = useRef<HTMLDivElement>(null)
   const linkRef = useRef<HTMLSpanElement>(null)
 
-  const metadata = entitiesMetadata[canonicalId]
+  // Try lookup by ID first, fallback to NAME (for resilience to entity deduplication)
+  const metadata = entitiesMetadata[canonicalId] || entitiesMetadata[name]
   const hasMissingMetadata = !metadata
 
   // Intersection Observer for lazy loading headshots
   React.useEffect(() => {
-    if (!linkRef.current || hasLoadedHeadshot || !metadata?.image_url) return
+    if (!linkRef.current || hasLoadedHeadshot || !metadata?.wikidata_thumbnail) return
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -66,7 +67,7 @@ export function EntityLink({
         observer.unobserve(linkRef.current)
       }
     }
-  }, [hasLoadedHeadshot, metadata?.image_url])
+  }, [hasLoadedHeadshot, metadata?.wikidata_thumbnail])
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -131,7 +132,7 @@ export function EntityLink({
       </span>
 
       {/* Floating headshot with animation (legacy design) */}
-      {showHeadshot && metadata?.image_url && (
+      {showHeadshot && metadata?.wikidata_thumbnail && (
         <span
           className={`inline-block align-middle mx-1 sm:mx-2 transition-all duration-500 ease-out ${
             showHeadshot ? 'opacity-100 scale-100' : 'opacity-0 scale-0'
@@ -141,7 +142,7 @@ export function EntityLink({
           }}
         >
           <img
-            src={metadata.image_url}
+            src={metadata.wikidata_thumbnail}
             alt={metadata.name}
             className="w-10 h-10 sm:w-16 sm:h-16 rounded-full object-cover border-2 shadow-lg"
             style={{
