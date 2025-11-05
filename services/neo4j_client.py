@@ -490,9 +490,9 @@ class Neo4jClient:
         OPTIONAL MATCH (artifact)-[:PUBLISHED_BY]->(publisher:Organization)
         // Claims are connected to Pages, not Stories directly
         OPTIONAL MATCH (artifact)-[:HAS_CLAIM]->(claim:Claim)
-        OPTIONAL MATCH (story)-[:MENTIONS]->(person:Person)
-        OPTIONAL MATCH (story)-[:MENTIONS_ORG]->(org:Organization)
-        OPTIONAL MATCH (story)-[:MENTIONS_LOCATION]->(location:Location)
+        OPTIONAL MATCH (story)-[r_person:MENTIONS]->(person:Person)
+        OPTIONAL MATCH (story)-[r_org:MENTIONS_ORG]->(org:Organization)
+        OPTIONAL MATCH (story)-[r_location:MENTIONS_LOCATION]->(location:Location)
         OPTIONAL MATCH (artifact)-[:MENTIONS_LOCATION]->(artifact_location:Location)
         OPTIONAL MATCH (story)-[rel:RELATED_TO]->(related_story:Story)
         WITH story,
@@ -523,9 +523,10 @@ class Neo4jClient:
                 match_score: rel.score_event,
                 relationship_type: rel.reason
              }) as related_stories,
-             collect(DISTINCT person) as people,
-             collect(DISTINCT org) as organizations,
-             collect(DISTINCT location) + collect(DISTINCT artifact_location) as entity_locations,
+             collect(DISTINCT {entity: person, importance: coalesce(r_person.importance, 0.5)}) as people_with_importance,
+             collect(DISTINCT {entity: org, importance: coalesce(r_org.importance, 0.5)}) as orgs_with_importance,
+             collect(DISTINCT {entity: location, importance: coalesce(r_location.importance, 0.5)}) as locations_with_importance,
+             collect(DISTINCT artifact_location) as artifact_locations,
              head([a IN collect(DISTINCT artifact) WHERE a.thumbnail_url IS NOT NULL AND a.thumbnail_url <> '' | a.thumbnail_url]) as cover_thumbnail,
              max(artifact.created_at) as last_artifact_date
         RETURN story.id as id,
@@ -542,9 +543,9 @@ class Neo4jClient:
                [loc in all_locations WHERE loc.name IS NOT NULL | loc.name] as locations,
                [a in artifacts WHERE a.url IS NOT NULL] as artifacts,
                [r in related_stories WHERE r.id IS NOT NULL] as related_stories,
-               [p in people WHERE p.canonical_id IS NOT NULL | {id: p.canonical_id, name: p.canonical_name, thumbnail: p.wikidata_thumbnail}] as people_entities,
-               [o in organizations WHERE o.canonical_id IS NOT NULL | {id: o.canonical_id, name: o.canonical_name, thumbnail: o.wikidata_thumbnail, domain: o.domain}] as org_entities,
-               [l in entity_locations WHERE l.canonical_id IS NOT NULL | {id: l.canonical_id, name: l.canonical_name, thumbnail: l.wikidata_thumbnail}] as location_entities,
+               [p in people_with_importance WHERE p.entity.canonical_id IS NOT NULL | {id: p.entity.canonical_id, name: p.entity.canonical_name, thumbnail: p.entity.wikidata_thumbnail, importance: p.importance}] as people_entities,
+               [o in orgs_with_importance WHERE o.entity.canonical_id IS NOT NULL | {id: o.entity.canonical_id, name: o.entity.canonical_name, thumbnail: o.entity.wikidata_thumbnail, domain: o.entity.domain, importance: o.importance}] as org_entities,
+               [l in locations_with_importance WHERE l.entity.canonical_id IS NOT NULL | {id: l.entity.canonical_id, name: l.entity.canonical_name, thumbnail: l.entity.wikidata_thumbnail, importance: l.importance}] + [al in artifact_locations WHERE al.canonical_id IS NOT NULL | {id: al.canonical_id, name: al.canonical_name, thumbnail: al.wikidata_thumbnail, importance: 0.3}] as location_entities,
                story.confidence as confidence,
                story.entropy as entropy,
                story.created_at as created_at,

@@ -69,15 +69,18 @@ interface StoryDetails {
     thumbnail?: string
     qid?: string
     description?: string
+    importance?: number
   }>
   org_entities?: Array<{
     id: string
     name: string
     thumbnail?: string
     domain?: string
+    importance?: number
   }>
   location_entities?: Array<{
     id: string
+    importance?: number
     name: string
     thumbnail?: string
   }>
