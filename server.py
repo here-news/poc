@@ -7,11 +7,12 @@ import uvicorn
 import httpx
 import os
 import re
+import json
 from openai import OpenAI
 
 from typing import Optional, List, Dict
 
-from services.task_store import task_store, TaskStatus
+from services.gcs_task_store import gcs_task_store as task_store, TaskStatus
 from services.pubsub_publisher import pubsub_publisher
 from services.neo4j_client import neo4j_client
 
@@ -407,24 +408,14 @@ async def check_cached_url(url: str):
 
     This endpoint provides instant results for previously extracted URLs,
     avoiding the need to create a new task and wait for extraction.
+
+    NOTE: Cache checking is currently disabled with GCS pipeline.
+    The Cloud Run service handles deduplication internally.
     """
-    # Check for recent completed task with same URL
-    existing_task = task_store.find_recent_task_by_url(url, max_age_hours=24)
-
-    if existing_task and existing_task.status == TaskStatus.COMPLETED and existing_task.result:
-        word_count = existing_task.result.get("word_count", 0)
-        if word_count > 50:  # Only return if it has real content
-            print(f"💾 Cache hit for {url} (task {existing_task.task_id})")
-            return {
-                "cache_hit": True,
-                "task_id": existing_task.task_id,
-                "url": existing_task.url,
-                "result": existing_task.result,
-                "semantic_data": existing_task.semantic_data,
-                "created_at": existing_task.created_at
-            }
-
-    return {"cache_hit": False, "message": "No cached result available"}
+    # TODO: Implement GCS-based cache lookup if needed
+    # For now, always return cache miss - Cloud Run service will handle deduplication
+    print(f"🔍 Cache check for {url} - disabled with GCS pipeline")
+    return {"cache_hit": False, "message": "Cache checking disabled with GCS pipeline"}
 
 @app.post("/api/seed")
 async def seed_thread(submission: SeedSubmission, request: Request):
@@ -469,44 +460,133 @@ async def seed_thread(submission: SeedSubmission, request: Request):
     url = urls[0]  # Take first URL
     text_only = re.sub(url_pattern, '', content).strip()
 
-    # Create extraction task
-    task_id = task_store.create_task(url, user_id=user_id)
+    # Call Cloud Run service's /submit endpoint
+    remote_url = "https://story-engine-here-179431661561.us-central1.run.app/submit"
+    print(f"🌱 Seed extraction request: {url}")
 
-    # Publish to Pub/Sub for Cloud Run worker to process
-    # Cloud Run will:
-    # 1. Call iFramely to get quick preview
-    # 2. Write preview_meta to Firestore
-    # 3. Continue with full extraction
-    pubsub_publisher.publish_extraction_job(task_id, url)
+    try:
+        form_data = {
+            "url": url,
+            "response_format": "json"
+        }
+        if user_id:
+            form_data["user_id"] = user_id
 
-    return {
-        "seed_id": f"seed_{int(__import__('time').time() * 1000)}",
-        "user_id": user_id,
-        "type": "url_only" if not text_only else "mixed",
-        "text": text_only,
-        "urls": urls,
-        "task_id": task_id,
-        "status": "submitted",
-        "message": "Extraction job published to Cloud Run"
-    }
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+            response = await client.post(
+                remote_url,
+                data=form_data,
+                headers={"Content-Type": "application/x-www-form-urlencoded"}
+            )
+
+            if response.status_code != 200:
+                error_detail = response.text
+                print(f"❌ Remote service error ({response.status_code}): {error_detail}")
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=f"Remote service error: {error_detail}"
+                )
+
+            # Parse JSON response
+            try:
+                result = response.json()
+                task_id = result.get("task_id")
+                if not task_id:
+                    raise ValueError("No task_id in response")
+
+                print(f"✅ Seed task created: {task_id}")
+                return {
+                    "seed_id": f"seed_{int(__import__('time').time() * 1000)}",
+                    "user_id": user_id,
+                    "type": "url_only" if not text_only else "mixed",
+                    "text": text_only,
+                    "urls": urls,
+                    "task_id": task_id,
+                    "status": "submitted",
+                    "message": "Extraction job submitted to Cloud Run"
+                }
+
+            except (json.JSONDecodeError, ValueError) as e:
+                print(f"❌ Failed to parse response: {e}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Invalid response from remote service: {str(e)}"
+                )
+
+    except httpx.TimeoutException:
+        print(f"❌ Timeout calling remote service")
+        raise HTTPException(status_code=504, detail="Request to extraction service timed out")
+    except httpx.RequestError as e:
+        print(f"❌ Request error: {e}")
+        raise HTTPException(status_code=503, detail=f"Failed to reach extraction service: {str(e)}")
 
 @app.post("/api/extract")
 async def extract_url(submission: URLSubmission, request: Request):
     """Submit URL for extraction - returns immediately with task_id"""
     user_id = submission.user_id or request.headers.get('x-user-id')
+    url = submission.url
+    print(f"🔍 Homepage extraction request: {url}")
 
-    # Create task in Firestore
-    task_id = task_store.create_task(submission.url, user_id=user_id)
+    # Call Cloud Run service's /submit endpoint (same as builder submission)
+    remote_url = "https://story-engine-here-179431661561.us-central1.run.app/submit"
 
-    # Publish to Pub/Sub for Cloud Run worker to process
-    pubsub_publisher.publish_extraction_job(task_id, submission.url)
+    try:
+        form_data = {
+            "url": url,
+            "response_format": "json"
+        }
+        if user_id:
+            form_data["user_id"] = user_id
 
-    return {
-        "task_id": task_id,
-        "status": "submitted",
-        "message": "Extraction job published to Cloud Run",
-        "user_id": user_id
-    }
+        print(f"📤 Sending to {remote_url}")
+        print(f"📤 Form data: {form_data}")
+
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+            response = await client.post(
+                remote_url,
+                data=form_data,
+                headers={"Content-Type": "application/x-www-form-urlencoded"}
+            )
+
+            print(f"📥 Response status: {response.status_code}")
+            print(f"📥 Response body (first 500 chars): {response.text[:500]}")
+
+            if response.status_code != 200:
+                error_detail = response.text
+                print(f"❌ Remote service error ({response.status_code}): {error_detail}")
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=f"Remote service error: {error_detail}"
+                )
+
+            # Parse JSON response
+            try:
+                result = response.json()
+                task_id = result.get("task_id")
+                if not task_id:
+                    raise ValueError("No task_id in response")
+
+                print(f"✅ Task created: {task_id}")
+                return {
+                    "task_id": task_id,
+                    "status": "submitted",
+                    "message": "Extraction job submitted to Cloud Run",
+                    "user_id": user_id
+                }
+
+            except (json.JSONDecodeError, ValueError) as e:
+                print(f"❌ Failed to parse response: {e}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Invalid response from remote service: {str(e)}"
+                )
+
+    except httpx.TimeoutException:
+        print(f"❌ Timeout calling remote service")
+        raise HTTPException(status_code=504, detail="Request to extraction service timed out")
+    except httpx.RequestError as e:
+        print(f"❌ Request error: {e}")
+        raise HTTPException(status_code=503, detail=f"Failed to reach extraction service: {str(e)}")
 
 @app.post("/api/story/{story_id}/add-page")
 async def add_page_to_story(story_id: str, submission: URLSubmission, request: Request):
@@ -645,9 +725,9 @@ async def get_task_status(task_id: str):
     elif task.status == TaskStatus.FAILED:
         response["error"] = task.error
 
-    # TODO: Add story_match field once extraction service supports it
-    # This will be populated by the extraction service after semantization
-    # response["story_match"] = task.story_match if hasattr(task, 'story_match') else None
+    # Include story_match field (now available from GCS)
+    if hasattr(task, 'story_match') and task.story_match:
+        response["story_match"] = task.story_match
 
     return response
 
