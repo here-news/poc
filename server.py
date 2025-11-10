@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,10 +9,12 @@ import os
 import re
 import json
 import time
+import asyncio
 from datetime import datetime
 from openai import OpenAI
+from collections import defaultdict
 
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Set
 
 from services.gcs_task_store import gcs_task_store as task_store, TaskStatus
 from services.pubsub_publisher import pubsub_publisher
@@ -31,6 +33,96 @@ news_curation_cache = {
     "timestamp": 0,
     "ttl": 300  # 5 minutes in seconds
 }
+
+# Task user mapping (task_id -> user_id)
+# Since Cloud Run doesn't preserve user_id in task objects,
+# we maintain this mapping locally to enable WebSocket broadcasts
+task_user_mapping: Dict[str, str] = {}
+
+# WebSocket Connection Manager for real-time updates
+class ConnectionManager:
+    """
+    Thread-safe WebSocket connection manager for real-time story updates.
+    Handles concurrent connections, broadcasting, and heartbeat monitoring.
+    """
+    def __init__(self):
+        # Use asyncio.Lock for thread-safe operations
+        self._lock = asyncio.Lock()
+        # Active WebSocket connections
+        self.active_connections: List[WebSocket] = []
+        # User subscriptions (user_id -> Set[story_id])
+        self.subscriptions: Dict[str, Set[str]] = defaultdict(set)
+        # Connection metadata (websocket -> user_id)
+        self.connection_users: Dict[WebSocket, str] = {}
+
+    async def connect(self, websocket: WebSocket, user_id: str):
+        """Accept new WebSocket connection with thread safety."""
+        await websocket.accept()
+        async with self._lock:
+            self.active_connections.append(websocket)
+            self.connection_users[websocket] = user_id
+            print(f"✅ WebSocket connected: {user_id} (total: {len(self.active_connections)})")
+
+    async def disconnect(self, websocket: WebSocket):
+        """Remove disconnected WebSocket with thread safety."""
+        async with self._lock:
+            if websocket in self.active_connections:
+                self.active_connections.remove(websocket)
+            user_id = self.connection_users.pop(websocket, None)
+            if user_id and user_id in self.subscriptions:
+                del self.subscriptions[user_id]
+            print(f"❌ WebSocket disconnected: {user_id} (total: {len(self.active_connections)})")
+
+    async def broadcast(self, message: Dict[str, Any]):
+        """
+        Broadcast message to all connected clients.
+        Non-blocking: failed sends don't block others.
+        """
+        # Create snapshot of connections to avoid locking during send
+        async with self._lock:
+            connections = self.active_connections.copy()
+
+        # Send to all connections concurrently
+        tasks = []
+        for connection in connections:
+            tasks.append(self._safe_send(connection, message))
+
+        # Wait for all sends to complete (with individual error handling)
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+    async def _safe_send(self, websocket: WebSocket, message: Dict[str, Any]):
+        """Send message with error handling to prevent one failure blocking others."""
+        try:
+            await websocket.send_json(message)
+        except Exception as e:
+            print(f"⚠️ Failed to send to client: {e}")
+            # Schedule disconnect on next event loop iteration
+            asyncio.create_task(self.disconnect(websocket))
+
+    async def send_to_user(self, user_id: str, message: Dict[str, Any]):
+        """Send message to specific user's connections."""
+        async with self._lock:
+            connections = [
+                ws for ws, uid in self.connection_users.items()
+                if uid == user_id
+            ]
+
+        tasks = [self._safe_send(ws, message) for ws in connections]
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+    async def subscribe(self, user_id: str, story_id: str):
+        """Subscribe user to story updates."""
+        async with self._lock:
+            self.subscriptions[user_id].add(story_id)
+
+    async def unsubscribe(self, user_id: str, story_id: str):
+        """Unsubscribe user from story updates."""
+        async with self._lock:
+            if user_id in self.subscriptions:
+                self.subscriptions[user_id].discard(story_id)
+
+# Global connection manager instance
+manager = ConnectionManager()
 
 app = FastAPI()
 
@@ -152,20 +244,20 @@ def _get_trending_entities(limit_stories: int = 20) -> Dict[str, List[Dict]]:
             thumbnail: person.wikidata_thumbnail,
             qid: person.qid,
             description: person.description,
-            story_count: size((person)<-[:MENTIONS_PERSON]-(:Story))
+            story_count: COUNT { (person)<-[:MENTIONS_PERSON]-(:Story) }
         }) as people,
         collect(DISTINCT {
             id: org.id,
             name: org.name,
             thumbnail: org.wikidata_thumbnail,
             domain: org.domain,
-            story_count: size((org)<-[:MENTIONS_ORG]-(:Story))
+            story_count: COUNT { (org)<-[:MENTIONS_ORG]-(:Story) }
         }) as orgs,
         collect(DISTINCT {
             id: location.id,
             name: location.name,
             thumbnail: location.wikidata_thumbnail,
-            story_count: size((location)<-[:MENTIONS_LOCATION]-(:Story))
+            story_count: COUNT { (location)<-[:MENTIONS_LOCATION]-(:Story) }
         }) as locs
 
     RETURN people, orgs, locs
@@ -327,8 +419,8 @@ Guidelines:
 @app.post("/api/chat")
 async def chat_global(chat_message: StoryChatMessage):
     """
-    General chat with HERE.news AI about any news topic.
-    Can provide overview, recommend stories, or answer general news questions.
+    General chat with Phi (φ) about news topics and article contributions.
+    Can provide overview, recommend stories, answer questions, or accept URL submissions.
 
     Args:
         chat_message: Contains user message and optional conversation history
@@ -357,18 +449,27 @@ async def chat_global(chat_message: StoryChatMessage):
         messages = [
             {
                 "role": "system",
-                "content": f"""You are HERE.news AI, a concise news intelligence assistant.
+                "content": f"""You are Phi (φ), an interplanet news oracle from HERE.news.
 
 {stories_context}
 
+Your role:
+- Help users explore and understand current news events across the planet
+- Accept and acknowledge article contributions (users share URLs)
+- Encourage collaboration and valuable contributions
+- Provide cosmic perspective on trending stories and breaking news
+
 Guidelines:
-- Answer in 2-4 sentences maximum
-- Provide insights about current news trends when asked
+- Answer in 2-4 sentences maximum - be concise and enlightening
+- When users share URLs, they're contributing articles to build stories (our system handles submission)
 - Recommend relevant stories from the list above when appropriate
-- Be direct and factual - no filler words
+- Be friendly, appreciative, and encouraging with a hint of wisdom
+- Mention that valuable contributions may earn rewards
 - If you don't have specific information, say so briefly
-- Maintain a neutral, journalistic tone
-- You can discuss news topics broadly, not just the stories above"""
+- Maintain a helpful, collaborative tone with an oracle-like presence
+- You can discuss news topics broadly, not just the stories above
+
+Remember: You're Phi (φ), an interplanet news oracle - not "Oracle" or "HERE.news AI" """
             }
         ]
 
@@ -711,7 +812,13 @@ async def seed_thread(submission: SeedSubmission, request: Request):
                 if not task_id:
                     raise ValueError("No task_id in response")
 
-                print(f"✅ Seed task created: {task_id}")
+                # Store task_id -> user_id mapping for WebSocket broadcasts
+                if user_id:
+                    task_user_mapping[task_id] = user_id
+                    print(f"✅ Seed task created: {task_id} (user: {user_id})")
+                else:
+                    print(f"✅ Seed task created: {task_id} (no user_id)")
+
                 return {
                     "seed_id": f"seed_{int(__import__('time').time() * 1000)}",
                     "user_id": user_id,
@@ -783,7 +890,13 @@ async def extract_url(submission: URLSubmission, request: Request):
                 if not task_id:
                     raise ValueError("No task_id in response")
 
-                print(f"✅ Task created: {task_id}")
+                # Store task_id -> user_id mapping for WebSocket broadcasts
+                if user_id:
+                    task_user_mapping[task_id] = user_id
+                    print(f"✅ Task created: {task_id} (user: {user_id})")
+                else:
+                    print(f"✅ Task created: {task_id} (no user_id)")
+
                 return {
                     "task_id": task_id,
                     "status": "submitted",
@@ -907,6 +1020,12 @@ async def get_task_status(task_id: str):
     if not task:
         return {"error": "Task not found"}, 404
 
+    # Attach user_id from local mapping if not in task object
+    # (Cloud Run doesn't preserve user_id, so we track it locally)
+    user_id = task.user_id or task_user_mapping.get(task_id)
+    if user_id and not task.user_id:
+        task.user_id = user_id  # Attach to task object for broadcast logic
+
     response = {
         "task_id": task.task_id,
         "url": task.url,
@@ -916,7 +1035,7 @@ async def get_task_status(task_id: str):
         "completed_at": task.completed_at,
         "token_costs": task.token_costs,
         "gcs_paths": task.gcs_paths,
-        "user_id": task.user_id
+        "user_id": user_id
     }
 
     # Include iFramely preview metadata if available (fast preview)
@@ -945,6 +1064,23 @@ async def get_task_status(task_id: str):
     # Include story_match field (now available from GCS)
     if hasattr(task, 'story_match') and task.story_match:
         response["story_match"] = task.story_match
+
+    # Broadcast task completion via WebSocket if newly completed
+    if task.status == TaskStatus.COMPLETED and task.user_id:
+        # Check if we haven't broadcast this yet (use a simple flag)
+        if not hasattr(task, '_broadcasted') or not task._broadcasted:
+            # Mark as broadcasted to avoid duplicate broadcasts
+            task._broadcasted = True
+            # Broadcast to all connected clients (especially the user who submitted it)
+            asyncio.create_task(manager.broadcast({
+                "type": "task.completed",
+                "task_id": task.task_id,
+                "user_id": task.user_id,
+                "result": task.result,
+                "story_match": task.story_match if hasattr(task, 'story_match') else None,
+                "url": task.url,
+                "timestamp": datetime.now().isoformat()
+            }))
 
     return response
 
@@ -1461,13 +1597,110 @@ async def serve_builder(story_id: str):
     """Serve the builder interface for a specific story"""
     return FileResponse("templates/builder.html")
 
+# WebSocket endpoint for real-time updates
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    """
+    WebSocket endpoint with proper async handling.
+    """
+    await websocket.accept()
+    user_id = f'user_{id(websocket)}'
+
+    # Add to active connections
+    async with manager._lock:
+        manager.active_connections.append(websocket)
+        manager.connection_users[websocket] = user_id
+
+    print(f"✅ WebSocket connected: {user_id} (total: {len(manager.active_connections)})")
+
+    # Ping task to keep connection alive
+    async def send_pings():
+        try:
+            while True:
+                await asyncio.sleep(30)
+                await websocket.send_json({"type": "ping", "timestamp": time.time()})
+        except:
+            pass
+
+    ping_task = asyncio.create_task(send_pings())
+
+    try:
+        # Send connection confirmation
+        await websocket.send_json({
+            "type": "connected",
+            "user_id": user_id
+        })
+
+        # Listen for messages from client
+        while True:
+            message = await websocket.receive()
+
+            # Check for disconnect
+            if message.get("type") == "websocket.disconnect":
+                break
+
+            # Handle different message types
+            if "text" in message:
+                try:
+                    data = json.loads(message["text"])
+                    msg_type = data.get("type")
+
+                    if msg_type == "pong":
+                        pass  # Client is alive
+                    elif msg_type == "subscribe":
+                        story_id = data.get("story_id")
+                        if story_id:
+                            async with manager._lock:
+                                manager.subscriptions[user_id].add(story_id)
+                except json.JSONDecodeError:
+                    print(f"⚠️ Received invalid JSON: {message['text']}")
+            elif "bytes" in message:
+                pass  # Ignore binary messages
+
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        print(f"❌ WebSocket error: {e}")
+    finally:
+        ping_task.cancel()
+        # Remove from connections
+        async with manager._lock:
+            if websocket in manager.active_connections:
+                manager.active_connections.remove(websocket)
+            manager.connection_users.pop(websocket, None)
+            if user_id in manager.subscriptions:
+                del manager.subscriptions[user_id]
+        print(f"❌ WebSocket disconnected: {user_id} (total: {len(manager.active_connections)})")
+
+# Helper function to broadcast story updates (called by pipeline hooks)
+async def broadcast_story_event(event_type: str, story_data: Dict[str, Any]):
+    """
+    Broadcast story event to all connected clients.
+
+    Event types:
+    - story.created: New story appeared
+    - story.updated: Story coherence/content updated
+    - story.emerging: Low coherence story needing sources
+    - task.completed: User submission finished processing
+    """
+    await manager.broadcast({
+        "type": event_type,
+        "story": story_data,
+        "timestamp": datetime.now().isoformat()
+    })
+
 # Serve static files and React app
 app.mount("/assets", StaticFiles(directory="dist/assets"), name="assets")
 
 @app.get("/{full_path:path}")
 async def serve_spa(full_path: str):
     """Serve the React SPA for all routes"""
-    return FileResponse("dist/index.html")
+    response = FileResponse("dist/index.html")
+    # Disable caching to prevent stale bundles
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=7272)
