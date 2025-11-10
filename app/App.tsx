@@ -4,6 +4,7 @@ import LandingPage from './LandingPage'
 import SimplifiedHome from './SimplifiedHome'
 import ResultPage from './ResultPage'
 import StoryPage from './StoryPage'
+import StoryChatPage from './StoryChatPage'
 import BuildPage from './BuildPage'
 import BuilderPage from './BuilderPage'
 import BuilderPageV2 from './BuilderPageV2'
@@ -19,6 +20,8 @@ function App() {
         <Route path="/app" element={<SimplifiedHome />} />
         <Route path="/result/:taskId" element={<ResultPage />} />
         <Route path="/story/:id" element={<StoryPage />} />
+        <Route path="/storychat" element={<StoryChatPage />} />
+        <Route path="/storychat/:storyId" element={<StoryChatPage />} />
         <Route path="/build/:id" element={<BuildPage />} />
         <Route path="/builder/:id" element={<BuilderPageV4 />} />
         <Route path="/builder-v3/:id" element={<BuilderPageV3 />} />
