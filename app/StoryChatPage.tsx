@@ -110,7 +110,9 @@ function StoryChatPage() {
   }, [])
 
   // WebSocket connection for real-time updates
-  const wsUrl = `ws://${window.location.host}/ws`
+  // Use wss:// for HTTPS, ws:// for HTTP
+  const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  const wsUrl = `${wsProtocol}//${window.location.host}/ws`
   const { sendMessage, isConnected, isConnecting, reconnect, disconnect } = useWebSocket(wsUrl, {
     onMessage: (message) => {
       switch (message.type) {
