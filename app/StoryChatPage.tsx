@@ -72,7 +72,7 @@ function formatRelativeTime(timestamp: string | undefined): string {
 }
 
 // Special "story" for global HERE.news chat with Phi
-const GLOBAL_CHAT_ID = '__global__'
+const GLOBAL_CHAT_ID = '0'
 const GLOBAL_CHAT: Story = {
   id: GLOBAL_CHAT_ID,
   title: 'Phi (φ)',
@@ -338,17 +338,10 @@ What would you like to know about the news today?`
       setNewStoryNotifications([])
     }
 
-    // Navigate to story (or stay on base path for global chat)
+    // Navigate to story using canonical URL
     if (story.id === GLOBAL_CHAT_ID) {
-      // Preserve current route prefix for global chat
-      const currentPath = window.location.pathname
-      let basePath = '/app'
-      if (currentPath.startsWith('/storychat')) {
-        basePath = '/storychat'
-      } else if (currentPath.startsWith('/story')) {
-        basePath = '/story'
-      }
-      navigate(basePath, { replace: true })
+      // Phi channel uses /story/0
+      navigate('/story/0', { replace: true })
     } else {
       // Use canonical story URL with slug
       const storyUrl = getStoryUrlFromData(story)

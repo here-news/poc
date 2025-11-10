@@ -54,42 +54,58 @@ export function StoryContentRenderer({
     console.warn('Citation/Entity parsing warnings:', warnings)
   }
 
-  // Render each segment
-  const renderSegment = (segment: ContentSegment, index: number): JSX.Element | string => {
+  // Group segments into paragraphs by splitting on double newlines in text segments
+  const groupIntoParagraphs = (): Array<ContentSegment[]> => {
+    const paragraphs: Array<ContentSegment[]> = []
+    let currentParagraph: ContentSegment[] = []
+
+    segments.forEach((segment, index) => {
+      if (segment.type === 'text') {
+        // Split text on double newlines
+        const parts = segment.content.split(/\n\n+/)
+
+        parts.forEach((part, partIndex) => {
+          if (part.trim()) {
+            // Add trimmed text to current paragraph
+            currentParagraph.push({ ...segment, content: part })
+          }
+
+          // Start new paragraph after each part except the last
+          if (partIndex < parts.length - 1) {
+            if (currentParagraph.length > 0) {
+              paragraphs.push(currentParagraph)
+              currentParagraph = []
+            }
+          }
+        })
+      } else {
+        // Citations and entities stay inline with current paragraph
+        currentParagraph.push(segment)
+      }
+    })
+
+    // Add final paragraph if not empty
+    if (currentParagraph.length > 0) {
+      paragraphs.push(currentParagraph)
+    }
+
+    return paragraphs
+  }
+
+  // Render a single segment inline
+  const renderInlineSegment = (segment: ContentSegment, index: number): JSX.Element | string => {
     switch (segment.type) {
       case 'text': {
-        // Split on double newlines to create paragraphs, preserve single newlines within paragraphs
-        const paragraphs = segment.content.split(/\n\n+/)
-        if (paragraphs.length === 1) {
-          // Single paragraph or no breaks - preserve single newlines with <br>
-          const lines = segment.content.split('\n')
-          return (
-            <React.Fragment key={`text-${index}`}>
-              {lines.map((line, i) => (
-                <React.Fragment key={i}>
-                  {line}
-                  {i < lines.length - 1 && <br />}
-                </React.Fragment>
-              ))}
-            </React.Fragment>
-          )
-        }
-        // Multiple paragraphs
+        // Handle single newlines within paragraph as <br>
+        const lines = segment.content.split('\n')
         return (
           <React.Fragment key={`text-${index}`}>
-            {paragraphs.map((para, i) => {
-              const lines = para.split('\n')
-              return (
-                <p key={i} className="mb-4">
-                  {lines.map((line, j) => (
-                    <React.Fragment key={j}>
-                      {line}
-                      {j < lines.length - 1 && <br />}
-                    </React.Fragment>
-                  ))}
-                </p>
-              )
-            })}
+            {lines.map((line, i) => (
+              <React.Fragment key={i}>
+                {line}
+                {i < lines.length - 1 && <br />}
+              </React.Fragment>
+            ))}
           </React.Fragment>
         )
       }
@@ -142,7 +158,20 @@ export function StoryContentRenderer({
     }
   }
 
-  return <>{segments.map((segment, index) => renderSegment(segment, index))}</>
+  // Group segments into paragraphs and render
+  const paragraphs = groupIntoParagraphs()
+
+  return (
+    <>
+      {paragraphs.map((paragraphSegments, pIndex) => (
+        <p key={`para-${pIndex}`} className="mb-4">
+          {paragraphSegments.map((segment, sIndex) =>
+            renderInlineSegment(segment, `${pIndex}-${sIndex}`)
+          )}
+        </p>
+      ))}
+    </>
+  )
 }
 
 /**

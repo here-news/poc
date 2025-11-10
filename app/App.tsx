@@ -1,5 +1,5 @@
 import React from 'react'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import LandingPage from './LandingPage'
 import SimplifiedHome from './SimplifiedHome'
 import ResultPage from './ResultPage'
@@ -22,9 +22,10 @@ function App() {
         <Route path="/app/:storyId" element={<StoryChatPage />} />
         <Route path="/result/:taskId" element={<ResultPage />} />
         {/* Story routes - support view modes (chat/full) and optional SEO slugs */}
+        <Route path="/story" element={<Navigate to="/story/0" replace />} />
         <Route path="/story/:storyId" element={<StoryRouter />} />
         <Route path="/story/:storyId/:slug" element={<StoryRouter />} />
-        {/* Legacy storychat routes - redirect to /story */}
+        {/* Legacy storychat routes */}
         <Route path="/storychat" element={<StoryChatPage />} />
         <Route path="/storychat/:storyId" element={<StoryChatPage />} />
         {/* Legacy simplified home (keep for rollback) */}
