@@ -130,9 +130,8 @@ function StoryChatPage() {
               }
             }
           } else {
-            // Auto-select global chat
+            // Auto-select global chat (don't change URL, stay on current route)
             setSelectedStory(GLOBAL_CHAT)
-            navigate(`/storychat/${GLOBAL_CHAT_ID}`, { replace: true })
           }
         }
       } catch (error) {
@@ -167,7 +166,7 @@ function StoryChatPage() {
         setMessages([
           {
             role: 'assistant',
-            content: `Hello! I'm HERE.news AI. I can help you discover and understand news stories. Ask me what's happening today, or select a story from the list to dive deeper.`
+            content: `Hello! I'm HERE.news AI. What would you like to know about the news today?`
           }
         ])
         setClaims([])
@@ -175,7 +174,7 @@ function StoryChatPage() {
         setMessages([
           {
             role: 'assistant',
-            content: `I can help you understand this story: "${selectedStory.title}". Ask me anything about the claims, sources, or related information.`
+            content: `Ask me anything about this story.`
           }
         ])
       }
@@ -191,10 +190,24 @@ function StoryChatPage() {
   // Handle story selection
   const handleSelectStory = (story: Story) => {
     setSelectedStory(story)
-    navigate(`/storychat/${story.id}`)
-    if (story.id !== GLOBAL_CHAT_ID) {
+
+    // Preserve current route prefix (/app, /storychat, or /story)
+    const currentPath = window.location.pathname
+    let basePath = '/app'
+    if (currentPath.startsWith('/storychat')) {
+      basePath = '/storychat'
+    } else if (currentPath.startsWith('/story')) {
+      basePath = '/story'
+    }
+
+    // Navigate to story (or stay on base path for global chat)
+    if (story.id === GLOBAL_CHAT_ID) {
+      navigate(basePath, { replace: true })
+    } else {
+      navigate(`${basePath}/${story.id}`)
       loadStoryData(story.id)
     }
+
     setShowMobileList(false)
   }
 
