@@ -929,6 +929,7 @@ async def add_page_to_story(story_id: str, submission: URLSubmission, request: R
 
     Returns task_id for polling.
     """
+    user_id = submission.user_id or request.headers.get('x-user-id')
     url = submission.url
     print(f"📌 Adding page to story {story_id}: {url}")
 
@@ -942,6 +943,9 @@ async def add_page_to_story(story_id: str, submission: URLSubmission, request: R
             "target_story_id": story_id,
             "response_format": "json"
         }
+        if user_id:
+            form_data["user_id"] = user_id
+
         print(f"📤 Sending to {remote_url}")
         print(f"📤 Form data: {form_data}")
 
@@ -977,7 +981,13 @@ async def add_page_to_story(story_id: str, submission: URLSubmission, request: R
                         detail="Remote service did not return a task_id"
                     )
 
-                print(f"✓ Task created: {task_id} for story {story_id}")
+                # Store task_id -> user_id mapping for WebSocket broadcasts
+                if user_id:
+                    task_user_mapping[task_id] = user_id
+                    print(f"✓ Task created: {task_id} for story {story_id} (user: {user_id})")
+                else:
+                    print(f"✓ Task created: {task_id} for story {story_id} (no user_id)")
+
                 return {
                     "task_id": task_id,
                     "story_id": story_id,
