@@ -305,9 +305,9 @@ function StoryChatPage() {
   }
 
   return (
-    <div className="h-screen flex flex-col md:flex-row bg-slate-50">
+    <div className="h-screen flex flex-col bg-slate-50">
       {/* Mobile Header - Always visible on mobile, shows selected story */}
-      <div className="md:hidden flex items-center gap-3 px-4 py-3 border-b border-slate-200 bg-gradient-to-r from-blue-50 to-purple-50 flex-shrink-0">
+      <div className="md:hidden flex items-center gap-3 px-4 py-3 border-b border-slate-200 bg-gradient-to-r from-blue-50 to-purple-50 flex-shrink-0 z-10">
         {showMobileList ? (
           <>
             <Link to="/" className="text-slate-600 hover:text-slate-900">
@@ -354,12 +354,14 @@ function StoryChatPage() {
         ) : null}
       </div>
 
-      {/* Stories List (Left Sidebar) */}
-      <div
-        className={`${
-          showMobileList ? 'flex' : 'hidden'
-        } md:flex flex-col w-full md:w-80 lg:w-96 bg-white border-r border-slate-200`}
-      >
+      {/* Main Content Area - Desktop: flex-row, Mobile: flex-1 to take remaining space */}
+      <div className="flex-1 flex flex-row overflow-hidden">
+        {/* Stories List (Left Sidebar) */}
+        <div
+          className={`${
+            showMobileList ? 'flex' : 'hidden'
+          } md:flex flex-col w-full md:w-80 lg:w-96 bg-white border-r border-slate-200`}
+        >
         {/* Header - Desktop only */}
         <div className="hidden md:flex items-center justify-between px-4 py-4 border-b border-slate-200 bg-gradient-to-r from-blue-50 to-purple-50">
           <div className="flex items-center gap-3">
@@ -428,14 +430,14 @@ function StoryChatPage() {
             </button>
           ))}
         </div>
-      </div>
+        </div>
 
-      {/* Chat Area (Right Side) */}
-      <div
-        className={`${
-          showMobileList ? 'hidden' : 'flex'
-        } md:flex flex-col flex-1 bg-white`}
-      >
+        {/* Chat Area (Right Side) */}
+        <div
+          className={`${
+            showMobileList ? 'hidden' : 'flex'
+          } md:flex flex-col flex-1 bg-white`}
+        >
         {selectedStory ? (
           <>
             {/* Chat Header - Desktop only (mobile header is at top of screen) */}
@@ -537,6 +539,7 @@ function StoryChatPage() {
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   )
