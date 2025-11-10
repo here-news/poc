@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { ensureUserId } from './userSession'
 import StoryOverlay from './components/overlay/StoryOverlay'
 import StorySummaryCard from './components/chat/StorySummaryCard'
 import NewsCurationWelcome from './components/chat/NewsCurationWelcome'
 import LinkPreviewCard from './components/chat/LinkPreviewCard'
 import { useWebSocket } from './hooks/useWebSocket'
+import { getStoryUrlFromData } from './utils/storyUrl'
 
 interface Story {
   id: string
@@ -237,6 +238,22 @@ function StoryChatPage() {
               if (story) {
                 setSelectedStory(story)
                 loadStoryData(story.id)
+              } else {
+                // Story not in filtered list (maybe low coherence), fetch it directly
+                const storyResponse = await fetch(`/api/stories/${storyId}`)
+                const storyData = await storyResponse.json()
+                if (storyData.success && storyData.story) {
+                  const directStory = storyData.story
+                  // Add to stories list if not already there
+                  setStories((prev) => {
+                    if (!prev.find((s) => s.id === directStory.id)) {
+                      return [directStory, ...prev]
+                    }
+                    return prev
+                  })
+                  setSelectedStory(directStory)
+                  loadStoryData(directStory.id)
+                }
               }
             }
           } else {
@@ -321,20 +338,21 @@ What would you like to know about the news today?`
       setNewStoryNotifications([])
     }
 
-    // Preserve current route prefix (/app, /storychat, or /story)
-    const currentPath = window.location.pathname
-    let basePath = '/app'
-    if (currentPath.startsWith('/storychat')) {
-      basePath = '/storychat'
-    } else if (currentPath.startsWith('/story')) {
-      basePath = '/story'
-    }
-
     // Navigate to story (or stay on base path for global chat)
     if (story.id === GLOBAL_CHAT_ID) {
+      // Preserve current route prefix for global chat
+      const currentPath = window.location.pathname
+      let basePath = '/app'
+      if (currentPath.startsWith('/storychat')) {
+        basePath = '/storychat'
+      } else if (currentPath.startsWith('/story')) {
+        basePath = '/story'
+      }
       navigate(basePath, { replace: true })
     } else {
-      navigate(`${basePath}/${story.id}`)
+      // Use canonical story URL with slug
+      const storyUrl = getStoryUrlFromData(story)
+      navigate(storyUrl)
       loadStoryData(story.id)
     }
 

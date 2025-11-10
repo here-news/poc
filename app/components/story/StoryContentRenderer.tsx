@@ -57,8 +57,42 @@ export function StoryContentRenderer({
   // Render each segment
   const renderSegment = (segment: ContentSegment, index: number): JSX.Element | string => {
     switch (segment.type) {
-      case 'text':
-        return segment.content
+      case 'text': {
+        // Split on double newlines to create paragraphs, preserve single newlines within paragraphs
+        const paragraphs = segment.content.split(/\n\n+/)
+        if (paragraphs.length === 1) {
+          // Single paragraph or no breaks - preserve single newlines with <br>
+          const lines = segment.content.split('\n')
+          return (
+            <React.Fragment key={`text-${index}`}>
+              {lines.map((line, i) => (
+                <React.Fragment key={i}>
+                  {line}
+                  {i < lines.length - 1 && <br />}
+                </React.Fragment>
+              ))}
+            </React.Fragment>
+          )
+        }
+        // Multiple paragraphs
+        return (
+          <React.Fragment key={`text-${index}`}>
+            {paragraphs.map((para, i) => {
+              const lines = para.split('\n')
+              return (
+                <p key={i} className="mb-4">
+                  {lines.map((line, j) => (
+                    <React.Fragment key={j}>
+                      {line}
+                      {j < lines.length - 1 && <br />}
+                    </React.Fragment>
+                  ))}
+                </p>
+              )
+            })}
+          </React.Fragment>
+        )
+      }
 
       case 'citation': {
         // Get citation numbers for all page IDs in this citation

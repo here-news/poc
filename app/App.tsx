@@ -4,13 +4,13 @@ import LandingPage from './LandingPage'
 import SimplifiedHome from './SimplifiedHome'
 import ResultPage from './ResultPage'
 import StoryChatPage from './StoryChatPage'
+import StoryRouter from './StoryRouter'
 import BuildPage from './BuildPage'
 import BuilderPage from './BuilderPage'
 import BuilderPageV2 from './BuilderPageV2'
 import BuilderPageV3 from './BuilderPageV3'
 import BuilderPageV4 from './BuilderPageV4'
 import EntityPage from './EntityPage'
-// import StoryPageLegacy from './StoryPageLegacy' // Keep for rollback if needed
 
 function App() {
   return (
@@ -21,8 +21,10 @@ function App() {
         <Route path="/app" element={<StoryChatPage />} />
         <Route path="/app/:storyId" element={<StoryChatPage />} />
         <Route path="/result/:taskId" element={<ResultPage />} />
-        {/* Story routes - all use chat interface */}
-        <Route path="/story/:storyId" element={<StoryChatPage />} />
+        {/* Story routes - support view modes (chat/full) and optional SEO slugs */}
+        <Route path="/story/:storyId" element={<StoryRouter />} />
+        <Route path="/story/:storyId/:slug" element={<StoryRouter />} />
+        {/* Legacy storychat routes - redirect to /story */}
         <Route path="/storychat" element={<StoryChatPage />} />
         <Route path="/storychat/:storyId" element={<StoryChatPage />} />
         {/* Legacy simplified home (keep for rollback) */}
