@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ensureUserId } from './userSession'
+import StoryOverlay from './components/overlay/StoryOverlay'
+import StorySummaryCard from './components/chat/StorySummaryCard'
 
 interface Story {
   id: string
@@ -11,6 +13,9 @@ interface Story {
   last_updated?: string
   cover_image?: string
   artifact_count?: number
+  people_count?: number
+  revision?: string
+  version?: string
 }
 
 interface ChatMessage {
@@ -47,6 +52,18 @@ function formatRelativeTime(timestamp: string | undefined): string {
   }
 }
 
+// Special "story" for global HERE.news chat
+const GLOBAL_CHAT_ID = '__global__'
+const GLOBAL_CHAT: Story = {
+  id: GLOBAL_CHAT_ID,
+  title: 'HERE.news',
+  description: 'Chat with HERE.news AI about any news topic',
+  gist: 'Global news intelligence',
+  coherence_score: 1.0,
+  artifact_count: 0,
+  people_count: 0,
+}
+
 function StoryChatPage() {
   const { storyId } = useParams<{ storyId?: string }>()
   const navigate = useNavigate()
@@ -59,7 +76,8 @@ function StoryChatPage() {
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [expandedClaims, setExpandedClaims] = useState<Map<string, number>>(new Map())
-  const [showMobileList, setShowMobileList] = useState(true) // Mobile: show list or chat
+  const [showMobileList, setShowMobileList] = useState(true)
+  const [showStoryOverlay, setShowStoryOverlay] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Initialize user
@@ -77,18 +95,21 @@ function StoryChatPage() {
         if (data.stories) {
           setStories(data.stories)
 
-          // If storyId provided, select it; otherwise select first story
+          // If storyId provided, select it
           if (storyId) {
-            const story = data.stories.find((s: Story) => s.id === storyId)
-            if (story) {
-              setSelectedStory(story)
-              loadStoryData(story.id)
+            if (storyId === GLOBAL_CHAT_ID) {
+              setSelectedStory(GLOBAL_CHAT)
+            } else {
+              const story = data.stories.find((s: Story) => s.id === storyId)
+              if (story) {
+                setSelectedStory(story)
+                loadStoryData(story.id)
+              }
             }
-          } else if (data.stories.length > 0) {
-            // Auto-select first story and update URL
-            setSelectedStory(data.stories[0])
-            navigate(`/storychat/${data.stories[0].id}`, { replace: true })
-            loadStoryData(data.stories[0].id)
+          } else {
+            // Auto-select global chat
+            setSelectedStory(GLOBAL_CHAT)
+            navigate(`/storychat/${GLOBAL_CHAT_ID}`, { replace: true })
           }
         }
       } catch (error) {
@@ -103,6 +124,8 @@ function StoryChatPage() {
 
   // Load story-specific data (claims)
   const loadStoryData = async (id: string) => {
+    if (id === GLOBAL_CHAT_ID) return
+
     try {
       const response = await fetch(`/api/story/${id}/claims`)
       const data = await response.json()
@@ -117,12 +140,22 @@ function StoryChatPage() {
   // Initialize chat when story selected
   useEffect(() => {
     if (selectedStory) {
-      setMessages([
-        {
-          role: 'assistant',
-          content: `I can help you understand this story: "${selectedStory.title}". Ask me anything about the claims, sources, or related information.`
-        }
-      ])
+      if (selectedStory.id === GLOBAL_CHAT_ID) {
+        setMessages([
+          {
+            role: 'assistant',
+            content: `Hello! I'm HERE.news AI. I can help you discover and understand news stories. Ask me what's happening today, or select a story from the list to dive deeper.`
+          }
+        ])
+        setClaims([])
+      } else {
+        setMessages([
+          {
+            role: 'assistant',
+            content: `I can help you understand this story: "${selectedStory.title}". Ask me anything about the claims, sources, or related information.`
+          }
+        ])
+      }
       setExpandedClaims(new Map())
     }
   }, [selectedStory])
@@ -136,8 +169,10 @@ function StoryChatPage() {
   const handleSelectStory = (story: Story) => {
     setSelectedStory(story)
     navigate(`/storychat/${story.id}`)
-    loadStoryData(story.id)
-    setShowMobileList(false) // On mobile, switch to chat view
+    if (story.id !== GLOBAL_CHAT_ID) {
+      loadStoryData(story.id)
+    }
+    setShowMobileList(false)
   }
 
   // Handle send message
@@ -145,28 +180,42 @@ function StoryChatPage() {
     const trimmed = input.trim()
     if (!trimmed || isLoading || !selectedStory) return
 
-    // Add user message
     const userMessage = { role: 'user' as const, content: trimmed }
     setMessages((prev) => [...prev, userMessage])
     setInput('')
     setIsLoading(true)
 
     try {
-      // Build conversation history (exclude the initial welcome message)
       const conversationHistory = messages.slice(1).map(msg => ({
         role: msg.role,
         content: msg.content
       }))
 
-      const response = await fetch(`/api/story/${selectedStory.id}/chat`, {
+      let endpoint: string
+      let body: any
+
+      if (selectedStory.id === GLOBAL_CHAT_ID) {
+        // Global chat
+        endpoint = '/api/chat'
+        body = {
+          message: trimmed,
+          conversation_history: conversationHistory
+        }
+      } else {
+        // Story-specific chat
+        endpoint = `/api/story/${selectedStory.id}/chat`
+        body = {
+          message: trimmed,
+          conversation_history: conversationHistory
+        }
+      }
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          message: trimmed,
-          conversation_history: conversationHistory
-        })
+        body: JSON.stringify(body)
       })
 
       if (!response.ok) {
@@ -187,7 +236,7 @@ function StoryChatPage() {
         throw new Error('Invalid response from server')
       }
     } catch (error) {
-      console.error('Error chatting with story:', error)
+      console.error('Error chatting:', error)
       setMessages((prev) => [
         ...prev,
         {
@@ -291,22 +340,11 @@ function StoryChatPage() {
     )
   }
 
-  if (stories.length === 0) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-slate-50">
-        <div className="text-center">
-          <p className="text-slate-600 mb-4">No stories available for chat yet.</p>
-          <Link to="/" className="text-blue-600 hover:text-blue-700 underline">
-            Go to Home
-          </Link>
-        </div>
-      </div>
-    )
-  }
+  const allStories = [GLOBAL_CHAT, ...stories]
 
   return (
     <div className="h-screen flex flex-col bg-slate-50">
-      {/* Mobile Header - Always visible on mobile, shows selected story */}
+      {/* Mobile Header - Always visible on mobile */}
       <div className="md:hidden flex items-center gap-3 px-4 py-3 border-b border-slate-200 bg-gradient-to-r from-blue-50 to-purple-50 flex-shrink-0 z-10">
         {showMobileList ? (
           <>
@@ -317,7 +355,7 @@ function StoryChatPage() {
             </Link>
             <div className="flex-1 min-w-0">
               <h1 className="text-lg font-bold text-slate-900">Story Chats</h1>
-              <p className="text-xs text-slate-500">{stories.length} stories</p>
+              <p className="text-xs text-slate-500">{stories.length + 1} chats</p>
             </div>
           </>
         ) : selectedStory ? (
@@ -332,126 +370,11 @@ function StoryChatPage() {
             </button>
             <div className="flex-1 min-w-0">
               <h2 className="font-semibold text-slate-900 truncate">{selectedStory.title}</h2>
-              <p className="text-xs text-slate-500 truncate">Chat about this story</p>
+              <p className="text-xs text-slate-500 truncate">Chat about this {selectedStory.id === GLOBAL_CHAT_ID ? 'news' : 'story'}</p>
             </div>
-            <Link
-              to={`/story/${selectedStory.id}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 hover:text-blue-700"
-              title="View full story"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                />
-              </svg>
-            </Link>
-          </>
-        ) : null}
-      </div>
-
-      {/* Main Content Area - Desktop: flex-row, Mobile: flex-1 to take remaining space */}
-      <div className="flex-1 flex flex-row overflow-hidden">
-        {/* Stories List (Left Sidebar) */}
-        <div
-          className={`${
-            showMobileList ? 'flex' : 'hidden'
-          } md:flex flex-col w-full md:w-80 lg:w-96 bg-white border-r border-slate-200`}
-        >
-        {/* Header - Desktop only */}
-        <div className="hidden md:flex items-center justify-between px-4 py-4 border-b border-slate-200 bg-gradient-to-r from-blue-50 to-purple-50">
-          <div className="flex items-center gap-3">
-            <Link to="/" className="text-slate-600 hover:text-slate-900">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-            </Link>
-            <h1 className="text-lg font-bold text-slate-900">Story Chats</h1>
-          </div>
-          <div className="text-xs text-slate-500">{stories.length} stories</div>
-        </div>
-
-        {/* Stories List */}
-        <div className="flex-1 overflow-y-auto">
-          {stories.map((story) => (
-            <button
-              key={story.id}
-              onClick={() => handleSelectStory(story)}
-              className={`w-full text-left px-4 py-3 border-b border-slate-100 hover:bg-slate-50 transition-colors ${
-                selectedStory?.id === story.id ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
-              }`}
-            >
-              <div className="flex items-start gap-3">
-                {/* Story thumbnail or icon */}
-                {story.cover_image ? (
-                  <img
-                    src={story.cover_image}
-                    alt={story.title}
-                    className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
-                  />
-                ) : (
-                  <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center flex-shrink-0">
-                    <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"
-                      />
-                    </svg>
-                  </div>
-                )}
-
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-sm text-slate-900 truncate mb-1">
-                    {story.title}
-                  </h3>
-                  <p className="text-xs text-slate-500 line-clamp-2">
-                    {story.description || story.gist || 'No description'}
-                  </p>
-                  <div className="flex items-center gap-2 mt-2">
-                    {story.coherence_score !== undefined && (
-                      <span className="text-[10px] px-1.5 py-0.5 bg-green-100 text-green-700 rounded font-semibold">
-                        {Math.round(story.coherence_score * 100)}%
-                      </span>
-                    )}
-                    {story.artifact_count !== undefined && (
-                      <span className="text-[10px] text-slate-400">
-                        {story.artifact_count} sources
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </button>
-          ))}
-        </div>
-        </div>
-
-        {/* Chat Area (Right Side) */}
-        <div
-          className={`${
-            showMobileList ? 'hidden' : 'flex'
-          } md:flex flex-col flex-1 bg-white`}
-        >
-        {selectedStory ? (
-          <>
-            {/* Chat Header - Desktop only (mobile header is at top of screen) */}
-            <div className="hidden md:flex items-center gap-3 px-4 py-3 border-b border-slate-200 bg-gradient-to-r from-blue-50 to-purple-50">
-              <div className="flex-1 min-w-0">
-                <h2 className="font-semibold text-slate-900 truncate">{selectedStory.title}</h2>
-                <p className="text-xs text-slate-500 truncate">
-                  Ask questions about this story
-                </p>
-              </div>
-              <Link
-                to={`/story/${selectedStory.id}`}
-                target="_blank"
-                rel="noopener noreferrer"
+            {selectedStory.id !== GLOBAL_CHAT_ID && (
+              <button
+                onClick={() => setShowStoryOverlay(true)}
                 className="text-blue-600 hover:text-blue-700"
                 title="View full story"
               >
@@ -460,87 +383,251 @@ function StoryChatPage() {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
                   />
                 </svg>
-              </Link>
-            </div>
+              </button>
+            )}
+          </>
+        ) : null}
+      </div>
 
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {messages.map((msg, idx) => (
-                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div
-                    className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                      msg.role === 'user'
-                        ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
-                        : 'bg-slate-100 text-slate-900'
-                    }`}
-                  >
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                      {msg.role === 'assistant' ? renderMessageContent(msg.content, idx) : msg.content}
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-row overflow-hidden">
+        {/* Stories List (Left Sidebar) */}
+        <div
+          className={`${
+            showMobileList ? 'flex' : 'hidden'
+          } md:flex flex-col w-full md:w-80 lg:w-96 bg-white border-r border-slate-200`}
+        >
+          {/* Header - Desktop only */}
+          <div className="hidden md:flex items-center justify-between px-4 py-4 border-b border-slate-200 bg-gradient-to-r from-blue-50 to-purple-50">
+            <div className="flex items-center gap-3">
+              <Link to="/" className="text-slate-600 hover:text-slate-900">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+              </Link>
+              <h1 className="text-lg font-bold text-slate-900">Story Chats</h1>
+            </div>
+            <div className="text-xs text-slate-500">{allStories.length} chats</div>
+          </div>
+
+          {/* Stories List */}
+          <div className="flex-1 overflow-y-auto">
+            {allStories.map((story) => (
+              <button
+                key={story.id}
+                onClick={() => handleSelectStory(story)}
+                className={`w-full text-left px-4 py-3 border-b border-slate-100 hover:bg-slate-50 transition-colors ${
+                  selectedStory?.id === story.id ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  {/* Icon or thumbnail */}
+                  {story.id === GLOBAL_CHAT_ID ? (
+                    <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-teal-500 to-blue-600 flex items-center justify-center flex-shrink-0">
+                      <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                    </div>
+                  ) : story.cover_image ? (
+                    <img
+                      src={story.cover_image}
+                      alt={story.title}
+                      className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center flex-shrink-0">
+                      <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"
+                        />
+                      </svg>
+                    </div>
+                  )}
+
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-sm text-slate-900 truncate mb-1">
+                      {story.title}
+                    </h3>
+                    <p className="text-xs text-slate-500 line-clamp-2">
+                      {story.description || story.gist || 'No description'}
                     </p>
+                    {story.id !== GLOBAL_CHAT_ID && (
+                      <div className="flex items-center gap-2 mt-2">
+                        {story.coherence_score !== undefined && (
+                          <span className="text-[10px] px-1.5 py-0.5 bg-green-100 text-green-700 rounded font-semibold">
+                            {Math.round(story.coherence_score * 100)}%
+                          </span>
+                        )}
+                        {story.artifact_count !== undefined && (
+                          <span className="text-[10px] text-slate-400">
+                            {story.artifact_count} sources
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
-              ))}
-              {isLoading && (
-                <div className="flex justify-start">
-                  <div className="max-w-[80%] rounded-lg px-4 py-2 bg-slate-100 text-slate-900">
-                    <div className="flex items-center gap-2">
-                      <div className="flex gap-1">
-                        <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                        <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                        <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                      </div>
-                      <span className="text-xs text-slate-500">Thinking...</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Chat Area (Right Side) */}
+        <div
+          className={`${
+            showMobileList ? 'hidden' : 'flex'
+          } md:flex flex-col flex-1 bg-white`}
+        >
+          {selectedStory ? (
+            <>
+              {/* Chat Header - Desktop only */}
+              <div className="hidden md:flex items-center gap-3 px-4 py-3 border-b border-slate-200 bg-gradient-to-r from-blue-50 to-purple-50">
+                <div className="flex-1 min-w-0">
+                  <h2 className="font-semibold text-slate-900 truncate">{selectedStory.title}</h2>
+                  <p className="text-xs text-slate-500 truncate">
+                    Ask questions about this {selectedStory.id === GLOBAL_CHAT_ID ? 'news' : 'story'}
+                  </p>
+                </div>
+                {selectedStory.id !== GLOBAL_CHAT_ID && (
+                  <button
+                    onClick={() => setShowStoryOverlay(true)}
+                    className="text-blue-600 hover:text-blue-700"
+                    title="View full story"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                      />
+                    </svg>
+                  </button>
+                )}
+              </div>
+
+              {/* Messages */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {/* Story Summary Card - Only for story-specific chats */}
+                {selectedStory.id !== GLOBAL_CHAT_ID && (
+                  <StorySummaryCard
+                    title={selectedStory.title}
+                    description={selectedStory.description}
+                    gist={selectedStory.gist}
+                    coherence_score={selectedStory.coherence_score}
+                    artifact_count={selectedStory.artifact_count}
+                    people_count={selectedStory.people_count}
+                    revision={selectedStory.revision}
+                    version={selectedStory.version}
+                    onViewFullStory={() => setShowStoryOverlay(true)}
+                  />
+                )}
+
+                {messages.map((msg, idx) => (
+                  <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div
+                      className={`max-w-[80%] rounded-lg px-4 py-2 ${
+                        msg.role === 'user'
+                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
+                          : 'bg-slate-100 text-slate-900'
+                      }`}
+                    >
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                        {msg.role === 'assistant' ? renderMessageContent(msg.content, idx) : msg.content}
+                      </p>
                     </div>
                   </div>
-                </div>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Input */}
-            <div className="flex-shrink-0 p-4 bg-white border-t border-slate-200">
-              <div className="flex gap-2">
-                <textarea
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Ask about this story..."
-                  rows={2}
-                  className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none resize-none text-sm"
-                />
-                <button
-                  onClick={handleSend}
-                  disabled={!input.trim() || isLoading}
-                  className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                  </svg>
-                </button>
+                ))}
+                {isLoading && (
+                  <div className="flex justify-start">
+                    <div className="max-w-[80%] rounded-lg px-4 py-2 bg-slate-100 text-slate-900">
+                      <div className="flex items-center gap-2">
+                        <div className="flex gap-1">
+                          <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                          <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                          <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                        </div>
+                        <span className="text-xs text-slate-500">Thinking...</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
               </div>
-              <p className="text-xs text-slate-500 mt-2">Press Enter to send • Shift+Enter for new line</p>
+
+              {/* Input */}
+              <div className="flex-shrink-0 p-4 bg-white border-t border-slate-200">
+                <div className="flex gap-2">
+                  <textarea
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder={selectedStory.id === GLOBAL_CHAT_ID ? "Ask about any news..." : "Ask about this story..."}
+                    rows={2}
+                    className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none resize-none text-sm"
+                  />
+                  <button
+                    onClick={handleSend}
+                    disabled={!input.trim() || isLoading}
+                    className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                    </svg>
+                  </button>
+                </div>
+                <p className="text-xs text-slate-500 mt-2">Press Enter to send • Shift+Enter for new line</p>
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-slate-400">
+              <div className="text-center">
+                <svg className="w-16 h-16 mx-auto mb-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                  />
+                </svg>
+                <p className="text-sm">Select a chat to start</p>
+              </div>
             </div>
-          </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center text-slate-400">
-            <div className="text-center">
-              <svg className="w-16 h-16 mx-auto mb-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
-                />
-              </svg>
-              <p className="text-sm">Select a story to start chatting</p>
-            </div>
-          </div>
-        )}
+          )}
         </div>
       </div>
+
+      {/* Story Overlay Modal */}
+      {selectedStory && selectedStory.id !== GLOBAL_CHAT_ID && (
+        <StoryOverlay
+          storyId={selectedStory.id}
+          isOpen={showStoryOverlay}
+          onClose={() => setShowStoryOverlay(false)}
+        />
+      )}
     </div>
   )
 }

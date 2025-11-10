@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import LandingPage from './LandingPage'
 import SimplifiedHome from './SimplifiedHome'
 import ResultPage from './ResultPage'
-import StoryPage from './StoryPage'
 import StoryChatPage from './StoryChatPage'
 import BuildPage from './BuildPage'
 import BuilderPage from './BuilderPage'
@@ -11,6 +10,7 @@ import BuilderPageV2 from './BuilderPageV2'
 import BuilderPageV3 from './BuilderPageV3'
 import BuilderPageV4 from './BuilderPageV4'
 import EntityPage from './EntityPage'
+// import StoryPageLegacy from './StoryPageLegacy' // Keep for rollback if needed
 
 function App() {
   return (
@@ -19,7 +19,8 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/app" element={<SimplifiedHome />} />
         <Route path="/result/:taskId" element={<ResultPage />} />
-        <Route path="/story/:id" element={<StoryPage />} />
+        {/* Chat-centric interface for stories */}
+        <Route path="/story/:storyId" element={<StoryChatPage />} />
         <Route path="/storychat" element={<StoryChatPage />} />
         <Route path="/storychat/:storyId" element={<StoryChatPage />} />
         <Route path="/build/:id" element={<BuildPage />} />

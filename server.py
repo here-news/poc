@@ -186,6 +186,85 @@ Guidelines:
         print(f"Error in story chat: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/chat")
+async def chat_global(chat_message: StoryChatMessage):
+    """
+    General chat with HERE.news AI about any news topic.
+    Can provide overview, recommend stories, or answer general news questions.
+
+    Args:
+        chat_message: Contains user message and optional conversation history
+
+    Returns:
+        AI-generated response about news in general
+    """
+    if not openai_client:
+        raise HTTPException(status_code=500, detail="OpenAI API key not configured")
+
+    try:
+        # Get recent stories for context
+        recent_stories = neo4j_client.get_story_summaries(limit=10, min_coherence=0.7)
+
+        # Build context from recent stories
+        stories_context = ""
+        if recent_stories:
+            stories_context = "Recent trending stories:\n"
+            for i, story in enumerate(recent_stories[:5], 1):
+                title = story.get('title', 'Untitled')
+                desc = story.get('description') or story.get('gist', '')
+                coherence = story.get('coherence_score', 0)
+                stories_context += f"{i}. {title} (coherence: {int(coherence*100)}%)\n   {desc[:150]}...\n"
+
+        # Build conversation messages
+        messages = [
+            {
+                "role": "system",
+                "content": f"""You are HERE.news AI, a concise news intelligence assistant.
+
+{stories_context}
+
+Guidelines:
+- Answer in 2-4 sentences maximum
+- Provide insights about current news trends when asked
+- Recommend relevant stories from the list above when appropriate
+- Be direct and factual - no filler words
+- If you don't have specific information, say so briefly
+- Maintain a neutral, journalistic tone
+- You can discuss news topics broadly, not just the stories above"""
+            }
+        ]
+
+        # Add conversation history if provided
+        if chat_message.conversation_history:
+            messages.extend(chat_message.conversation_history)
+
+        # Add current user message
+        messages.append({
+            "role": "user",
+            "content": chat_message.message
+        })
+
+        # Call OpenAI API
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            temperature=0.7,  # Slightly higher for more natural conversation
+            max_tokens=250    # Slightly more for general discussion
+        )
+
+        assistant_message = response.choices[0].message.content
+
+        return {
+            "success": True,
+            "response": assistant_message
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error in global chat: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 def _get_story_claims(story_id: str) -> List[Dict]:
     """Get all claims associated with a story's artifacts."""
     if not neo4j_client.connected:
