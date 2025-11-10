@@ -17,12 +17,16 @@ function App() {
     <Router>
       <Routes>
         <Route path="/" element={<LandingPage />} />
-        <Route path="/app" element={<SimplifiedHome />} />
+        {/* Chat-centric interface as default app */}
+        <Route path="/app" element={<StoryChatPage />} />
+        <Route path="/app/:storyId" element={<StoryChatPage />} />
         <Route path="/result/:taskId" element={<ResultPage />} />
-        {/* Chat-centric interface for stories */}
+        {/* Story routes - all use chat interface */}
         <Route path="/story/:storyId" element={<StoryChatPage />} />
         <Route path="/storychat" element={<StoryChatPage />} />
         <Route path="/storychat/:storyId" element={<StoryChatPage />} />
+        {/* Legacy simplified home (keep for rollback) */}
+        <Route path="/home-legacy" element={<SimplifiedHome />} />
         <Route path="/build/:id" element={<BuildPage />} />
         <Route path="/builder/:id" element={<BuilderPageV4 />} />
         <Route path="/builder-v3/:id" element={<BuilderPageV3 />} />

@@ -8,9 +8,11 @@ import httpx
 import os
 import re
 import json
+import time
+from datetime import datetime
 from openai import OpenAI
 
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 
 from services.gcs_task_store import gcs_task_store as task_store, TaskStatus
 from services.pubsub_publisher import pubsub_publisher
@@ -22,6 +24,13 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 
 # Initialize OpenAI client
 openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+
+# News curation cache (refreshes every 5 minutes)
+news_curation_cache = {
+    "data": None,
+    "timestamp": 0,
+    "ttl": 300  # 5 minutes in seconds
+}
 
 app = FastAPI()
 
@@ -55,6 +64,135 @@ class StoryChatMessage(BaseModel):
 @app.get("/api/health")
 async def health_check():
     return {"status": "ok"}
+
+@app.get("/api/news-curation")
+async def get_news_curation():
+    """
+    Get curated news feed with top stories and trending entities.
+    Cached for 5 minutes for performance.
+
+    Returns:
+        - Top stories (coherence > 0.7)
+        - Trending people (with headshots)
+        - Trending organizations
+        - Trending locations
+        - Timestamp of last update
+    """
+    global news_curation_cache
+
+    current_time = time.time()
+
+    # Check if cache is still valid
+    if (news_curation_cache["data"] is not None and
+        current_time - news_curation_cache["timestamp"] < news_curation_cache["ttl"]):
+        print("📦 Returning cached news curation")
+        return news_curation_cache["data"]
+
+    print("🔄 Fetching fresh news curation...")
+
+    try:
+        # Get top stories
+        top_stories = neo4j_client.get_story_summaries(limit=8, min_coherence=0.7)
+
+        # Get trending entities from recent stories
+        trending_entities = _get_trending_entities(limit_stories=20)
+
+        curation_data = {
+            "success": True,
+            "stories": top_stories[:6],  # Top 6 stories
+            "entities": {
+                "people": trending_entities.get("people", [])[:6],
+                "organizations": trending_entities.get("organizations", [])[:4],
+                "locations": trending_entities.get("locations", [])[:4]
+            },
+            "last_updated": datetime.now().isoformat(),
+            "cached": False
+        }
+
+        # Update cache
+        news_curation_cache["data"] = curation_data
+        news_curation_cache["timestamp"] = current_time
+
+        return curation_data
+
+    except Exception as e:
+        print(f"Error fetching news curation: {e}")
+        # Return minimal response on error
+        return {
+            "success": False,
+            "stories": [],
+            "entities": {"people": [], "organizations": [], "locations": []},
+            "error": str(e)
+        }
+
+def _get_trending_entities(limit_stories: int = 20) -> Dict[str, List[Dict]]:
+    """Get trending entities from recent high-coherence stories."""
+    if not neo4j_client.connected:
+        neo4j_client._connect()
+    if not neo4j_client.connected:
+        return {"people": [], "organizations": [], "locations": []}
+
+    cypher = """
+    // Get recent high-quality stories
+    MATCH (story:Story)
+    WHERE story.coherence_score > 0.6
+    WITH story
+    ORDER BY story.last_updated DESC
+    LIMIT $limit_stories
+
+    // Get entities from these stories
+    OPTIONAL MATCH (story)-[:MENTIONS_PERSON]->(person:Person)
+    OPTIONAL MATCH (story)-[:MENTIONS_ORG]->(org:Organization)
+    OPTIONAL MATCH (story)-[:MENTIONS_LOCATION]->(location:Location)
+
+    WITH
+        collect(DISTINCT {
+            id: person.id,
+            name: person.name,
+            thumbnail: person.wikidata_thumbnail,
+            qid: person.qid,
+            description: person.description,
+            story_count: size((person)<-[:MENTIONS_PERSON]-(:Story))
+        }) as people,
+        collect(DISTINCT {
+            id: org.id,
+            name: org.name,
+            thumbnail: org.wikidata_thumbnail,
+            domain: org.domain,
+            story_count: size((org)<-[:MENTIONS_ORG]-(:Story))
+        }) as orgs,
+        collect(DISTINCT {
+            id: location.id,
+            name: location.name,
+            thumbnail: location.wikidata_thumbnail,
+            story_count: size((location)<-[:MENTIONS_LOCATION]-(:Story))
+        }) as locs
+
+    RETURN people, orgs, locs
+    """
+
+    with neo4j_client.driver.session(database=neo4j_client.database) as session:
+        result = session.run(cypher, limit_stories=limit_stories)
+        record = result.single()
+
+        if not record:
+            return {"people": [], "organizations": [], "locations": []}
+
+        # Filter out nulls and sort by story_count
+        people = [p for p in record["people"] if p.get("id") and p.get("name")]
+        orgs = [o for o in record["orgs"] if o.get("id") and o.get("name")]
+        locs = [l for l in record["locs"] if l.get("id") and l.get("name")]
+
+        # Sort by story count (trending)
+        people.sort(key=lambda x: x.get("story_count", 0), reverse=True)
+        orgs.sort(key=lambda x: x.get("story_count", 0), reverse=True)
+        locs.sort(key=lambda x: x.get("story_count", 0), reverse=True)
+
+        return {
+            "people": people,
+            "organizations": orgs,
+            "locations": locs
+        }
 
 @app.get("/api/stories/{story_id}")
 async def get_story_by_id(story_id: str):

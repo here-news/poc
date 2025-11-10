@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ensureUserId } from './userSession'
 import StoryOverlay from './components/overlay/StoryOverlay'
 import StorySummaryCard from './components/chat/StorySummaryCard'
+import NewsCurationWelcome from './components/chat/NewsCurationWelcome'
 
 interface Story {
   id: string
@@ -78,12 +79,34 @@ function StoryChatPage() {
   const [expandedClaims, setExpandedClaims] = useState<Map<string, number>>(new Map())
   const [showMobileList, setShowMobileList] = useState(true)
   const [showStoryOverlay, setShowStoryOverlay] = useState(false)
+  const [newsCuration, setNewsCuration] = useState<any>(null)
+  const [loadingCuration, setLoadingCuration] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Initialize user
   useEffect(() => {
     const uid = ensureUserId()
     setUserId(uid)
+  }, [])
+
+  // Fetch news curation for global chat
+  useEffect(() => {
+    const fetchNewsCuration = async () => {
+      try {
+        setLoadingCuration(true)
+        const response = await fetch('/api/news-curation')
+        const data = await response.json()
+        if (data.success) {
+          setNewsCuration(data)
+        }
+      } catch (error) {
+        console.error('Error fetching news curation:', error)
+      } finally {
+        setLoadingCuration(false)
+      }
+    }
+
+    fetchNewsCuration()
   }, [])
 
   // Fetch stories with chat enabled (coherence > 0.5)
@@ -354,8 +377,8 @@ function StoryChatPage() {
               </svg>
             </Link>
             <div className="flex-1 min-w-0">
-              <h1 className="text-lg font-bold text-slate-900">Story Chats</h1>
-              <p className="text-xs text-slate-500">{stories.length + 1} chats</p>
+              <h1 className="text-lg font-bold text-slate-900">Search</h1>
+              <p className="text-xs text-slate-500">{stories.length + 1} conversations</p>
             </div>
           </>
         ) : selectedStory ? (
@@ -414,9 +437,9 @@ function StoryChatPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
               </Link>
-              <h1 className="text-lg font-bold text-slate-900">Story Chats</h1>
+              <h1 className="text-lg font-bold text-slate-900">Search</h1>
             </div>
-            <div className="text-xs text-slate-500">{allStories.length} chats</div>
+            <div className="text-xs text-slate-500">{allStories.length} conversations</div>
           </div>
 
           {/* Stories List */}
@@ -531,6 +554,20 @@ function StoryChatPage() {
 
               {/* Messages */}
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {/* News Curation Welcome - Only for global chat */}
+                {selectedStory.id === GLOBAL_CHAT_ID && (
+                  <NewsCurationWelcome
+                    curation={newsCuration}
+                    loading={loadingCuration}
+                    onSelectStory={(storyId) => {
+                      const story = stories.find(s => s.id === storyId)
+                      if (story) {
+                        handleSelectStory(story)
+                      }
+                    }}
+                  />
+                )}
+
                 {/* Story Summary Card - Only for story-specific chats */}
                 {selectedStory.id !== GLOBAL_CHAT_ID && (
                   <StorySummaryCard
