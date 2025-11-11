@@ -79,15 +79,26 @@ async def generate_top_stories_curation():
             # Get current story IDs
             current_story_ids = [s['id'] for s in all_stories]
             cached_story_ids = top_stories_curation_cache.get('story_ids', [])
+            cached_timestamp = top_stories_curation_cache.get('timestamp', 0)
 
             # Check if there are new or updated stories
             new_stories = [sid for sid in current_story_ids if sid not in cached_story_ids]
 
-            if not new_stories and cached_story_ids:
-                print(f"🎨 No changes in stories, keeping cache")
+            # Also check if cache is older than 1 hour (3600 seconds)
+            current_time = time.time()
+            cache_age = current_time - cached_timestamp
+            is_cache_stale = cache_age > 3600
+
+            if not new_stories and cached_story_ids and not is_cache_stale:
+                print(f"🎨 No changes in stories and cache fresh ({int(cache_age/60)}m old), keeping cache")
                 continue
 
-            print(f"🎨 Found {len(new_stories)} new/updated stories, generating curation...")
+            if new_stories:
+                print(f"🎨 Found {len(new_stories)} new/updated stories, generating curation...")
+            elif is_cache_stale:
+                print(f"🎨 Cache is stale ({int(cache_age/60)}m old), regenerating curation...")
+            else:
+                print(f"🎨 Generating initial curation...")
 
             # Build context for LLM and story references
             stories_context = ""

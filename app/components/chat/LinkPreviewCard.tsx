@@ -85,7 +85,7 @@ function LinkPreviewCard({
           <div>
             <p className="text-xs font-semibold text-slate-700">{config.label}</p>
             {taskId && (
-              <p className="text-[10px] text-slate-500">Task: {taskId.slice(0, 8)}...</p>
+              <p className="text-[10px] text-slate-500 break-all">Task: {taskId}</p>
             )}
           </div>
         </div>
@@ -101,11 +101,22 @@ function LinkPreviewCard({
       </div>
 
       {/* Story Match Info */}
-      {status === 'matched' && storyTitle && (
+      {status === 'matched' && storyTitle && storyId && (
         <div className="px-3 pb-2">
-          <div className="bg-white rounded-lg p-2 border border-purple-200">
-            <p className="text-[10px] text-purple-600 font-semibold mb-0.5">Matched to:</p>
-            <p className="text-xs text-slate-900 line-clamp-2">{storyTitle}</p>
+          <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-3 border-2 border-purple-200">
+            <p className="text-[10px] text-purple-600 font-semibold mb-1 uppercase tracking-wide">✨ Matched to Story</p>
+            <p className="text-sm text-slate-900 font-semibold mb-2 line-clamp-2">{storyTitle}</p>
+            <a
+              href={`/story/${storyId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1 font-medium"
+            >
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+              {window.location.origin}/story/{storyId.slice(0, 8)}...
+            </a>
           </div>
         </div>
       )}

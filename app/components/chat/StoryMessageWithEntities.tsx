@@ -240,8 +240,9 @@ export function StoryMessageWithEntities({
       return placeholder
     })
 
-    // Now process claim references
-    const claimPattern = /\b[Cc]laim[s]?\s+(\d+(?:(?:,\s*(?:and\s+)?|\s+and\s+)\d+)*)/g
+    // Now process claim references (with optional parentheses/brackets)
+    // Matches: "Claims 3, 14" or "([Claims 3, 14])" or "(Claim 3)" etc.
+    const claimPattern = /(?:^|[^\w])(?:[\(\[])?([Cc]laim[s]?\s+\d+(?:(?:,\s*(?:and\s+)?|\s+and\s+)\d+)*)(?:[\)\]])?/g
     const parts: (string | JSX.Element)[] = []
     let lastIndex = 0
     let match

@@ -145,6 +145,58 @@ function StoryChatPage() {
     }
   }, [])
 
+  // Check and update incomplete tasks on page load (run once after initial load)
+  useEffect(() => {
+    const checkIncompleteTasks = async () => {
+      // Get current messages snapshot
+      setMessagesByStory((currentMessages) => {
+        // Process updates asynchronously
+        (async () => {
+          for (const storyId in currentMessages) {
+            const messages = currentMessages[storyId]
+            for (let i = 0; i < messages.length; i++) {
+              const msg = messages[i]
+              if (msg.linkPreview?.taskId && (msg.linkPreview.status === 'processing' || msg.linkPreview.status === 'fetching')) {
+                // Task is incomplete, check its current status
+                try {
+                  const response = await fetch(`/api/task/${msg.linkPreview.taskId}`)
+                  const data = await response.json()
+
+                  if (data.status === 'completed' || data.status === 'failed') {
+                    // Update the message with completed status
+                    const storyMatch = data.story_match || data.manual_link_result
+                    setMessagesByStory((prev) => {
+                      const updated = { ...prev }
+                      const updatedMessages = [...updated[storyId]]
+                      updatedMessages[i] = {
+                        ...updatedMessages[i],
+                        linkPreview: {
+                          ...updatedMessages[i].linkPreview!,
+                          status: storyMatch ? 'matched' : 'completed',
+                          storyId: storyMatch?.story_id,
+                          storyTitle: storyMatch?.story_title
+                        }
+                      }
+                      updated[storyId] = updatedMessages
+                      return updated
+                    })
+                  }
+                } catch (error) {
+                  console.error(`Error checking task ${msg.linkPreview.taskId}:`, error)
+                }
+              }
+            }
+          }
+        })()
+        return currentMessages
+      })
+    }
+
+    // Run check after a short delay to ensure messages are loaded
+    const timer = setTimeout(checkIncompleteTasks, 1000)
+    return () => clearTimeout(timer)
+  }, []) // Empty dependency array - run only once on mount
+
   // Save chat history to localStorage whenever it changes
   useEffect(() => {
     try {
