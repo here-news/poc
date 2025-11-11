@@ -13,6 +13,7 @@ import asyncio
 from datetime import datetime
 from openai import OpenAI
 from collections import defaultdict
+from contextlib import asynccontextmanager
 
 from typing import Optional, List, Dict, Any, Set
 
@@ -33,6 +34,211 @@ news_curation_cache = {
     "timestamp": 0,
     "ttl": 300  # 5 minutes in seconds
 }
+
+# Top Stories curation cache (refreshes every 10 minutes)
+top_stories_curation_cache = {
+    "content": None,  # Rich markdown content with entity markup
+    "story_ids": [],  # IDs of stories included in curation
+    "timestamp": 0,
+    "ttl": 600  # 10 minutes in seconds
+}
+
+async def generate_top_stories_curation():
+    """
+    Background task that generates rich curation content for top stories.
+    Runs every 10 minutes and updates the cache when stories change.
+    """
+    global top_stories_curation_cache
+
+    print("🎨 Starting Top Stories curation task")
+
+    while True:
+        try:
+            await asyncio.sleep(600)  # 10 minutes
+
+            print("🎨 Running Top Stories curation...")
+
+            # Fetch top stories (high coherence)
+            top_stories = neo4j_client.get_story_summaries(limit=4, min_coherence=0.7)
+
+            # Fetch emerging stories (lower coherence but potentially interesting)
+            emerging_stories = neo4j_client.get_story_summaries(limit=3, min_coherence=0.4)
+
+            # Filter out emerging stories that are already in top stories
+            top_story_ids = {s['id'] for s in top_stories}
+            emerging_stories = [s for s in emerging_stories if s['id'] not in top_story_ids][:2]
+
+            # Combine: top stories first, then emerging
+            all_stories = top_stories + emerging_stories
+
+            if not all_stories:
+                print("🎨 No stories found, skipping curation")
+                continue
+
+            # Get current story IDs
+            current_story_ids = [s['id'] for s in all_stories]
+            cached_story_ids = top_stories_curation_cache.get('story_ids', [])
+
+            # Check if there are new or updated stories
+            new_stories = [sid for sid in current_story_ids if sid not in cached_story_ids]
+
+            if not new_stories and cached_story_ids:
+                print(f"🎨 No changes in stories, keeping cache")
+                continue
+
+            print(f"🎨 Found {len(new_stories)} new/updated stories, generating curation...")
+
+            # Build context for LLM and story references
+            stories_context = ""
+            story_references = {}  # Map story number to story data
+            num_top_stories = len(top_stories)
+
+            for i, story in enumerate(all_stories, 1):
+                title = story.get('title', 'Untitled')
+                story_id = story.get('id', '')
+                desc = story.get('description') or story.get('gist', '')
+                coherence = story.get('coherence_score', 0)
+                last_updated = story.get('last_updated_human', 'recently')
+
+                # Mark as emerging story
+                is_emerging = i > num_top_stories
+                story_type = "🌱 EMERGING" if is_emerging else "⭐ ESTABLISHED"
+
+                # Store story reference
+                story_references[i] = {
+                    'id': story_id,
+                    'title': title,
+                    'is_emerging': is_emerging
+                }
+
+                # Get entities for this story
+                story_entities = []
+                if story.get('people_entities'):
+                    story_entities.extend(story['people_entities'][:3])
+
+                entities_text = ""
+                if story_entities:
+                    entity_names = [e.get('name', '') for e in story_entities if e.get('name')]
+                    entities_text = f" (featuring {', '.join(entity_names)})"
+
+                stories_context += f"{i}. [{story_type}] **{title}**{entities_text}\n   ID: {story_id}\n   {desc}\n   Updated {last_updated}, coherence: {int(coherence*100)}%\n\n"
+
+            # Previous curation content for context
+            previous_content = top_stories_curation_cache.get('content', '')
+
+            # Generate LLM prompt
+            if not openai_client:
+                print("⚠️ OpenAI client not available, skipping curation")
+                continue
+
+            prompt = f"""You are Phi (φ), the interplanet news oracle for HERE.news. Write a creative, engaging news update that weaves stories together with interesting connections and contrasts.
+
+Current Stories:
+{stories_context}
+
+Guidelines:
+- BREVITY: Write EXACTLY 2 sentences. Maximum 50 words total.
+- Start punchy (e.g., "Wild! 🌍", "Chaos! 🚀")
+- Cover ONLY 3 stories - link ALL of them
+- **CRITICAL RULE**: EVERY story you mention MUST be an inline link [text](Story N). NO exceptions!
+  - If you mention a story, event, or development - it MUST be linked
+  - DO NOT mention stories without linking them
+  Examples:
+  * "While [interstellar comet 3I/ATLAS](Story 1) baffles scientists 🌌, [Elon's Grokipedia](Story 2) stirs controversy 😬"
+  * "[Netherlands seizes Nexperia](Story 3) as [chip wars](Story 5) escalate 🔥"
+- Only mention 3 stories maximum - but link ALL 3
+- Add 2-3 emojis
+- Be vivid and show contrasts
+
+Previous curation (if this is an update):
+{previous_content if previous_content else '(This is the first curation)'}
+
+Write the curation summary with creative storytelling and juxtaposition:"""
+
+            # Call OpenAI API
+            response = openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are Phi (φ), an interplanet news oracle. Write creative, engaging news summaries that connect stories with bold juxtaposition and cosmic perspective. Be vivid, expressive, and show personality."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.85,  # Slightly higher for more creativity
+                max_tokens=120     # Strict limit - 2 sentences, 50 words max
+            )
+
+            curation_text = response.choices[0].message.content.strip()
+
+            # Enhance curation with entity markup and story links
+            enhanced_content = curation_text
+
+            # Step 1: Add story links
+            # Replace inline "[link text](Story N)" with actual story URLs
+            import re as regex_module
+            for story_num, story_data in story_references.items():
+                story_id = story_data['id']
+                story_title = story_data['title']
+                # Create URL-friendly slug
+                slug = story_title.lower().replace(' ', '-')
+                slug = regex_module.sub(r'[^\w\s-]', '', slug)
+                slug = regex_module.sub(r'[-\s]+', '-', slug)
+
+                # Replace [link text](Story N) with [link text](/story/id/slug)
+                # This preserves the LLM's descriptive link text
+                pattern = rf'\[([^\]]+)\]\(Story {story_num}\)'
+                replacement = rf'[\1](/story/{story_id}/{slug})'
+                enhanced_content = regex_module.sub(pattern, replacement, enhanced_content)
+
+            # Step 2: Collect all entities from all stories
+            all_entities = []
+            entities_metadata = {}
+            for story in all_stories:
+                if story.get('people_entities'):
+                    all_entities.extend(story['people_entities'])
+
+            # Sort entities by name length (longer first to avoid partial matches)
+            all_entities.sort(key=lambda e: len(e.get('name', '')), reverse=True)
+
+            # Step 3: Replace entity names with markup and build metadata dict
+            for entity in all_entities:
+                name = entity.get('name', '')
+                canonical_id = entity.get('canonical_id', '')
+                thumbnail = entity.get('wikidata_thumbnail', '')
+                qid = entity.get('qid', '')
+                description = entity.get('description', '')
+
+                if name and canonical_id and name in enhanced_content:
+                    # Create entity markup
+                    entity_markup = f"[[{name}|{canonical_id}]]"
+
+                    # Replace only first occurrence to avoid over-replacement
+                    enhanced_content = enhanced_content.replace(name, entity_markup, 1)
+
+                    # Add to metadata dict
+                    if canonical_id not in entities_metadata:
+                        entities_metadata[canonical_id] = {
+                            'name': name,
+                            'qid': qid or 'unknown',
+                            'description': description or 'No description available',
+                            'wikidata_thumbnail': thumbnail,
+                            'entity_type': 'Person',
+                            'claim_count': 0
+                        }
+
+            # Update cache
+            top_stories_curation_cache['content'] = enhanced_content
+            top_stories_curation_cache['story_ids'] = current_story_ids
+            top_stories_curation_cache['entities_metadata'] = entities_metadata
+            top_stories_curation_cache['story_references'] = story_references
+            top_stories_curation_cache['timestamp'] = time.time()
+
+            print(f"✅ Top Stories curation updated: {len(enhanced_content)} chars")
+
+        except Exception as e:
+            print(f"❌ Error in Top Stories curation: {e}")
+            import traceback
+            traceback.print_exc()
+            # Continue running even if one iteration fails
+            continue
 
 # Task user mapping (task_id -> user_id)
 # Since Cloud Run doesn't preserve user_id in task objects,
@@ -124,7 +330,35 @@ class ConnectionManager:
 # Global connection manager instance
 manager = ConnectionManager()
 
-app = FastAPI()
+# Background task reference
+curation_task: Optional[asyncio.Task] = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Lifespan context manager for FastAPI app startup and shutdown.
+    Starts background tasks on startup and cleans them up on shutdown.
+    """
+    global curation_task
+
+    # Startup: Start background tasks
+    print("🚀 Starting background tasks...")
+    curation_task = asyncio.create_task(generate_top_stories_curation())
+    print("✅ Top Stories curation task started")
+
+    yield
+
+    # Shutdown: Cancel background tasks
+    print("🛑 Stopping background tasks...")
+    if curation_task:
+        curation_task.cancel()
+        try:
+            await curation_task
+        except asyncio.CancelledError:
+            pass
+    print("✅ Background tasks stopped")
+
+app = FastAPI(lifespan=lifespan)
 
 # CORS middleware
 app.add_middleware(
@@ -217,6 +451,204 @@ async def get_news_curation():
             "error": str(e)
         }
 
+@app.get("/api/top-stories-curation")
+async def get_top_stories_curation():
+    """
+    Get LLM-generated curation summary for top stories.
+    Cached for 10 minutes and updated when stories change.
+
+    Returns:
+        - Rich markdown content with entity markup
+        - List of story IDs included in curation
+        - Timestamp of last update
+    """
+    global top_stories_curation_cache
+
+    current_time = time.time()
+
+    # Check if cache exists
+    if not top_stories_curation_cache.get('content'):
+        # Generate initial curation immediately on first request
+        try:
+            print("🎨 Generating initial Top Stories curation...")
+
+            # Fetch top stories (high coherence)
+            top_stories = neo4j_client.get_story_summaries(limit=4, min_coherence=0.7)
+
+            # Fetch emerging stories (lower coherence but potentially interesting)
+            emerging_stories = neo4j_client.get_story_summaries(limit=3, min_coherence=0.4)
+
+            # Filter out emerging stories that are already in top stories
+            top_story_ids_set = {s['id'] for s in top_stories}
+            emerging_stories = [s for s in emerging_stories if s['id'] not in top_story_ids_set][:2]
+
+            # Combine: top stories first, then emerging
+            all_stories = top_stories + emerging_stories
+
+            if not all_stories:
+                return {
+                    "success": False,
+                    "content": None,
+                    "error": "No stories available"
+                }
+
+            # Get current story IDs
+            current_story_ids = [s['id'] for s in all_stories]
+
+            # Build context for LLM and story references
+            stories_context = ""
+            story_references = {}
+            num_top_stories = len(top_stories)
+
+            for i, story in enumerate(all_stories, 1):
+                title = story.get('title', 'Untitled')
+                story_id = story.get('id', '')
+                desc = story.get('description') or story.get('gist', '')
+                coherence = story.get('coherence_score', 0)
+                last_updated = story.get('last_updated_human', 'recently')
+
+                # Mark as emerging story
+                is_emerging = i > num_top_stories
+                story_type = "🌱 EMERGING" if is_emerging else "⭐ ESTABLISHED"
+
+                # Store story reference
+                story_references[i] = {
+                    'id': story_id,
+                    'title': title,
+                    'is_emerging': is_emerging
+                }
+
+                # Get entities for this story
+                story_entities = []
+                if story.get('people_entities'):
+                    story_entities.extend(story['people_entities'][:3])
+
+                entities_text = ""
+                if story_entities:
+                    entity_names = [e.get('name', '') for e in story_entities if e.get('name')]
+                    entities_text = f" (featuring {', '.join(entity_names)})"
+
+                stories_context += f"{i}. [{story_type}] **{title}**{entities_text}\n   ID: {story_id}\n   {desc}\n   Updated {last_updated}, coherence: {int(coherence*100)}%\n\n"
+
+            # Generate LLM prompt
+            if not openai_client:
+                return {
+                    "success": False,
+                    "content": None,
+                    "error": "OpenAI client not available"
+                }
+
+            prompt = f"""You are Phi (φ), the interplanet news oracle for HERE.news. Write a creative, engaging news update that weaves stories together with interesting connections and contrasts.
+
+Current Stories:
+{stories_context}
+
+Guidelines:
+- BREVITY: Write EXACTLY 2 sentences. Maximum 50 words total.
+- Start punchy (e.g., "Wild! 🌍", "Chaos! 🚀")
+- Cover ONLY 3 stories - link ALL of them
+- **CRITICAL RULE**: EVERY story you mention MUST be an inline link [text](Story N). NO exceptions!
+  - If you mention a story, event, or development - it MUST be linked
+  - DO NOT mention stories without linking them
+  Examples:
+  * "While [interstellar comet 3I/ATLAS](Story 1) baffles scientists 🌌, [Elon's Grokipedia](Story 2) stirs controversy 😬"
+  * "[Netherlands seizes Nexperia](Story 3) as [chip wars](Story 5) escalate 🔥"
+- Only mention 3 stories maximum - but link ALL 3
+- Add 2-3 emojis
+- Be vivid and show contrasts
+
+Write the curation summary with creative storytelling and juxtaposition:"""
+
+            # Call OpenAI API
+            response = openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are Phi (φ), an interplanet news oracle. Write creative, engaging news summaries that connect stories with bold juxtaposition and cosmic perspective. Be vivid, expressive, and show personality."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.85,  # Slightly higher for more creativity
+                max_tokens=120     # Strict limit - 2 sentences, 50 words max
+            )
+
+            curation_text = response.choices[0].message.content.strip()
+
+            # Enhance curation with story links and entity markup
+            enhanced_content = curation_text
+
+            # Step 1: Add story links
+            # Replace inline "[link text](Story N)" with actual story URLs
+            import re as regex_module
+            for story_num, story_data in story_references.items():
+                story_id = story_data['id']
+                story_title = story_data['title']
+                # Create URL-friendly slug
+                slug = story_title.lower().replace(' ', '-')
+                slug = regex_module.sub(r'[^\w\s-]', '', slug)
+                slug = regex_module.sub(r'[-\s]+', '-', slug)
+
+                # Replace [link text](Story N) with [link text](/story/id/slug)
+                # This preserves the LLM's descriptive link text
+                pattern = rf'\[([^\]]+)\]\(Story {story_num}\)'
+                replacement = rf'[\1](/story/{story_id}/{slug})'
+                enhanced_content = regex_module.sub(pattern, replacement, enhanced_content)
+
+            # Step 2: Collect all entities from all stories
+            all_entities = []
+            entities_metadata = {}
+            for story in all_stories:
+                if story.get('people_entities'):
+                    all_entities.extend(story['people_entities'])
+
+            all_entities.sort(key=lambda e: len(e.get('name', '')), reverse=True)
+
+            for entity in all_entities:
+                name = entity.get('name', '')
+                canonical_id = entity.get('canonical_id', '')
+                thumbnail = entity.get('wikidata_thumbnail', '')
+                qid = entity.get('qid', '')
+                description = entity.get('description', '')
+
+                if name and canonical_id and name in enhanced_content:
+                    entity_markup = f"[[{name}|{canonical_id}]]"
+                    enhanced_content = enhanced_content.replace(name, entity_markup, 1)
+
+                    # Add to metadata dict
+                    if canonical_id not in entities_metadata:
+                        entities_metadata[canonical_id] = {
+                            'name': name,
+                            'qid': qid or 'unknown',
+                            'description': description or 'No description available',
+                            'wikidata_thumbnail': thumbnail,
+                            'entity_type': 'Person',
+                            'claim_count': 0
+                        }
+
+            # Update cache
+            top_stories_curation_cache['content'] = enhanced_content
+            top_stories_curation_cache['story_ids'] = current_story_ids
+            top_stories_curation_cache['entities_metadata'] = entities_metadata
+            top_stories_curation_cache['timestamp'] = current_time
+
+            print(f"✅ Initial Top Stories curation generated: {len(enhanced_content)} chars")
+
+        except Exception as e:
+            print(f"❌ Error generating initial curation: {e}")
+            return {
+                "success": False,
+                "content": None,
+                "error": str(e)
+            }
+
+    # Return cached content
+    return {
+        "success": True,
+        "content": top_stories_curation_cache.get('content'),
+        "entities_metadata": top_stories_curation_cache.get('entities_metadata', {}),
+        "story_ids": top_stories_curation_cache.get('story_ids', []),
+        "last_updated": datetime.fromtimestamp(top_stories_curation_cache.get('timestamp', 0)).isoformat() if top_stories_curation_cache.get('timestamp') else None,
+        "cached": True
+    }
+
 def _get_trending_entities(limit_stories: int = 20) -> Dict[str, List[Dict]]:
     """Get trending entities from recent high-coherence stories."""
     if not neo4j_client.connected:
@@ -285,6 +717,17 @@ def _get_trending_entities(limit_stories: int = 20) -> Dict[str, List[Dict]]:
             "organizations": orgs,
             "locations": locs
         }
+
+@app.post("/api/clear-curation-cache")
+async def clear_curation_cache():
+    """Clear the top stories curation cache to force regeneration."""
+    global top_stories_curation_cache
+    top_stories_curation_cache['content'] = None
+    top_stories_curation_cache['story_ids'] = []
+    top_stories_curation_cache['entities_metadata'] = {}
+    top_stories_curation_cache['timestamp'] = 0
+
+    return {"success": True, "message": "Cache cleared. Next request will regenerate curation."}
 
 @app.get("/api/stories/{story_id}")
 async def get_story_by_id(story_id: str):
@@ -380,6 +823,12 @@ Guidelines:
 - Be direct and factual - no filler words
 - If information isn't available, say so in one sentence
 - When citing claims, reference them by number (e.g., "Claim 5 states..." or "Claims 3 and 7 confirm...")
+- **ENTITY MARKUP**: When mentioning key entities (people, organizations, locations), wrap ONLY the FIRST mention in double brackets:
+  Format: [[Entity Name]]
+  Example: "[[Chuck Schumer]] proposed the bill. Schumer also mentioned..." (only first "Chuck Schumer" is marked)
+  Example: "According to [[Bernie Sanders]], the policy... Sanders believes..." (only first mention marked)
+  WRONG: "[[Chuck Schumer]] proposed... [[Chuck Schumer]] also said..." (don't mark subsequent mentions)
+  This will render with entity headshots/icons when available. Only markup major entities, not every noun.
 - Maintain a neutral, journalistic tone"""
             }
         ]
@@ -420,30 +869,103 @@ Guidelines:
 async def chat_global(chat_message: StoryChatMessage):
     """
     General chat with Phi (φ) about news topics and article contributions.
-    Can provide overview, recommend stories, answer questions, or accept URL submissions.
+    Searches for relevant stories based on user's question and provides links.
 
     Args:
         chat_message: Contains user message and optional conversation history
 
     Returns:
-        AI-generated response about news in general
+        AI-generated response with relevant story links
     """
     if not openai_client:
         raise HTTPException(status_code=500, detail="OpenAI API key not configured")
 
     try:
-        # Get recent stories for context
-        recent_stories = neo4j_client.get_story_summaries(limit=10, min_coherence=0.7)
+        # Use embedding-based semantic search for better multilingual matching
+        user_text = chat_message.message
 
-        # Build context from recent stories
+        # Get broader set of stories to search through
+        all_stories = neo4j_client.get_story_summaries(limit=30, min_coherence=0.5)
+
+        print(f"🔍 Semantic search for: '{user_text}'")
+
+        # Generate embedding for user's question
+        try:
+            query_response = openai_client.embeddings.create(
+                model="text-embedding-3-small",
+                input=user_text
+            )
+            query_embedding = query_response.data[0].embedding
+            print(f"   Generated query embedding (dim: {len(query_embedding)})")
+        except Exception as e:
+            print(f"   Error generating query embedding: {e}")
+            # Fallback to empty results if embedding fails
+            query_embedding = None
+
+        relevant_stories = []
+        if query_embedding:
+            # Calculate similarity for each story
+            import numpy as np
+
+            for story in all_stories:
+                title = story.get('title', '')
+                desc = story.get('description') or story.get('gist', '')
+                story_text = f"{title}. {desc[:200]}"  # Limit description length
+
+                try:
+                    # Generate embedding for story
+                    story_response = openai_client.embeddings.create(
+                        model="text-embedding-3-small",
+                        input=story_text
+                    )
+                    story_embedding = story_response.data[0].embedding
+
+                    # Calculate cosine similarity
+                    query_vec = np.array(query_embedding)
+                    story_vec = np.array(story_embedding)
+                    similarity = np.dot(query_vec, story_vec) / (np.linalg.norm(query_vec) * np.linalg.norm(story_vec))
+
+                    # Only include stories with similarity > 0.25 (threshold for relevance)
+                    # Lower threshold to catch more potentially relevant stories
+                    if similarity > 0.25:
+                        relevant_stories.append({
+                            'story': story,
+                            'score': float(similarity)  # Use similarity as score
+                        })
+                except Exception as e:
+                    print(f"   Error processing story '{title[:50]}...': {e}")
+                    continue
+
+        # Sort by relevance and take top 5
+        relevant_stories.sort(key=lambda x: x['score'], reverse=True)
+        top_relevant = relevant_stories[:5]
+
+        print(f"   Found {len(relevant_stories)} relevant stories (similarity > 0.25)")
+        if top_relevant:
+            print(f"   Top {len(top_relevant)} stories:")
+            for item in top_relevant:
+                print(f"      - {item['story'].get('title', 'Untitled')} (similarity: {item['score']:.3f})")
+        else:
+            print(f"   ⚠️  No relevant stories found - Phi will answer generally without story links")
+
+        # Build context with relevant stories and their IDs for linking
         stories_context = ""
-        if recent_stories:
-            stories_context = "Recent trending stories:\n"
-            for i, story in enumerate(recent_stories[:5], 1):
+        story_references = {}
+        if top_relevant:
+            stories_context = "Relevant stories you can reference:\n"
+            for i, item in enumerate(top_relevant, 1):
+                story = item['story']
+                story_id = story.get('id', '')
                 title = story.get('title', 'Untitled')
                 desc = story.get('description') or story.get('gist', '')
                 coherence = story.get('coherence_score', 0)
-                stories_context += f"{i}. {title} (coherence: {int(coherence*100)}%)\n   {desc[:150]}...\n"
+
+                story_references[i] = {
+                    'id': story_id,
+                    'title': title
+                }
+
+                stories_context += f"{i}. {title}\n   ID: {story_id}\n   {desc[:200]}...\n   (coherence: {int(coherence*100)}%)\n\n"
 
         # Build conversation messages
         messages = [
@@ -451,23 +973,34 @@ async def chat_global(chat_message: StoryChatMessage):
                 "role": "system",
                 "content": f"""You are Phi (φ), an interplanet news oracle from HERE.news.
 
-{stories_context}
+{stories_context if top_relevant else "No relevant stories found in the database for this query."}
 
 Your role:
 - Help users explore and understand current news events across the planet
+- ONLY provide links to stories explicitly listed above
 - Accept and acknowledge article contributions (users share URLs)
 - Encourage collaboration and valuable contributions
 - Provide cosmic perspective on trending stories and breaking news
 
 Guidelines:
 - Answer in 2-4 sentences maximum - be concise and enlightening
+- **CRITICAL**: ONLY link to stories explicitly numbered above using inline markdown format [link text](Story N). NEVER make up story numbers.
+- If relevant stories are listed above, use natural inline hyperlinks:
+  Example: "There's been major developments in [AI news](Story 1) recently 🤖, and [cryptocurrency regulations](Story 3) are heating up 💰"
+- Make link text descriptive (the story subject or key phrase) - NOT generic like "here" or "this"
+- **ENTITY MARKUP**: When mentioning key entities (people, organizations, locations), wrap ONLY the FIRST mention in double brackets:
+  Format: [[Entity Name]]
+  Example: "[[Elon Musk]] announced the new policy. Musk also said..." (only first mention marked)
+  Example: "[[SpaceX]] launched today. The company reported..." (only first mention marked)
+  WRONG: "[[Elon Musk]] announced... [[Elon Musk]] also said..." (don't mark subsequent mentions)
+  This will render with entity headshots/icons when available. Only markup major entities, not every noun.
+- If NO stories are listed (see "No relevant stories" message), answer generally WITHOUT any links and invite users to share articles on the topic
 - When users share URLs, they're contributing articles to build stories (our system handles submission)
-- Recommend relevant stories from the list above when appropriate
 - Be friendly, appreciative, and encouraging with a hint of wisdom
+- Add emojis that naturally fit the mood
 - Mention that valuable contributions may earn rewards
-- If you don't have specific information, say so briefly
+- If you don't have specific information, say so briefly and invite contributions
 - Maintain a helpful, collaborative tone with an oracle-like presence
-- You can discuss news topics broadly, not just the stories above
 
 Remember: You're Phi (φ), an interplanet news oracle - not "Oracle" or "HERE.news AI" """
             }
@@ -492,6 +1025,26 @@ Remember: You're Phi (φ), an interplanet news oracle - not "Oracle" or "HERE.ne
         )
 
         assistant_message = response.choices[0].message.content
+
+        # Replace inline [link text](Story N) with actual story URLs
+        if story_references:
+            import re as regex_module
+            for story_num, story_data in story_references.items():
+                story_id = story_data['id']
+                story_title = story_data['title']
+                # Create URL-friendly slug
+                slug = story_title.lower().replace(' ', '-')
+                slug = regex_module.sub(r'[^\w\s-]', '', slug)
+                slug = regex_module.sub(r'[-\s]+', '-', slug)
+
+                # Replace [link text](Story N) with [link text](/story/id/slug)
+                # This preserves the LLM's descriptive link text
+                pattern = rf'\[([^\]]+)\]\(Story {story_num}\)'
+                replacement = rf'[\1](/story/{story_id}/{slug})'
+                assistant_message = regex_module.sub(pattern, replacement, assistant_message)
+
+        # Entity markup [[Entity Name]] will be resolved by frontend
+        # using existing /api/entity?name=... endpoint for better performance
 
         return {
             "success": True,

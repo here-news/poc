@@ -51,56 +51,6 @@ function NewsCurationWelcome({ curation, loading, onSelectStory }: NewsCurationW
 
   return (
     <div className="space-y-6 pb-4">
-      {/* Welcome header */}
-      <div className="text-center py-4">
-        <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
-          Welcome to HERE.news
-        </h2>
-        <p className="text-sm text-slate-600">
-          Your personalized news intelligence • Updated {curation.last_updated ? new Date(curation.last_updated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'recently'}
-        </p>
-      </div>
-
-      {/* Top Stories */}
-      {curation.stories.length > 0 && (
-        <div>
-          <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
-            <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
-            </svg>
-            Top Stories
-          </h3>
-          <div className="grid grid-cols-1 gap-3">
-            {curation.stories.slice(0, 4).map((story) => (
-              <button
-                key={story.id}
-                onClick={() => onSelectStory(story.id)}
-                className="text-left p-3 bg-white border border-slate-200 rounded-lg hover:border-blue-300 hover:shadow-md transition-all group"
-              >
-                <h4 className="font-semibold text-sm text-slate-900 mb-1 group-hover:text-blue-600 transition-colors line-clamp-2">
-                  {story.title}
-                </h4>
-                <p className="text-xs text-slate-600 line-clamp-2 mb-2">
-                  {story.description || story.gist}
-                </p>
-                <div className="flex items-center gap-2">
-                  {story.coherence_score !== undefined && (
-                    <span className="text-[10px] px-1.5 py-0.5 bg-green-100 text-green-700 rounded font-semibold">
-                      {Math.round(story.coherence_score * 100)}%
-                    </span>
-                  )}
-                  {story.artifact_count !== undefined && (
-                    <span className="text-[10px] text-slate-400">
-                      {story.artifact_count} sources
-                    </span>
-                  )}
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Trending People */}
       {curation.entities.people.length > 0 && (
         <div>
@@ -206,13 +156,6 @@ function NewsCurationWelcome({ curation, loading, onSelectStory }: NewsCurationW
             </div>
           </div>
         )}
-      </div>
-
-      {/* Divider */}
-      <div className="border-t border-slate-200 pt-4">
-        <p className="text-xs text-slate-500 text-center italic">
-          Ask me anything about these stories or topics
-        </p>
       </div>
     </div>
   )

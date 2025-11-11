@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { StoryContentRenderer } from '../story/StoryContentRenderer'
 import type { CitationMetadata, EntityMetadata } from '../../types/story'
-import { getStoryUrl } from '../../utils/storyUrl'
+import { getStoryUrl, getStoryUrlFromData, generateSlug } from '../../utils/storyUrl'
 
 // Declare Leaflet types
 declare const L: any
@@ -370,6 +370,7 @@ function StoryOverlay({ storyId, isOpen, onClose }: StoryOverlayProps) {
   const [hoveredLocation, setHoveredLocation] = useState<string | null>(null)
   const [sourceVotes, setSourceVotes] = useState<{ [url: string]: { upvotes: number, downvotes: number, userVote: 'up' | 'down' | null } }>({})
   const [mediaEntities, setMediaEntities] = useState<{ [domain: string]: any }>({})
+  const [copyFeedback, setCopyFeedback] = useState(false)
 
   // Fetch story details when opened
   useEffect(() => {
@@ -896,17 +897,32 @@ function StoryOverlay({ storyId, isOpen, onClose }: StoryOverlayProps) {
               Edit in Builder
             </Link>
             {story && (
-              <Link
-                to={getStoryUrl(storyId, { view: 'full' })}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-700 hover:text-slate-900 bg-white border border-slate-300 hover:border-slate-400 rounded-lg transition-colors"
+              <button
+                onClick={() => {
+                  // Generate shareable URL with overlay param
+                  const slug = generateSlug(story.title)
+                  const shareUrl = `${window.location.origin}${getStoryUrl(storyId, { slug, overlay: true })}`
+
+                  // Copy to clipboard
+                  navigator.clipboard.writeText(shareUrl).then(() => {
+                    setCopyFeedback(true)
+                    setTimeout(() => setCopyFeedback(false), 2000)
+                  }).catch(err => {
+                    console.error('Failed to copy:', err)
+                  })
+                }}
+                className="relative flex items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-700 hover:text-slate-900 bg-white border border-slate-300 hover:border-slate-400 rounded-lg transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
                 </svg>
-                View Full Page
-              </Link>
+                {copyFeedback ? 'Copied!' : 'Share'}
+                {copyFeedback && (
+                  <span className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                    Link copied to clipboard
+                  </span>
+                )}
+              </button>
             )}
           </div>
           <button

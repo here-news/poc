@@ -30,12 +30,22 @@ export interface PlainText {
   endIndex: number
 }
 
-export type ContentSegment = Citation | Entity | PlainText
+export interface MarkdownLink {
+  type: 'markdown_link'
+  text: string
+  url: string
+  originalText: string
+  startIndex: number
+  endIndex: number
+}
+
+export type ContentSegment = Citation | Entity | PlainText | MarkdownLink
 
 export interface ParsedContent {
   segments: ContentSegment[]
   citations: Citation[]
   entities: Entity[]
+  links: MarkdownLink[]
   warnings: string[]
 }
 
@@ -90,6 +100,45 @@ function parseCitations(content: string): {
   }
 
   return { citations, warnings }
+}
+
+/**
+ * Parse markdown links: [text](url)
+ */
+function parseMarkdownLinks(content: string): {
+  links: MarkdownLink[]
+  warnings: string[]
+} {
+  const links: MarkdownLink[] = []
+  const warnings: string[] = []
+
+  // Regex to match [text](url) format
+  const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g
+
+  let match: RegExpExecArray | null
+  while ((match = linkRegex.exec(content)) !== null) {
+    const originalText = match[0]
+    const text = match[1].trim()
+    const url = match[2].trim()
+    const startIndex = match.index
+    const endIndex = match.index + originalText.length
+
+    if (!text || !url) {
+      warnings.push(`Malformed markdown link at position ${startIndex}: ${originalText}`)
+      continue
+    }
+
+    links.push({
+      type: 'markdown_link',
+      text,
+      url,
+      originalText,
+      startIndex,
+      endIndex
+    })
+  }
+
+  return { links, warnings }
 }
 
 /**
@@ -155,16 +204,17 @@ function parseEntities(content: string): {
 }
 
 /**
- * Parse content with both citations and entities
+ * Parse content with citations, entities, and markdown links
  * Returns segments in order for rendering
  */
 export function parseContent(content: string): ParsedContent {
   const { citations, warnings: citationWarnings } = parseCitations(content)
   const { entities, warnings: entityWarnings } = parseEntities(content)
-  const warnings = [...citationWarnings, ...entityWarnings]
+  const { links, warnings: linkWarnings } = parseMarkdownLinks(content)
+  const warnings = [...citationWarnings, ...entityWarnings, ...linkWarnings]
 
   // Combine all markup elements and sort by position
-  const allMarkup = [...citations, ...entities].sort((a, b) => a.startIndex - b.startIndex)
+  const allMarkup = [...citations, ...entities, ...links].sort((a, b) => a.startIndex - b.startIndex)
 
   // Build segments (text + markup in order)
   const segments: ContentSegment[] = []
@@ -206,6 +256,7 @@ export function parseContent(content: string): ParsedContent {
     segments,
     citations,
     entities,
+    links,
     warnings
   }
 }

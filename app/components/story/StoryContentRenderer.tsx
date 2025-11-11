@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { parseContent, ContentSegment } from '../../utils/CitationParser'
 import { Citation, CitationMetadata } from './Citation'
 import { EntityLink, EntityMetadata } from './EntityLink'
@@ -151,6 +152,45 @@ export function StoryContentRenderer({
             isDev={isDev}
           />
         )
+      }
+
+      case 'markdown_link': {
+        // Check if it's an internal link (starts with /)
+        const isInternal = segment.url.startsWith('/')
+
+        // Check if it's a story link by URL pattern: /story/{id}/{slug}
+        const isStoryLink = isInternal && segment.url.startsWith('/story/')
+
+        // Story links get underlined styling, regular links get standard styling
+        // Using underline for story links to make them clearly clickable
+        const storyLinkClasses = "text-blue-600 hover:text-blue-800 underline decoration-2 underline-offset-2 font-medium hover:decoration-blue-600 transition-colors"
+        const regularLinkClasses = "text-blue-600 hover:text-blue-800 underline font-medium"
+
+        if (isInternal) {
+          // Use React Router Link for internal navigation
+          return (
+            <Link
+              key={`link-${index}`}
+              to={segment.url}
+              className={isStoryLink ? storyLinkClasses : regularLinkClasses}
+            >
+              {segment.text}
+            </Link>
+          )
+        } else {
+          // Use regular anchor tag for external links
+          return (
+            <a
+              key={`link-${index}`}
+              href={segment.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={regularLinkClasses}
+            >
+              {segment.text}
+            </a>
+          )
+        }
       }
 
       default:

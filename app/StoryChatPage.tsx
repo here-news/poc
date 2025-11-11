@@ -5,8 +5,13 @@ import StoryOverlay from './components/overlay/StoryOverlay'
 import StorySummaryCard from './components/chat/StorySummaryCard'
 import NewsCurationWelcome from './components/chat/NewsCurationWelcome'
 import LinkPreviewCard from './components/chat/LinkPreviewCard'
+import { TopStoriesCuration } from './components/TopStoriesCuration'
+import { PhiAvatar } from './components/PhiAvatar'
 import { useWebSocket } from './hooks/useWebSocket'
 import { getStoryUrlFromData } from './utils/storyUrl'
+import { StoryContentRenderer } from './components/story/StoryContentRenderer'
+import { ChatMessageWithEntities } from './components/chat/ChatMessageWithEntities'
+import { StoryMessageWithEntities } from './components/chat/StoryMessageWithEntities'
 
 interface Story {
   id: string
@@ -75,8 +80,8 @@ function formatRelativeTime(timestamp: string | undefined): string {
 const GLOBAL_CHAT_ID = '0'
 const GLOBAL_CHAT: Story = {
   id: GLOBAL_CHAT_ID,
-  title: 'Phi (φ)',
-  description: 'Chat with Phi about news, or share articles to build stories',
+  title: 'Phi (φ) • Interplanet News Oracle',
+  description: 'Explore and explain what\'s happening across our universe • Share article URLs to build stories ✨',
   gist: 'Global news intelligence and contribution',
   coherence_score: 1.0,
   artifact_count: 0,
@@ -86,12 +91,14 @@ const GLOBAL_CHAT: Story = {
 function StoryChatPage() {
   const { storyId } = useParams<{ storyId?: string }>()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [userId, setUserId] = useState('')
   const [stories, setStories] = useState<Story[]>([])
   const [loadingStories, setLoadingStories] = useState(true)
   const [selectedStory, setSelectedStory] = useState<Story | null>(null)
   const [claims, setClaims] = useState<Claim[]>([])
-  const [messages, setMessages] = useState<ChatMessage[]>([])
+  // Store messages per story_id for persistence across story switches
+  const [messagesByStory, setMessagesByStory] = useState<Record<string, ChatMessage[]>>({})
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [expandedClaims, setExpandedClaims] = useState<Map<string, number>>(new Map())
@@ -103,6 +110,49 @@ function StoryChatPage() {
   const [unreadStories, setUnreadStories] = useState<Set<string>>(new Set())
   const [newStoryNotifications, setNewStoryNotifications] = useState<Story[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Get messages for currently selected story
+  const messages = selectedStory ? (messagesByStory[selectedStory.id] || []) : []
+
+  // Helper to update messages for current story
+  const updateMessages = (updater: (prev: ChatMessage[]) => ChatMessage[]) => {
+    if (!selectedStory) return
+    setMessagesByStory(prev => ({
+      ...prev,
+      [selectedStory.id]: updater(prev[selectedStory.id] || [])
+    }))
+  }
+
+  // Helper to set messages for current story
+  const setCurrentMessages = (newMessages: ChatMessage[]) => {
+    if (!selectedStory) return
+    setMessagesByStory(prev => ({
+      ...prev,
+      [selectedStory.id]: newMessages
+    }))
+  }
+
+  // Load chat history from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('phi_chat_history')
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        setMessagesByStory(parsed)
+      }
+    } catch (error) {
+      console.error('Error loading chat history from localStorage:', error)
+    }
+  }, [])
+
+  // Save chat history to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('phi_chat_history', JSON.stringify(messagesByStory))
+    } catch (error) {
+      console.error('Error saving chat history to localStorage:', error)
+    }
+  }, [messagesByStory])
 
   // Initialize user
   useEffect(() => {
@@ -148,7 +198,7 @@ function StoryChatPage() {
           const emergingStory = message.story
           if (selectedStory?.id === GLOBAL_CHAT_ID) {
             // Add an assistant message about the emerging story
-            setMessages((prev) => [
+            updateMessages((prev) => [
               ...prev,
               {
                 role: 'assistant',
@@ -163,7 +213,7 @@ function StoryChatPage() {
           const taskId = message.task_id
           const taskResult = message.result
 
-          setMessages((prev) => {
+          updateMessages((prev) => {
             const newMessages = [...prev]
             const messageIndex = newMessages.findIndex(
               (msg) => msg.linkPreview?.taskId === taskId
@@ -271,6 +321,17 @@ function StoryChatPage() {
     fetchStories()
   }, [storyId, navigate])
 
+  // Auto-open overlay if ?overlay=true in URL
+  useEffect(() => {
+    if (searchParams.get('overlay') === 'true' && selectedStory && selectedStory.id !== GLOBAL_CHAT_ID) {
+      setShowStoryOverlay(true)
+      // Remove the overlay param from URL to clean it up
+      const newParams = new URLSearchParams(searchParams)
+      newParams.delete('overlay')
+      setSearchParams(newParams, { replace: true })
+    }
+  }, [selectedStory, searchParams])
+
   // Load story-specific data (claims)
   const loadStoryData = async (id: string) => {
     if (id === GLOBAL_CHAT_ID) return
@@ -286,36 +347,32 @@ function StoryChatPage() {
     }
   }
 
-  // Initialize chat when story selected
+  // Initialize chat when story selected (only if no existing messages)
   useEffect(() => {
     if (selectedStory) {
-      if (selectedStory.id === GLOBAL_CHAT_ID) {
-        setMessages([
-          {
-            role: 'assistant',
-            content: `Hello! I'm Phi (φ), an interplanet news oracle. I can help you:
+      // Check if messages already exist for this story
+      const hasExistingMessages = messagesByStory[selectedStory.id] && messagesByStory[selectedStory.id].length > 0
 
-• Explore trending stories and breaking news
-• Answer questions about current events
-• Build new stories from articles you share
-
-💡 **Share any news article URL** and I'll help create comprehensive stories around it. Valuable contributions may be rewarded!
-
-What would you like to know about the news today?`
-          }
-        ])
-        setClaims([])
-      } else {
-        setMessages([
-          {
-            role: 'assistant',
-            content: `Ask me anything about this story.`
-          }
-        ])
+      // Only set initial messages if this story has no chat history
+      if (!hasExistingMessages) {
+        if (selectedStory.id === GLOBAL_CHAT_ID) {
+          // No initial message for global chat - tagline is in the header
+          setCurrentMessages([])
+          setClaims([])
+        } else {
+          setCurrentMessages([
+            {
+              role: 'assistant',
+              content: `Ask me anything about this story.`
+            }
+          ])
+        }
       }
+
       setExpandedClaims(new Map())
     }
-  }, [selectedStory])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedStory?.id])
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -370,7 +427,7 @@ What would you like to know about the news today?`
           clearInterval(pollInterval)
 
           // Update the link preview in messages
-          setMessages((prev) => {
+          updateMessages((prev) => {
             const newMessages = [...prev]
             const messageIndex = newMessages.findIndex(
               (msg) => msg.linkPreview?.taskId === taskId
@@ -408,7 +465,7 @@ What would you like to know about the news today?`
     if (!trimmed || isLoading || !selectedStory) return
 
     const userMessage = { role: 'user' as const, content: trimmed }
-    setMessages((prev) => [...prev, userMessage])
+    updateMessages((prev) => [...prev, userMessage])
     setInput('')
     setIsLoading(true)
 
@@ -425,7 +482,7 @@ What would you like to know about the news today?`
       const detectedURL = detectURL(trimmed)
       if (selectedStory.id === GLOBAL_CHAT_ID && detectedURL) {
         // Update the user's message to show fetching status inline
-        setMessages((prev) => {
+        updateMessages((prev) => {
           const newMessages = [...prev]
           const userMessageIndex = newMessages.length - 1
           newMessages[userMessageIndex] = {
@@ -451,7 +508,7 @@ What would you like to know about the news today?`
           if (extractData.task_id) {
             // Update the user's message with full preview metadata
             const preview = extractData.preview_meta || {}
-            setMessages((prev) => {
+            updateMessages((prev) => {
               const newMessages = [...prev]
               const userMessageIndex = newMessages.length - 1
               newMessages[userMessageIndex] = {
@@ -474,7 +531,7 @@ What would you like to know about the news today?`
           }
         } catch (error) {
           console.error('Error submitting URL:', error)
-          setMessages((prev) => {
+          updateMessages((prev) => {
             const newMessages = [...prev]
             const userMessageIndex = newMessages.length - 1
             newMessages[userMessageIndex] = {
@@ -523,7 +580,7 @@ What would you like to know about the news today?`
       const data = await response.json()
 
       if (data.success && data.response) {
-        setMessages((prev) => [
+        updateMessages((prev) => [
           ...prev,
           {
             role: 'assistant',
@@ -535,7 +592,7 @@ What would you like to know about the news today?`
       }
     } catch (error) {
       console.error('Error chatting:', error)
-      setMessages((prev) => [
+      updateMessages((prev) => [
         ...prev,
         {
           role: 'assistant',
@@ -702,9 +759,11 @@ What would you like to know about the news today?`
             <div className="flex-1 min-w-0">
               <h2 className="font-semibold text-slate-900 truncate">{selectedStory.title}</h2>
               <p className="text-xs text-slate-500 truncate">
-                {selectedStory.id !== GLOBAL_CHAT_ID && selectedStory.updated_at
+                {selectedStory.id === GLOBAL_CHAT_ID
+                  ? selectedStory.description
+                  : selectedStory.updated_at
                   ? `Updated ${formatRelativeTime(selectedStory.updated_at)}`
-                  : `Chat about this ${selectedStory.id === GLOBAL_CHAT_ID ? 'news' : 'story'}`
+                  : `Chat about this story`
                 }
               </p>
             </div>
@@ -878,7 +937,10 @@ What would you like to know about the news today?`
                   <h2 className="font-semibold text-slate-900 truncate">{selectedStory.title}</h2>
                   <div className="flex items-center gap-2">
                     <p className="text-xs text-slate-500">
-                      Ask questions about this {selectedStory.id === GLOBAL_CHAT_ID ? 'news' : 'story'}
+                      {selectedStory.id === GLOBAL_CHAT_ID
+                        ? selectedStory.description
+                        : `Ask questions about this story`
+                      }
                     </p>
                     {selectedStory.id !== GLOBAL_CHAT_ID && selectedStory.updated_at && (
                       <>
@@ -916,20 +978,6 @@ What would you like to know about the news today?`
 
               {/* Messages */}
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {/* News Curation Welcome - Only for global chat */}
-                {selectedStory.id === GLOBAL_CHAT_ID && (
-                  <NewsCurationWelcome
-                    curation={newsCuration}
-                    loading={loadingCuration}
-                    onSelectStory={(storyId) => {
-                      const story = stories.find(s => s.id === storyId)
-                      if (story) {
-                        handleSelectStory(story)
-                      }
-                    }}
-                  />
-                )}
-
                 {/* Story Summary Card - Only for story-specific chats */}
                 {selectedStory.id !== GLOBAL_CHAT_ID && (
                   <StorySummaryCard
@@ -947,8 +995,32 @@ What would you like to know about the news today?`
                   />
                 )}
 
+                {/* For global chat: render curation components at top */}
+                {selectedStory.id === GLOBAL_CHAT_ID && (
+                  <>
+                    {/* Trending entities */}
+                    <NewsCurationWelcome
+                      curation={newsCuration}
+                      loading={loadingCuration}
+                      onSelectStory={(storyId) => {
+                        const story = stories.find(s => s.id === storyId)
+                        if (story) {
+                          handleSelectStory(story)
+                        }
+                      }}
+                    />
+
+                    {/* Top Stories Curation */}
+                    <TopStoriesCuration />
+                  </>
+                )}
+
+                {/* Regular messages */}
                 {messages.map((msg, idx) => (
-                  <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div key={idx} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    {/* Avatar for assistant messages */}
+                    {msg.role === 'assistant' && <PhiAvatar size="sm" className="mt-1" />}
+
                     <div
                       className={`max-w-[80%] ${
                         msg.linkPreview ? '' : 'rounded-lg px-4 py-2'
@@ -980,15 +1052,48 @@ What would you like to know about the news today?`
                           />
                         </div>
                       ) : (
-                        <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                          {msg.role === 'assistant' ? renderMessageContent(msg.content, idx) : msg.content}
-                        </p>
+                        <div className="text-sm leading-relaxed whitespace-pre-wrap">
+                          {msg.role === 'assistant' ? (
+                            selectedStory.id === GLOBAL_CHAT_ID ? (
+                              // Use ChatMessageWithEntities for global chat to support markdown links and entity markup
+                              // This component will resolve [[Entity Name]] markup using /api/entity endpoint
+                              <ChatMessageWithEntities
+                                content={msg.content}
+                                isDev={true}
+                              />
+                            ) : (
+                              // Use StoryMessageWithEntities for story chat to support both claim references AND entity markup
+                              <StoryMessageWithEntities
+                                content={msg.content}
+                                claims={claims}
+                                messageIdx={idx}
+                                expandedClaims={expandedClaims}
+                                onToggleClaim={(claimKey, claimNum) => {
+                                  setExpandedClaims(prev => {
+                                    const newMap = new Map(prev)
+                                    if (newMap.has(claimKey)) {
+                                      newMap.delete(claimKey)
+                                    } else {
+                                      newMap.set(claimKey, claimNum)
+                                    }
+                                    return newMap
+                                  })
+                                }}
+                                formatRelativeTime={formatRelativeTime}
+                              />
+                            )
+                          ) : (
+                            msg.content
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
                 ))}
+
                 {isLoading && (
-                  <div className="flex justify-start">
+                  <div className="flex gap-2 justify-start">
+                    <PhiAvatar size="sm" className="mt-1" />
                     <div className="max-w-[80%] rounded-lg px-4 py-2 bg-slate-100 text-slate-900">
                       <div className="flex items-center gap-2">
                         <div className="flex gap-1">

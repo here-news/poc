@@ -110,23 +110,30 @@ export function EntityLink({
     >
       <span
         ref={linkRef}
-        className={`entity-link ${hasMissingMetadata && isDev ? 'entity-error' : ''}`}
+        className={`entity-link ${hasMissingMetadata ? 'entity-error' : ''}`}
         onClick={handleClick}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         style={{
           cursor: metadata ? 'pointer' : 'default',
-          color: hasMissingMetadata && isDev ? '#e53e3e' : entityColor,
+          color: hasMissingMetadata ? '#718096' : entityColor,
           fontWeight: 500,
-          borderBottom: `2px solid ${hasMissingMetadata && isDev ? '#e53e3e' : entityColor}`,
+          borderBottom: `2px solid ${hasMissingMetadata ? '#cbd5e0' : entityColor}`,
           textDecoration: 'none',
           transition: 'all 0.2s ease'
         }}
       >
         {name}
-        {isDev && hasMissingMetadata && (
-          <span style={{ color: '#e53e3e', marginLeft: '2px', fontSize: '0.8em' }}>
-            [!]
+        {hasMissingMetadata && (
+          <span
+            style={{
+              marginLeft: '4px',
+              fontSize: '0.9em',
+              opacity: 0.6
+            }}
+            title="Entity metadata not available"
+          >
+            ❓
           </span>
         )}
       </span>
