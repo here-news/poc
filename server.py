@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
@@ -10,6 +10,7 @@ import re
 import json
 import time
 import asyncio
+import html
 from datetime import datetime
 from openai import OpenAI
 from collections import defaultdict
@@ -2256,8 +2257,111 @@ async def broadcast_story_event(event_type: str, story_data: Dict[str, Any]):
 app.mount("/assets", StaticFiles(directory="dist/assets"), name="assets")
 
 @app.get("/{full_path:path}")
-async def serve_spa(full_path: str):
-    """Serve the React SPA for all routes"""
+async def serve_spa(full_path: str, request: Request):
+    """Serve the React SPA for all routes with dynamic OG tags for story pages"""
+
+    # Check if this is a story URL
+    story_match = re.match(r'^story/([a-f0-9-]+)(?:/.*)?$', full_path)
+
+    if story_match:
+        story_id = story_match.group(1)
+
+        try:
+            # Fetch story data from Neo4j
+            story = neo4j_client.get_story_by_id(story_id)
+
+            if story:
+                # Read the base HTML file
+                html_path = "dist/index.html"
+                with open(html_path, 'r', encoding='utf-8') as f:
+                    html_content = f.read()
+
+                # Extract story metadata
+                title = story.get('title', 'Untitled Story')
+                description = story.get('description') or story.get('gist', 'Read the full story on HERE.news')
+
+                # Truncate description for OG tags (recommended max 200 chars)
+                if len(description) > 200:
+                    description = description[:197] + '...'
+
+                # Escape HTML special characters to prevent XSS
+                title = html.escape(title)
+                description = html.escape(description)
+
+                # Try to get a preview image from story entities
+                preview_image = "https://here.news/og-default.png"
+                entities = story.get('entities', [])
+                if entities:
+                    # Find first entity with a thumbnail
+                    for entity in entities:
+                        if entity.get('wikidata_thumbnail'):
+                            preview_image = entity['wikidata_thumbnail']
+                            break
+
+                # Build full URL
+                base_url = str(request.base_url).rstrip('/')
+                story_url = f"{base_url}/story/{story_id}"
+
+                # Replace OG tags in HTML
+                # Replace default title
+                html_content = html_content.replace(
+                    '<meta property="og:title" content="HERE.news - Curated News Stories" />',
+                    f'<meta property="og:title" content="{title} - HERE.news" />'
+                )
+                html_content = html_content.replace(
+                    '<meta name="twitter:title" content="HERE.news - Curated News Stories" />',
+                    f'<meta name="twitter:title" content="{title} - HERE.news" />'
+                )
+                html_content = html_content.replace(
+                    '<title>HERE.news</title>',
+                    f'<title>{title} - HERE.news</title>'
+                )
+
+                # Replace description
+                html_content = html_content.replace(
+                    '<meta property="og:description" content="Discover and explore curated news stories with verified claims, entity relationships, and real-time updates." />',
+                    f'<meta property="og:description" content="{description}" />'
+                )
+                html_content = html_content.replace(
+                    '<meta name="twitter:description" content="Discover and explore curated news stories with verified claims, entity relationships, and real-time updates." />',
+                    f'<meta name="twitter:description" content="{description}" />'
+                )
+
+                # Replace URL
+                html_content = html_content.replace(
+                    '<meta property="og:url" content="https://here.news" />',
+                    f'<meta property="og:url" content="{story_url}" />'
+                )
+
+                # Replace image
+                html_content = html_content.replace(
+                    '<meta property="og:image" content="https://here.news/og-default.png" />',
+                    f'<meta property="og:image" content="{preview_image}" />'
+                )
+                html_content = html_content.replace(
+                    '<meta name="twitter:image" content="https://here.news/og-default.png" />',
+                    f'<meta name="twitter:image" content="{preview_image}" />'
+                )
+
+                # Change type to article for story pages
+                html_content = html_content.replace(
+                    '<meta property="og:type" content="website" />',
+                    '<meta property="og:type" content="article" />'
+                )
+
+                return HTMLResponse(
+                    content=html_content,
+                    headers={
+                        "Cache-Control": "no-cache, no-store, must-revalidate",
+                        "Pragma": "no-cache",
+                        "Expires": "0"
+                    }
+                )
+        except Exception as e:
+            print(f"⚠️ Error generating OG tags for story {story_id}: {e}")
+            # Fall through to default response
+
+    # Default: serve standard HTML
     response = FileResponse("dist/index.html")
     # Disable caching to prevent stale bundles
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
