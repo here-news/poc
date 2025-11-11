@@ -934,7 +934,28 @@ function StoryChatPage() {
               {/* Chat Header - Desktop only */}
               <div className="hidden md:flex items-center gap-3 px-4 py-3 border-b border-slate-200 bg-gradient-to-r from-blue-50 to-purple-50">
                 <div className="flex-1 min-w-0">
-                  <h2 className="font-semibold text-slate-900 truncate">{selectedStory.title}</h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="font-semibold text-slate-900 truncate">{selectedStory.title}</h2>
+                    {selectedStory.id !== GLOBAL_CHAT_ID && (
+                      <>
+                        {selectedStory.coherence_score !== undefined && (
+                          <span className="text-[10px] px-1.5 py-0.5 bg-green-100 text-green-700 rounded font-semibold flex-shrink-0">
+                            {Math.round(selectedStory.coherence_score * 100)}%
+                          </span>
+                        )}
+                        {selectedStory.artifact_count !== undefined && selectedStory.artifact_count > 0 && (
+                          <span className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded font-semibold flex-shrink-0">
+                            {selectedStory.artifact_count} sources
+                          </span>
+                        )}
+                        {selectedStory.people_count !== undefined && selectedStory.people_count > 0 && (
+                          <span className="text-[10px] px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded font-semibold flex-shrink-0">
+                            {selectedStory.people_count} people
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2">
                     <p className="text-xs text-slate-500">
                       {selectedStory.id === GLOBAL_CHAT_ID
@@ -976,43 +997,49 @@ function StoryChatPage() {
                 )}
               </div>
 
+              {/* Top Stories Banner - Sticky at top for Phi channel */}
+              {selectedStory.id === GLOBAL_CHAT_ID && (
+                <div className="border-b border-slate-200 bg-white">
+                  <TopStoriesCuration />
+                </div>
+              )}
+
               {/* Messages */}
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {/* Story Summary Card - Only for story-specific chats */}
-                {selectedStory.id !== GLOBAL_CHAT_ID && (
-                  <StorySummaryCard
-                    title={selectedStory.title}
-                    description={selectedStory.description}
-                    gist={selectedStory.gist}
-                    coherence_score={selectedStory.coherence_score}
-                    artifact_count={selectedStory.artifact_count}
-                    people_count={selectedStory.people_count}
-                    revision={selectedStory.revision}
-                    version={selectedStory.version}
-                    updated_at={selectedStory.updated_at}
-                    cover_image={selectedStory.cover_image}
-                    onViewFullStory={() => setShowStoryOverlay(true)}
+                {/* For global chat: render welcome message at top */}
+                {selectedStory.id === GLOBAL_CHAT_ID && (
+                  <NewsCurationWelcome
+                    curation={newsCuration}
+                    loading={loadingCuration}
+                    onSelectStory={(storyId) => {
+                      const story = stories.find(s => s.id === storyId)
+                      if (story) {
+                        handleSelectStory(story)
+                      }
+                    }}
                   />
                 )}
 
-                {/* For global chat: render curation components at top */}
-                {selectedStory.id === GLOBAL_CHAT_ID && (
-                  <>
-                    {/* Trending entities */}
-                    <NewsCurationWelcome
-                      curation={newsCuration}
-                      loading={loadingCuration}
-                      onSelectStory={(storyId) => {
-                        const story = stories.find(s => s.id === storyId)
-                        if (story) {
-                          handleSelectStory(story)
-                        }
-                      }}
-                    />
-
-                    {/* Top Stories Curation */}
-                    <TopStoriesCuration />
-                  </>
+                {/* Story Summary as Phi's first message - Only for story-specific chats */}
+                {selectedStory.id !== GLOBAL_CHAT_ID && (
+                  <div className="flex gap-2 justify-start">
+                    <PhiAvatar size="sm" className="mt-1" />
+                    <div className="max-w-[80%]">
+                      <StorySummaryCard
+                        title={selectedStory.title}
+                        description={selectedStory.description}
+                        gist={selectedStory.gist}
+                        coherence_score={selectedStory.coherence_score}
+                        artifact_count={selectedStory.artifact_count}
+                        people_count={selectedStory.people_count}
+                        revision={selectedStory.revision}
+                        version={selectedStory.version}
+                        updated_at={selectedStory.updated_at}
+                        cover_image={selectedStory.cover_image}
+                        onViewFullStory={() => setShowStoryOverlay(true)}
+                      />
+                    </div>
+                  </div>
                 )}
 
                 {/* Regular messages */}

@@ -370,6 +370,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Mount static assets (built by Vite)
+app.mount("/assets", StaticFiles(directory="dist/assets"), name="assets")
+
 # Request models
 class URLSubmission(BaseModel):
     url: str
@@ -2155,12 +2158,6 @@ async def get_builder_story(story_id: str):
         print(f"Error fetching builder story {story_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# Builder interface UI route
-@app.get("/build/{story_id}")
-async def serve_builder(story_id: str):
-    """Serve the builder interface for a specific story"""
-    return FileResponse("templates/builder.html")
-
 # WebSocket endpoint for real-time updates
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -2260,6 +2257,11 @@ async def broadcast_story_event(event_type: str, story_data: Dict[str, Any]):
 async def serve_spa(full_path: str, request: Request):
     """Serve the React SPA for all routes with dynamic OG tags for story pages"""
 
+    # Skip SPA for certain paths (let them 404 or be handled by other routes)
+    skip_paths = ['api/', 'ws', 'app/', 'assets/', 'node_modules/', '@']
+    if any(full_path.startswith(path) for path in skip_paths):
+        raise HTTPException(status_code=404, detail="Not found")
+
     # Check if this is a story URL
     story_match = re.match(r'^story/([a-f0-9-]+)(?:/.*)?$', full_path)
 
@@ -2271,8 +2273,8 @@ async def serve_spa(full_path: str, request: Request):
             story = neo4j_client.get_story_by_id(story_id)
 
             if story:
-                # Read the base HTML file
-                html_path = "index.html"
+                # Read the built HTML file
+                html_path = "dist/index.html"
                 with open(html_path, 'r', encoding='utf-8') as f:
                     html_content = f.read()
 
@@ -2369,8 +2371,8 @@ async def serve_spa(full_path: str, request: Request):
             print(f"⚠️ Error generating OG tags for story {story_id}: {e}")
             # Fall through to default response
 
-    # Default: serve standard HTML
-    response = FileResponse("index.html")
+    # Default: serve built HTML
+    response = FileResponse("dist/index.html")
     # Disable caching to prevent stale bundles
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     response.headers["Pragma"] = "no-cache"
