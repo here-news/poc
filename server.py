@@ -2254,7 +2254,7 @@ async def broadcast_story_event(event_type: str, story_data: Dict[str, Any]):
     })
 
 # Serve static files and React app
-app.mount("/assets", StaticFiles(directory="dist/assets"), name="assets")
+# Note: Vite dev mode serves assets directly, no /assets mount needed in dev
 
 @app.get("/{full_path:path}")
 async def serve_spa(full_path: str, request: Request):
@@ -2272,7 +2272,7 @@ async def serve_spa(full_path: str, request: Request):
 
             if story:
                 # Read the base HTML file
-                html_path = "dist/index.html"
+                html_path = "index.html"
                 with open(html_path, 'r', encoding='utf-8') as f:
                     html_content = f.read()
 
@@ -2288,14 +2288,22 @@ async def serve_spa(full_path: str, request: Request):
                 title = html.escape(title)
                 description = html.escape(description)
 
-                # Try to get a preview image from story entities
+                # Try to get a preview image - prefer cover_image, then entity thumbnails
                 preview_image = "https://here.news/og-default.png"
-                entities = story.get('entities', [])
-                if entities:
-                    # Find first entity with a thumbnail
-                    for entity in entities:
-                        if entity.get('wikidata_thumbnail'):
-                            preview_image = entity['wikidata_thumbnail']
+
+                # First, try cover_image if available
+                if story.get('cover_image'):
+                    preview_image = story['cover_image']
+                else:
+                    # Fallback: Try to get image from story entities
+                    for entity_type in ['people_entities', 'org_entities', 'location_entities']:
+                        entities = story.get(entity_type, [])
+                        if entities:
+                            for entity in entities:
+                                if entity.get('wikidata_thumbnail'):
+                                    preview_image = entity['wikidata_thumbnail']
+                                    break
+                        if preview_image != "https://here.news/og-default.png":
                             break
 
                 # Build full URL
@@ -2362,7 +2370,7 @@ async def serve_spa(full_path: str, request: Request):
             # Fall through to default response
 
     # Default: serve standard HTML
-    response = FileResponse("dist/index.html")
+    response = FileResponse("index.html")
     # Disable caching to prevent stale bundles
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     response.headers["Pragma"] = "no-cache"
