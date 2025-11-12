@@ -165,6 +165,19 @@ function StoryChatPage() {
                   if (data.status === 'completed' || data.status === 'failed') {
                     // Update the message with completed status
                     const storyMatch = data.story_match || data.manual_link_result
+
+                    // Fetch story title if we have a match but no title
+                    let storyTitle = storyMatch?.story_title
+                    if (storyMatch?.story_id && !storyTitle) {
+                      try {
+                        const storyResponse = await fetch(`/api/story/${storyMatch.story_id}`)
+                        const storyData = await storyResponse.json()
+                        storyTitle = storyData.title
+                      } catch (error) {
+                        console.error(`Error fetching story title for ${storyMatch.story_id}:`, error)
+                      }
+                    }
+
                     setMessagesByStory((prev) => {
                       const updated = { ...prev }
                       const updatedMessages = [...updated[storyId]]
@@ -174,7 +187,7 @@ function StoryChatPage() {
                           ...updatedMessages[i].linkPreview!,
                           status: storyMatch ? 'matched' : 'completed',
                           storyId: storyMatch?.story_id,
-                          storyTitle: storyMatch?.story_title
+                          storyTitle: storyTitle
                         }
                       }
                       updated[storyId] = updatedMessages
@@ -217,7 +230,7 @@ function StoryChatPage() {
   const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   const wsUrl = `${wsProtocol}//${window.location.host}/ws`
   const { sendMessage, isConnected, isConnecting, reconnect, disconnect } = useWebSocket(wsUrl, {
-    onMessage: (message) => {
+    onMessage: async (message) => {
       switch (message.type) {
         case 'story.created':
         case 'story.updated':
@@ -265,6 +278,19 @@ function StoryChatPage() {
           const taskId = message.task_id
           const taskResult = message.result
 
+          // Fetch story title if we have a match but no title
+          const storyMatch = taskResult?.story_match || taskResult?.manual_link_result
+          let storyTitle = storyMatch?.story_title
+          if (storyMatch?.story_id && !storyTitle) {
+            try {
+              const storyResponse = await fetch(`/api/story/${storyMatch.story_id}`)
+              const storyData = await storyResponse.json()
+              storyTitle = storyData.title
+            } catch (error) {
+              console.error(`Error fetching story title for ${storyMatch.story_id}:`, error)
+            }
+          }
+
           updateMessages((prev) => {
             const newMessages = [...prev]
             const messageIndex = newMessages.findIndex(
@@ -272,14 +298,13 @@ function StoryChatPage() {
             )
 
             if (messageIndex !== -1) {
-              const storyMatch = taskResult?.story_match || taskResult?.manual_link_result
               newMessages[messageIndex] = {
                 ...newMessages[messageIndex],
                 linkPreview: {
                   ...newMessages[messageIndex].linkPreview!,
                   status: storyMatch ? 'matched' : 'completed',
                   storyId: storyMatch?.story_id,
-                  storyTitle: storyMatch?.story_title
+                  storyTitle: storyTitle
                 }
               }
             }
@@ -478,6 +503,19 @@ function StoryChatPage() {
         if (data.status === 'completed' || data.status === 'failed') {
           clearInterval(pollInterval)
 
+          // Fetch story title if we have a match but no title
+          const storyMatch = data.story_match || data.manual_link_result
+          let storyTitle = storyMatch?.story_title
+          if (storyMatch?.story_id && !storyTitle) {
+            try {
+              const storyResponse = await fetch(`/api/story/${storyMatch.story_id}`)
+              const storyData = await storyResponse.json()
+              storyTitle = storyData.title
+            } catch (error) {
+              console.error(`Error fetching story title for ${storyMatch.story_id}:`, error)
+            }
+          }
+
           // Update the link preview in messages
           updateMessages((prev) => {
             const newMessages = [...prev]
@@ -486,14 +524,13 @@ function StoryChatPage() {
             )
 
             if (messageIndex !== -1) {
-              const storyMatch = data.story_match || data.manual_link_result
               newMessages[messageIndex] = {
                 ...newMessages[messageIndex],
                 linkPreview: {
                   ...newMessages[messageIndex].linkPreview!,
                   status: storyMatch ? 'matched' : 'completed',
                   storyId: storyMatch?.story_id,
-                  storyTitle: storyMatch?.story_title
+                  storyTitle: storyTitle
                 }
               }
             }
