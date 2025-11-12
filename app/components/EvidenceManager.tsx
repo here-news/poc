@@ -756,6 +756,32 @@ export default function EvidenceManager({
             console.log(`🗑️ Removing failed task ${taskId} from processing list`)
             setProcessingTasks(prev => prev.filter(t => t.taskId !== taskId))
           }, 5000)
+        } else if (task.status === 'blocked') {
+          console.log(`⛔ Task ${taskId} blocked:`, task.error || 'Content extraction blocked')
+
+          // Stop polling immediately
+          const interval = pollingIntervalsRef.current.get(taskId)
+          if (interval) {
+            clearTimeout(interval)
+            pollingIntervalsRef.current.delete(taskId)
+          }
+
+          // Mark as error with blocked message
+          const blockReason = task.error ||
+                             task.result?.blocked_reason ||
+                             'Content blocked or too short'
+
+          setProcessingTasks(prev => prev.map(t =>
+            t.taskId === taskId
+              ? { ...t, status: 'error', errorMessage: blockReason }
+              : t
+          ))
+
+          // Remove blocked task after showing error briefly
+          setTimeout(() => {
+            console.log(`🗑️ Removing blocked task ${taskId} from processing list`)
+            setProcessingTasks(prev => prev.filter(t => t.taskId !== taskId))
+          }, 5000)
         }
       } catch (err) {
         console.error('⚠️ Polling error for task:', taskId, err)
