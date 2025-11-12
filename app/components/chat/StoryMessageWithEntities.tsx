@@ -268,10 +268,18 @@ export function StoryMessageWithEntities({
               borderBottom: '2px solid #2563eb',
               cursor: 'pointer',
               textDecoration: 'none',
-              fontWeight: 500
+              fontWeight: 500,
+              userSelect: 'none',
+              WebkitUserSelect: 'none',
+              MozUserSelect: 'none',
+              msUserSelect: 'none'
             }}
             className="hover:opacity-70 transition-opacity"
-            onClick={() => onToggleClaim(claimKey, numbers[0])}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onToggleClaim(claimKey, numbers[0]);
+            }}
             title={isExpanded ? "Click to hide" : "Click to view claim text"}
           >
             [{numbers.length > 1 ? 'Claims ' : 'Claim '}{numbers.join(', ')}]
