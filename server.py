@@ -1604,7 +1604,8 @@ async def fetch_remote_task(task_id: str) -> dict:
     - 503: Connection error
     """
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        # Increased timeout to 90s to handle large responses (tasks with full content can be 100+ KB)
+        async with httpx.AsyncClient(timeout=90.0) as client:
             response = await client.get(f"{BACKEND_SERVICE_URL}/api/task/{task_id}")
             if response.status_code == 200:
                 return response.json()
