@@ -748,8 +748,18 @@ function StoryOverlay({ storyId, isOpen, onClose }: StoryOverlayProps) {
                 <div className="p-6">
                   <div className="space-y-3">
                     {story.artifacts.map((artifact) => {
-                      const mediaEntity = artifact.domain ? mediaEntities[artifact.domain] : null
-                      const canonicalName = mediaEntity?.canonical_name || artifact.domain || 'Unknown source'
+                      // Extract domain from URL as fallback
+                      let domain = artifact.domain
+                      if (!domain || domain === 'null') {
+                        try {
+                          domain = new URL(artifact.url).hostname.replace('www.', '')
+                        } catch {
+                          domain = 'unknown'
+                        }
+                      }
+
+                      const mediaEntity = domain ? mediaEntities[domain] : null
+                      const canonicalName = mediaEntity?.canonical_name || domain || 'Unknown source'
                       const votes = sourceVotes[artifact.url] || { upvotes: 0, downvotes: 0, userVote: null }
                       const pubDate = artifact.pub_time || artifact.published_at || artifact.pub_date || artifact.publication_date || artifact.publish_date || artifact.created_at || story.last_updated
 
@@ -760,10 +770,10 @@ function StoryOverlay({ storyId, isOpen, onClose }: StoryOverlayProps) {
                         >
                           {/* Header with logo and media name */}
                           <div className="flex items-start gap-3 mb-3">
-                            {artifact.domain && artifact.domain !== 'null' ? (
+                            {domain && domain !== 'unknown' ? (
                               <img
-                                src={`https://www.google.com/s2/favicons?domain=${artifact.domain}&sz=64`}
-                                alt={artifact.domain}
+                                src={`https://www.google.com/s2/favicons?domain=${domain}&sz=64`}
+                                alt={domain}
                                 className="w-8 h-8 flex-shrink-0 mt-0.5"
                                 onError={(e) => {
                                   e.currentTarget.style.display = 'none'

@@ -240,9 +240,9 @@ export function StoryMessageWithEntities({
       return placeholder
     })
 
-    // Now process claim references (with optional parentheses/brackets)
-    // Matches: "Claims 3, 14" or "([Claims 3, 14])" or "(Claim 3)" etc.
-    const claimPattern = /(?:[\(\[])?(\b[Cc]laim[s]?\s+\d+(?:(?:,\s*(?:and\s+)?|\s+and\s+)\d+)*)(?:[\)\]])?/g
+    // Now process claim references
+    // Match patterns like "Claim 5" or "Claims 3 and 7" or "Claims 3, 7, and 12"
+    const claimPattern = /\b[Cc]laim[s]?\s+(\d+(?:(?:,\s*(?:and\s+)?|\s+and\s+)\d+)*)/g
     const parts: (string | JSX.Element)[] = []
     let lastIndex = 0
     let match
@@ -255,40 +255,44 @@ export function StoryMessageWithEntities({
         parts.push(...textParts)
       }
 
+      // Extract claim numbers
       const numbersText = match[1]
       const numbers = numbersText.match(/\d+/g)?.map(n => parseInt(n)) || []
+
+      // Add clickable claim reference
       const claimKey = `${messageIdx}-${numbers[0]}`
       const isExpanded = expandedClaims.has(claimKey)
 
       parts.push(
-        <span key={`claim-${match.index}`} className="inline">
+        <span key={`claim-${match.index}`} className="inline-block">
           <span
-            style={{
-              color: '#2563eb',
-              borderBottom: '2px solid #2563eb',
-              cursor: 'pointer',
-              textDecoration: 'none',
-              fontWeight: 500,
-              userSelect: 'none',
-              WebkitUserSelect: 'none',
-              MozUserSelect: 'none',
-              msUserSelect: 'none'
-            }}
-            className="hover:opacity-70 transition-opacity"
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-semibold cursor-pointer hover:bg-blue-200 transition-colors select-none"
             onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onToggleClaim(claimKey, numbers[0]);
+              e.preventDefault()
+              e.stopPropagation()
+              onToggleClaim(claimKey, numbers[0])
             }}
             title={isExpanded ? "Click to hide" : "Click to view claim text"}
           >
-            [{numbers.length > 1 ? 'Claims ' : 'Claim '}{numbers.join(', ')}]
-            {isExpanded && numbers.length === 1 && claims[numbers[0] - 1] && (
-              <span className="inline-block ml-1 px-2 py-1 bg-blue-50 border border-blue-200 rounded text-[11px] text-slate-700 max-w-md align-middle">
-                {claims[numbers[0] - 1].text}
-              </span>
-            )}
+            Claim{numbers.length > 1 ? 's' : ''} {numbers.join(', ')}
           </span>
+          {isExpanded && (
+            <span className="block mt-2 space-y-2">
+              {numbers.filter(num => num <= claims.length).map(num => (
+                <span key={num} className="block p-3 bg-blue-50 border-l-4 border-blue-400 rounded text-xs text-slate-700 leading-relaxed">
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <span className="font-semibold text-blue-700">Claim {num}:</span>
+                    {claims[num - 1]?.created_at && (
+                      <span className="text-slate-500 text-[10px] flex-shrink-0">
+                        {formatRelativeTime(claims[num - 1]?.created_at)}
+                      </span>
+                    )}
+                  </div>
+                  <div>{claims[num - 1]?.text}</div>
+                </span>
+              ))}
+            </span>
+          )}
         </span>
       )
 

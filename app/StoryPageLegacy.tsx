@@ -1738,9 +1738,19 @@ function StoryPage() {
                   </div>
                   <div id="sources-list" className="space-y-3 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 300px)' }}>
                     {sortedArtifacts.map((artifact, idx) => {
+                      // Extract domain from URL as fallback
+                      let domain = artifact.domain
+                      if (!domain || domain === 'null') {
+                        try {
+                          domain = new URL(artifact.url).hostname.replace('www.', '')
+                        } catch {
+                          domain = 'unknown'
+                        }
+                      }
+
                       // Get canonical name from fetched media entity or fall back to domain
-                      const mediaEntity = artifact.domain ? mediaEntities[artifact.domain] : null
-                      const canonicalName = mediaEntity?.canonical_name || artifact.domain || 'Unknown source'
+                      const mediaEntity = domain ? mediaEntities[domain] : null
+                      const canonicalName = mediaEntity?.canonical_name || domain || 'Unknown source'
                       const votes = sourceVotes[artifact.url] || { upvotes: 0, downvotes: 0, userVote: null }
 
                       // Try multiple possible field names for publication date (prioritize pub_time from experiments-v2)
