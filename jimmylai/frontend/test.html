@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <base href="/jimmylai/">
+    <title>Test</title>
+</head>
+<body>
+    <h1>Test Page</h1>
+    <div id="test"></div>
+    <script>
+        const basename = document.querySelector('base')?.getAttribute('href') || '/';
+        document.getElementById('test').innerHTML = 'Basename: ' + basename;
+
+        fetch('api/quests')
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('test').innerHTML += '<br>API Response: ' + JSON.stringify(data);
+            })
+            .catch(err => {
+                document.getElementById('test').innerHTML += '<br>API Error: ' + err;
+            });
+    </script>
+</body>
+</html>

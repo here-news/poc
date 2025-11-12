@@ -1,26 +1,84 @@
 version: '3.8'
 
 services:
-  webapp:
-    build: .
+  # Nginx Reverse Proxy - Single entry point
+  nginx:
+    image: nginx:alpine
+    container_name: re_news_gateway
     ports:
-      - "7272:7272"
+      - "7272:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - gateway
+      - storychat
+      - jimmylai
+    restart: unless-stopped
+    networks:
+      - re_news_network
+
+  # Gateway - Landing page at root (/)
+  gateway:
+    build: ./gateway
+    container_name: gateway
+    expose:
+      - "3000"
+    restart: unless-stopped
+    networks:
+      - re_news_network
+
+  # StoryChat - Main chat UI (accessible at /storychat)
+  storychat:
+    build: ./storychat
+    container_name: storychat
+    expose:
+      - "8001"
     env_file:
-      - .env
+      - ./storychat/.env
     environment:
       - NODE_ENV=production
       - GOOGLE_APPLICATION_CREDENTIALS=/app/hn4-local-dev-key.json
+      - BASE_PATH=/storychat
     volumes:
-      # Mount service account key (never expires)
-      - ./hn4-local-dev-key.json:/app/hn4-local-dev-key.json:ro
-      # Optional: mount for development
-      - ./static:/app/static
-      - ./templates:/app/templates
-      # Cache pip downloads to speed up rebuilds
+      - ./storychat/hn4-local-dev-key.json:/app/hn4-local-dev-key.json:ro
+      - ./storychat/static:/app/static
+      - ./storychat/templates:/app/templates
       - pip-cache:/root/.cache/pip
     restart: unless-stopped
-    container_name: webapp
+    networks:
+      - re_news_network
+
+  # Jimmy Lai Quest - Truth Market Experiment (accessible at /jimmylai)
+  jimmylai:
+    build: ./jimmylai
+    container_name: jimmylai
+    expose:
+      - "8000"
+    env_file:
+      - ./jimmylai/.env
+    environment:
+      - BASE_PATH=/jimmylai
+    restart: unless-stopped
+    networks:
+      - re_news_network
+
+  # Add more services here - Use mini/ as a template:
+  # Copy mini/ folder to create new apps
+  #
+  # newapp:
+  #   build: ./newapp
+  #   container_name: newapp
+  #   expose:
+  #     - "9000"
+  #   environment:
+  #     - BASE_PATH=/newapp
+  #   networks:
+  #     - re_news_network
 
 volumes:
   pip-cache:
     driver: local
+
+networks:
+  re_news_network:
+    driver: bridge

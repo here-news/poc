@@ -1,7 +1,6 @@
 # Environment variables
 .env
 *.env
-!.env.example
 
 # Python
 __pycache__/
@@ -9,8 +8,6 @@ __pycache__/
 *$py.class
 *.so
 .Python
-venv/
-env/
 
 # Database files
 *.db
@@ -42,11 +39,10 @@ logs/
 *.tmp
 *.bak
 
-# Node modules
+# Node modules (for frontend)
 node_modules/
-*/node_modules/
-*/frontend/node_modules/
-*/frontend/dist/
+frontend/node_modules/
+frontend/dist/
 
 # Docker volumes
 docker-data/
@@ -55,3 +51,7 @@ docker-data/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Monte Carlo experiments
+monte_carlo_*.json
+scenario_*.json

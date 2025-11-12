@@ -1,0 +1,13 @@
+{
+  "id": "template",
+  "name": "Template App",
+  "version": "0.1.0",
+  "description": "A template app for creating new experiments",
+  "status": "development",
+  "icon": "🔬",
+  "routes": {
+    "base": "/template",
+    "app": "/template/app",
+    "api": "/template/api"
+  }
+}

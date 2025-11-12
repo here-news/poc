@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  template:
+    build: .
+    container_name: template
+    ports:
+      - "8000"  # Internal port only, nginx will route
+    environment:
+      - GATEWAY_URL=http://gateway:3000
+    networks:
+      - apps_default
+    restart: unless-stopped
+
+networks:
+  apps_default:
+    external: true

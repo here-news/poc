@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  webapp:
+    build: .
+    ports:
+      - "7272:7272"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/hn4-local-dev-key.json
+    volumes:
+      # Mount service account key (never expires)
+      - ./hn4-local-dev-key.json:/app/hn4-local-dev-key.json:ro
+      # Optional: mount for development
+      - ./static:/app/static
+      - ./templates:/app/templates
+      # Cache pip downloads to speed up rebuilds
+      - pip-cache:/root/.cache/pip
+    restart: unless-stopped
+    container_name: webapp
+
+volumes:
+  pip-cache:
+    driver: local
