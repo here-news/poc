@@ -352,9 +352,11 @@ export default function EvidenceManager({
     // This prevents the "interval was cleared" check from failing
     pollingIntervalsRef.current.set(taskId, 0 as any)
 
-    // Track poll count for exponential backoff
+    // Track poll count for exponential backoff and 404 retry logic
     let pollCount = 0
+    let consecutiveNotFoundCount = 0
     const maxInterval = 15000 // Max 15 seconds between polls
+    const maxNotFoundRetries = 5 // Retry up to 5 times for 404 errors (handles race condition with remote service)
 
     const poll = async () => {
       try {
@@ -362,7 +364,24 @@ export default function EvidenceManager({
 
         // Check for errors BEFORE parsing JSON
         if (!response.ok) {
-          // Stop polling and mark as error
+          // Special handling for 404: Retry a few times before giving up
+          // This handles race condition where UI polls before remote service writes task
+          if (response.status === 404) {
+            consecutiveNotFoundCount++
+
+            if (consecutiveNotFoundCount <= maxNotFoundRetries) {
+              console.log(`⏳ Task ${taskId} not found yet (attempt ${consecutiveNotFoundCount}/${maxNotFoundRetries}), retrying...`)
+
+              // Schedule next poll with short delay (2 seconds for retries)
+              pollCount++
+              const nextInterval = 2000
+              const timeoutId = setTimeout(poll, nextInterval)
+              pollingIntervalsRef.current.set(taskId, timeoutId)
+              return // Continue polling
+            }
+          }
+
+          // Stop polling and mark as error (after max retries or non-404 error)
           const interval = pollingIntervalsRef.current.get(taskId)
           if (interval) {
             clearTimeout(interval)
@@ -390,6 +409,9 @@ export default function EvidenceManager({
           }
           return
         }
+
+        // Reset 404 counter on successful response
+        consecutiveNotFoundCount = 0
 
         const task = await response.json()
 
