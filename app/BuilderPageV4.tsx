@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import StoryGraph from './components/StoryGraph'
 import EvidenceManager from './components/EvidenceManager'
+import { useWebSocket } from './hooks/useWebSocket'
 
 interface Claim {
   id: string
@@ -111,6 +112,29 @@ function BuilderPageV4() {
     { name: 'Sarah P.', action: 'Viewing: Evidence', credits: 50, time: '5m', avatar: '👩‍💼' },
     { name: 'Yuki T.', action: 'Viewing: Structure', credits: 59, time: '12m', avatar: '👩‍🔬' }
   ]
+
+  // WebSocket connection for real-time updates
+  const wsUrl = `ws://${window.location.host}/ws`
+  const { isConnected } = useWebSocket(wsUrl, {
+    onMessage: (message) => {
+      // Listen for task completion events
+      if (message.type === 'task.completed') {
+        console.log('📨 Task completed:', message.task_id)
+        // Check if this task has a story match
+        if (message.story_match?.story_id === id) {
+          console.log('🔄 Task matched current story, refreshing...')
+          // Refresh story data to show newly added source
+          fetchBuilderData(id!)
+        }
+      }
+    },
+    onConnect: () => {
+      console.log('✅ Builder WebSocket connected')
+    },
+    onDisconnect: () => {
+      console.log('❌ Builder WebSocket disconnected')
+    }
+  })
 
   useEffect(() => {
     if (id) {

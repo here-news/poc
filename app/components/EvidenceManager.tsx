@@ -359,6 +359,38 @@ export default function EvidenceManager({
     const poll = async () => {
       try {
         const response = await fetch(`/api/task/${taskId}`)
+
+        // Check for errors BEFORE parsing JSON
+        if (!response.ok) {
+          // Stop polling and mark as error
+          const interval = pollingIntervalsRef.current.get(taskId)
+          if (interval) {
+            clearTimeout(interval)
+            pollingIntervalsRef.current.delete(taskId)
+          }
+
+          const errorMsg = response.status === 404
+            ? 'Task not found in database'
+            : 'Failed to check extraction status'
+
+          console.log(`❌ Task ${taskId} polling failed: ${errorMsg} (status ${response.status})`)
+
+          setProcessingTasks(prev => prev.map(t =>
+            t.taskId === taskId
+              ? { ...t, status: 'error', errorMessage: errorMsg }
+              : t
+          ))
+
+          // Auto-remove 404 tasks after showing error briefly
+          if (response.status === 404) {
+            setTimeout(() => {
+              console.log(`🗑️ Auto-removing 404 task ${taskId}`)
+              setProcessingTasks(prev => prev.filter(t => t.taskId !== taskId))
+            }, 3000)
+          }
+          return
+        }
+
         const task = await response.json()
 
         // DEBUG: Log what we received from API
@@ -368,21 +400,6 @@ export default function EvidenceManager({
           completed_at: task.completed_at,
           has_preview: !!task.preview_meta
         })
-
-        if (!response.ok) {
-          // Stop polling and mark as error
-          const interval = pollingIntervalsRef.current.get(taskId)
-          if (interval) {
-            clearTimeout(interval)
-            pollingIntervalsRef.current.delete(taskId)
-          }
-          setProcessingTasks(prev => prev.map(t =>
-            t.taskId === taskId
-              ? { ...t, status: 'error', errorMessage: 'Failed to check extraction status' }
-              : t
-          ))
-          return
-        }
 
         // Update task state with current progress - ONLY if something changed
         setProcessingTasks(prev => prev.map(t => {

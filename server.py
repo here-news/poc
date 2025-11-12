@@ -18,9 +18,12 @@ from contextlib import asynccontextmanager
 
 from typing import Optional, List, Dict, Any, Set
 
-from services.gcs_task_store import gcs_task_store as task_store, TaskStatus
+from services.task_store import get_task_store, TaskStatus
 from services.pubsub_publisher import pubsub_publisher
 from services.neo4j_client import neo4j_client
+
+# Initialize task store (Firestore by default)
+task_store = get_task_store()
 
 # Load environment variables
 BACKEND_SERVICE_URL = os.getenv('BACKEND_SERVICE_URL', 'https://story-engine-here-3n5yrhhfpa-uc.a.run.app')
@@ -1590,20 +1593,37 @@ async def add_page_to_story(story_id: str, submission: URLSubmission, request: R
             detail=f"Failed to submit to remote service: {str(e)}"
         )
 
-@app.get("/api/task/{task_id}")
-async def get_task_status(task_id: str):
-    """Get extraction task status and result"""
-    task = task_store.get_task(task_id)
+# Helper function: Fetch task from remote backend service
+async def fetch_remote_task(task_id: str) -> dict:
+    """
+    Fetch task from remote backend service when not found locally.
 
-    if not task:
-        return {"error": "Task not found"}, 404
+    Raises HTTPException with appropriate status codes:
+    - 404: Task not found on remote
+    - 504: Timeout
+    - 503: Connection error
+    """
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(f"{BACKEND_SERVICE_URL}/api/task/{task_id}")
+            if response.status_code == 200:
+                return response.json()
+            elif response.status_code == 404:
+                raise HTTPException(status_code=404, detail="Task not found")
+            else:
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=f"Remote service error: {response.text}"
+                )
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="Timeout connecting to backend service")
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=503, detail=f"Failed to connect to backend service: {str(e)}")
 
-    # Attach user_id from local mapping if not in task object
-    # (Cloud Run doesn't preserve user_id, so we track it locally)
-    user_id = task.user_id or task_user_mapping.get(task_id)
-    if user_id and not task.user_id:
-        task.user_id = user_id  # Attach to task object for broadcast logic
 
+# Helper function: Build task response from local task object
+def build_task_response(task, user_id: str = None) -> dict:
+    """Build standardized task response dict from task object."""
     response = {
         "task_id": task.task_id,
         "url": task.url,
@@ -1616,16 +1636,15 @@ async def get_task_status(task_id: str):
         "user_id": user_id
     }
 
-    # Include iFramely preview metadata if available (fast preview)
+    # Include iFramely preview metadata if available
     if task.preview_meta:
         response["preview_meta"] = task.preview_meta
 
+    # Add status-specific fields
     if task.status == TaskStatus.COMPLETED:
         response["result"] = task.result
-        # Include semantic data if available
         if task.semantic_data:
             response["semantic_data"] = task.semantic_data
-        # Include manual_link_result if this was a manual link task
         if hasattr(task, 'manual_link_result') and task.manual_link_result:
             response["manual_link_result"] = task.manual_link_result
     elif task.status == TaskStatus.BLOCKED:
@@ -1639,18 +1658,20 @@ async def get_task_status(task_id: str):
     elif task.status == TaskStatus.FAILED:
         response["error"] = task.error
 
-    # Include story_match field (now available from GCS)
+    # Include story_match field if available
     if hasattr(task, 'story_match') and task.story_match:
         response["story_match"] = task.story_match
 
-    # Broadcast task completion via WebSocket if newly completed
+    return response
+
+
+# Helper function: Broadcast task completion via WebSocket
+async def broadcast_task_completion(task):
+    """Broadcast task completion if not already broadcasted."""
     if task.status == TaskStatus.COMPLETED and task.user_id:
-        # Check if we haven't broadcast this yet (use a simple flag)
         if not hasattr(task, '_broadcasted') or not task._broadcasted:
-            # Mark as broadcasted to avoid duplicate broadcasts
             task._broadcasted = True
-            # Broadcast to all connected clients (especially the user who submitted it)
-            asyncio.create_task(manager.broadcast({
+            await manager.broadcast({
                 "type": "task.completed",
                 "task_id": task.task_id,
                 "user_id": task.user_id,
@@ -1658,7 +1679,33 @@ async def get_task_status(task_id: str):
                 "story_match": task.story_match if hasattr(task, 'story_match') else None,
                 "url": task.url,
                 "timestamp": datetime.now().isoformat()
-            }))
+            })
+
+
+@app.get("/api/task/{task_id}")
+async def get_task_status(task_id: str):
+    """
+    Get extraction task status and result.
+
+    Checks local storage first, then proxies to remote backend service if not found.
+    """
+    # Try local storage first
+    task = task_store.get_task(task_id)
+
+    if not task:
+        # Not found locally - proxy to remote backend service
+        return await fetch_remote_task(task_id)
+
+    # Found locally - attach user_id from mapping if needed
+    user_id = task.user_id or task_user_mapping.get(task_id)
+    if user_id and not task.user_id:
+        task.user_id = user_id
+
+    # Build response
+    response = build_task_response(task, user_id)
+
+    # Broadcast completion via WebSocket if applicable
+    asyncio.create_task(broadcast_task_completion(task))
 
     return response
 
