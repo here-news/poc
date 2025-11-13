@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Epistemic - Interactive Mockup</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <header class="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <h1 class="text-2xl font-bold text-indigo-600">Epistemic</h1>
+                <input type="text" placeholder="Search concerns, quests..."
+                    class="px-4 py-2 border border-gray-300 rounded-lg w-96 focus:outline-none focus:border-indigo-500">
+            </div>
+            <div class="flex items-center gap-4">
+                <button class="relative">
+                    <span class="text-2xl">🔔</span>
+                    <span class="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">3</span>
+                </button>
+                <div class="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg">
+                    <span class="text-sm font-medium">alice_chen</span>
+                    <span class="text-xs text-gray-600">(85R)</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Layout -->
+    <div class="max-w-7xl mx-auto px-4 py-6">
+        <div class="grid grid-cols-12 gap-6">
+            <!-- Left Panel: Concerns Feed -->
+            <div class="col-span-4 space-y-4">
+                <div class="bg-white rounded-lg shadow p-4">
+                    <div class="flex gap-2 mb-4 overflow-x-auto">
+                        <button class="px-3 py-1 bg-indigo-600 text-white rounded-full text-sm whitespace-nowrap">🔥 Hot</button>
+                        <button class="px-3 py-1 bg-gray-200 text-gray-700 rounded-full text-sm whitespace-nowrap">📰 Stories</button>
+                        <button class="px-3 py-1 bg-gray-200 text-gray-700 rounded-full text-sm whitespace-nowrap">📅 Events</button>
+                        <button class="px-3 py-1 bg-gray-200 text-gray-700 rounded-full text-sm whitespace-nowrap">👤 People</button>
+                        <button class="px-3 py-1 bg-gray-200 text-gray-700 rounded-full text-sm whitespace-nowrap">🏢 Orgs</button>
+                    </div>
+
+                    <div id="concerns-list" class="space-y-3">
+                        <!-- Concerns will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Personal Space + Detail View -->
+            <div class="col-span-8 space-y-6">
+                <!-- Personal Share Box -->
+                <div id="share-box" class="bg-white rounded-lg shadow">
+                    <div id="share-collapsed" class="p-4 cursor-pointer hover:bg-gray-50" onclick="expandShareBox()">
+                        <p class="text-gray-500">💭 What's on your mind? <span class="text-indigo-600">Click to share...</span></p>
+                    </div>
+                    <div id="share-expanded" class="p-4 hidden">
+                        <p class="font-semibold mb-3">💭 Share an observation, evidence, or question...</p>
+                        <textarea
+                            id="share-text"
+                            class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-indigo-500 resize-none"
+                            rows="3"
+                            placeholder="What do you want to share?"></textarea>
+                        <div class="flex gap-2 mt-3 mb-3">
+                            <button class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50">🔗 Add URL</button>
+                            <button class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50">📎 Attach file</button>
+                            <button class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50">🎯 Link to quest</button>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <div class="flex gap-2">
+                                <button data-share-type="evidence" onclick="selectShareType('evidence')" class="px-3 py-1 text-sm bg-indigo-600 text-white rounded">Evidence</button>
+                                <button data-share-type="question" onclick="selectShareType('question')" class="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200">Question</button>
+                                <button data-share-type="opinion" onclick="selectShareType('opinion')" class="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200">Opinion</button>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="collapseShareBox()" class="px-4 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50">Cancel</button>
+                                <button onclick="handleShare()" class="px-4 py-2 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700">Share →</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Your Activity Feed -->
+                <div id="activity-feed" class="bg-white rounded-lg shadow p-4">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-bold">Your Activity (12)</h3>
+                        <button class="text-sm text-indigo-600 hover:underline">See All →</button>
+                    </div>
+                    <div class="space-y-3">
+                        <!-- Activity 1: Evidence Used -->
+                        <div class="p-3 border border-green-200 bg-green-50 rounded-lg">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span>✅</span>
+                                <span class="font-semibold text-sm">Your evidence was used in a quest!</span>
+                            </div>
+                            <p class="text-sm text-gray-700 mb-1">"Flight logs from 1997..." → Quest: Trump-Epstein</p>
+                            <div class="flex gap-3 text-xs text-gray-600">
+                                <span>💎 EV: 0.85</span>
+                                <span>↑ 45</span>
+                                <span>💬 12</span>
+                                <span class="text-gray-400">2h ago</span>
+                            </div>
+                            <button class="text-xs text-indigo-600 hover:underline mt-1">View →</button>
+                        </div>
+
+                        <!-- Activity 2: Upvotes -->
+                        <div class="p-3 border border-orange-200 bg-orange-50 rounded-lg">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span>🔥</span>
+                                <span class="font-semibold text-sm">Your comment is trending!</span>
+                            </div>
+                            <p class="text-sm text-gray-700 mb-1">"This is significant. The frequency..." got 23 upvotes</p>
+                            <div class="text-xs text-gray-600">On evidence by @bob_investigator • 5h ago</div>
+                            <button class="text-xs text-indigo-600 hover:underline mt-1">View →</button>
+                        </div>
+
+                        <!-- Activity 3: Reply -->
+                        <div class="p-3 border border-indigo-200 bg-indigo-50 rounded-lg">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span>💬</span>
+                                <span class="font-semibold text-sm">New reply to your comment</span>
+                            </div>
+                            <p class="text-sm text-gray-700 mb-1">@frank replied: "Good point. I found Epstein's calendar..."</p>
+                            <div class="text-xs text-gray-600">On Quest: Trump-Epstein Connection • 1d ago</div>
+                            <button class="text-xs text-indigo-600 hover:underline mt-1">View →</button>
+                        </div>
+
+                        <!-- Activity 4: Payout -->
+                        <div class="p-3 border border-yellow-200 bg-yellow-50 rounded-lg">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span>💰</span>
+                                <span class="font-semibold text-sm">Quest payout received: +50 credits</span>
+                            </div>
+                            <p class="text-sm text-gray-700 mb-1">Quest "Trump-Epstein Connection" converged</p>
+                            <div class="text-xs text-gray-600">Your evidence contributed to winning hypothesis • New balance: 1,290C • 2d ago</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detail View -->
+                <div id="detail-view" class="bg-white rounded-lg shadow p-6">
+                    <p class="text-gray-500 text-center py-12">Select a concern to view details</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Load mockup data
+        let data = null;
+
+        fetch('./mockup-data.json')
+            .then(res => res.json())
+            .then(loadedData => {
+                data = loadedData;
+                renderConcerns();
+            });
+
+        function renderConcerns() {
+            const container = document.getElementById('concerns-list');
+            container.innerHTML = '';
+
+            // Sort by heat score
+            const sortedConcerns = [...data.concerns].sort((a, b) => b.heat_score - a.heat_score);
+
+            sortedConcerns.forEach((concern, index) => {
+                const concernEl = document.createElement('div');
+                concernEl.className = 'p-3 border border-gray-200 rounded-lg hover:border-indigo-500 hover:shadow cursor-pointer transition';
+                concernEl.onclick = () => showDetail(concern);
+
+                const icon = {
+                    'story': '📰',
+                    'person': '👤',
+                    'quest': '🎯',
+                    'event': '📅',
+                    'poll': '📊',
+                    'org': '🏢'
+                }[concern.type] || '📄';
+
+                const badge = `<span class="text-xs px-2 py-1 bg-gray-200 rounded-full">${concern.type}</span>`;
+
+                concernEl.innerHTML = `
+                    <div class="flex items-start gap-2">
+                        <span class="text-2xl">${icon}</span>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-xs font-bold text-gray-500">#${index + 1}</span>
+                                ${badge}
+                            </div>
+                            <h3 class="font-semibold text-sm mb-1 line-clamp-2">${concern.title}</h3>
+                            <div class="flex items-center gap-3 text-xs text-gray-500">
+                                <span>🔥 ${concern.heat_score.toFixed(1)}</span>
+                                ${concern.activeQuest ? '<span class="text-indigo-600">→ Active Quest 🎯</span>' : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                container.appendChild(concernEl);
+            });
+        }
+
+        function showDetail(concern) {
+            const container = document.getElementById('detail-view');
+
+            // Route to appropriate layout
+            if (concern.type === 'person' || concern.type === 'org') {
+                container.innerHTML = renderEntityLayout(concern);
+            } else if (concern.type === 'quest') {
+                const quest = data.quests.find(q => q.concern_id === concern.id || q.id === concern.id);
+                container.innerHTML = renderQuestLayout(quest || {title: concern.title, id: 'quest-2'});
+            } else if (concern.type === 'story' || concern.type === 'event') {
+                container.innerHTML = renderHybridLayout(concern);
+            } else if (concern.type === 'poll') {
+                container.innerHTML = renderPollLayout(concern);
+            }
+        }
+
+        function renderEntityLayout(concern) {
+            const entity = data.entities[concern.neo4j_node_id] || {};
+            const relatedQuests = data.quests.filter(q =>
+                q.title.toLowerCase().includes(concern.title.toLowerCase().split(' ')[2] || '')
+            );
+
+            return `
+                <div class="space-y-6">
+                    <!-- Entity Card -->
+                    <div class="border border-gray-300 rounded-lg p-6 bg-gradient-to-r from-indigo-50 to-white">
+                        <div class="flex items-start gap-4">
+                            <div class="w-24 h-24 bg-gray-300 rounded-full flex items-center justify-center text-4xl">
+                                ${concern.type === 'person' ? '👤' : '🏢'}
+                            </div>
+                            <div class="flex-1">
+                                <h2 class="text-2xl font-bold mb-2">${entity.name || concern.title}</h2>
+                                ${entity.name_chinese ? `<p class="text-gray-600 mb-2">${entity.name_chinese}</p>` : ''}
+                                <p class="text-gray-700 mb-3">${entity.bio || concern.description}</p>
+                                <div class="grid grid-cols-2 gap-2 text-sm">
+                                    ${entity.born ? `<div><span class="font-semibold">Born:</span> ${entity.born}</div>` : ''}
+                                    ${entity.nationality ? `<div><span class="font-semibold">Nationality:</span> ${entity.nationality}</div>` : ''}
+                                    ${concern.metadata?.status ? `<div class="col-span-2"><span class="font-semibold">Status:</span> ${concern.metadata.status}</div>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Knowledge Graph -->
+                    <div class="border border-gray-300 rounded-lg p-4">
+                        <h3 class="font-bold mb-3 flex items-center gap-2">
+                            <span>🕸️</span>
+                            Knowledge Graph
+                        </h3>
+                        <div class="bg-gray-100 rounded p-4 text-center h-48 flex items-center justify-center">
+                            <div class="space-y-2">
+                                <div class="flex items-center justify-center gap-4 text-sm">
+                                    <span class="px-3 py-1 bg-blue-200 rounded-full">Apple Daily</span>
+                                    <span>→</span>
+                                    <span class="px-3 py-1 bg-indigo-400 text-white rounded-full font-bold">${entity.name || 'Entity'}</span>
+                                    <span>→</span>
+                                    <span class="px-3 py-1 bg-blue-200 rounded-full">HK Democracy</span>
+                                </div>
+                                <p class="text-xs text-gray-600">Related: ${(entity.connections || []).length} entities</p>
+                                <button class="text-indigo-600 text-sm hover:underline">Explore Full Graph →</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Active Discussions -->
+                    <div class="border border-gray-300 rounded-lg p-4">
+                        <h3 class="font-bold mb-3">Active Discussions (${relatedQuests.length})</h3>
+                        <div class="space-y-3">
+                            ${relatedQuests.map(quest => `
+                                <div class="p-3 bg-gray-50 rounded-lg hover:bg-indigo-50 cursor-pointer" onclick='showQuestFromEntity("${quest.id}")'>
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <span>🎯</span>
+                                        <span class="font-semibold">${quest.title}</span>
+                                    </div>
+                                    <div class="text-xs text-gray-600 flex gap-4">
+                                        <span>💰 ${quest.total_bounty}C</span>
+                                        <span>📊 Evidence: ${quest.evidence_count}</span>
+                                        <span class="text-indigo-600">View Quest →</span>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <!-- Timeline -->
+                    ${entity.timeline ? `
+                        <div class="border border-gray-300 rounded-lg p-4">
+                            <h3 class="font-bold mb-3">Timeline (Recent Events)</h3>
+                            <div class="space-y-2">
+                                ${entity.timeline.map(item => `
+                                    <div class="flex gap-3">
+                                        <span class="text-xs text-gray-500 w-24">${item.date}</span>
+                                        <span class="text-sm">${item.event}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        function renderQuestLayout(quest) {
+            const hypotheses = data.hypotheses.filter(h => h.quest_id === quest.id);
+            const evidence = data.evidence.filter(e => e.quest_id === quest.id);
+
+            return `
+                <div class="space-y-6">
+                    <!-- Quest Header -->
+                    <div>
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="text-3xl">🎯</span>
+                            <h2 class="text-2xl font-bold">${quest.title}</h2>
+                        </div>
+                        <p class="text-gray-700 mb-4">${quest.description}</p>
+                        <div class="flex gap-4 text-sm text-gray-600">
+                            <span>💰 Bounty: ${quest.total_bounty} credits</span>
+                            <span>📊 Evidence: ${evidence.length} submissions</span>
+                            <span>👥 Contributors: ${quest.participant_count}</span>
+                            <span class="px-2 py-1 bg-green-100 text-green-700 rounded">🔄 Active</span>
+                        </div>
+                    </div>
+
+                    <!-- Hypotheses -->
+                    <div class="border border-gray-300 rounded-lg p-4">
+                        <h3 class="font-bold mb-4">Hypotheses</h3>
+                        <div class="space-y-3">
+                            ${hypotheses.map((h, i) => `
+                                <div>
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="font-semibold text-sm">H${i+1}: ${h.statement}</span>
+                                        <span class="font-bold text-indigo-600">${(h.current_probability * 100).toFixed(1)}%</span>
+                                    </div>
+                                    <div class="h-4 bg-gray-200 rounded-full overflow-hidden">
+                                        <div class="progress-bar h-full bg-indigo-600" style="width: ${h.current_probability * 100}%"></div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="mt-4 text-sm text-gray-600">
+                            <span>Entropy (uncertainty): <span class="font-semibold">${(quest.entropy || 0).toFixed(2)}</span></span>
+                        </div>
+                    </div>
+
+                    <!-- Evidence Timeline -->
+                    <div class="border border-gray-300 rounded-lg p-4">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-bold">Evidence Timeline</h3>
+                            <select class="text-sm border rounded px-2 py-1">
+                                <option>Sort by: Newest</option>
+                                <option>Sort by: Value</option>
+                                <option>Sort by: Votes</option>
+                            </select>
+                        </div>
+                        <div class="space-y-4">
+                            ${evidence.map(ev => {
+                                const user = data.users.find(u => u.id === ev.submitted_by) || {};
+                                const comments = data.comments.filter(c => c.evidence_id === ev.id);
+                                const topComment = comments.sort((a, b) => b.upvotes - a.upvotes)[0];
+
+                                return `
+                                    <div class="border border-gray-200 rounded-lg p-4 hover:border-indigo-500 transition">
+                                        <div class="flex items-start gap-3">
+                                            <span class="text-2xl">📄</span>
+                                            <div class="flex-1">
+                                                <p class="font-semibold mb-1">${ev.synopsis}</p>
+                                                <a href="${ev.source_url}" class="text-xs text-indigo-600 hover:underline block mb-2">${ev.source_url}</a>
+                                                <div class="flex gap-3 text-xs text-gray-600 mb-3">
+                                                    <span>💎 EV: ${ev.epistemic_value.toFixed(2)}</span>
+                                                    <span>Novelty: ${ev.novelty_score.toFixed(2)}</span>
+                                                    <span>ΔClarity: +${ev.clarity_contribution.toFixed(2)}</span>
+                                                </div>
+                                                <div class="flex items-center gap-3 text-xs">
+                                                    <span>👤 @${user.username} (Rep: ${user.epistemic_reputation})</span>
+                                                    <span class="text-gray-400">|</span>
+                                                    <button class="hover:text-green-600">↑ ${ev.upvotes}</button>
+                                                    <button class="hover:text-red-600">↓ ${ev.downvotes}</button>
+                                                    <span class="text-gray-400">|</span>
+                                                    <button class="text-indigo-600 hover:underline">💬 ${comments.length} comments</button>
+                                                </div>
+                                                ${topComment ? `
+                                                    <div class="mt-3 p-2 bg-gray-50 rounded text-sm">
+                                                        <div class="flex items-center gap-2 mb-1">
+                                                            <span class="font-semibold text-xs">@${data.users.find(u => u.id === topComment.user_id)?.username}</span>
+                                                            <span class="text-xs text-gray-500">(Rep: ${data.users.find(u => u.id === topComment.user_id)?.epistemic_reputation})</span>
+                                                        </div>
+                                                        <p class="text-xs">${topComment.text}</p>
+                                                        <div class="text-xs text-gray-500 mt-1">↑ ${topComment.upvotes} ↓ ${topComment.downvotes}</div>
+                                                    </div>
+                                                ` : ''}
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="flex gap-3">
+                        <button class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+                            ➕ Submit Evidence
+                        </button>
+                        <button class="px-4 py-2 border border-gray-300 rounded-lg hover:border-indigo-600">
+                            💰 Add Bounty: +50C
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderHybridLayout(concern) {
+            const quest = data.quests.find(q => q.concern_id === concern.id);
+            const hypotheses = quest ? data.hypotheses.filter(h => h.quest_id === quest.id) : [];
+
+            return `
+                <div class="space-y-6">
+                    <!-- Story Summary -->
+                    <div class="border border-gray-300 rounded-lg p-4 bg-blue-50">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="text-2xl">${concern.type === 'story' ? '📰' : '📅'}</span>
+                            <h2 class="text-xl font-bold">${concern.title}</h2>
+                        </div>
+                        <p class="text-gray-700 mb-3">${concern.description}</p>
+                        ${concern.metadata?.source ? `
+                            <div class="text-sm text-gray-600 flex gap-3">
+                                <span>Source: ${concern.metadata.source}</span>
+                                <span>•</span>
+                                <span>Published: ${new Date(concern.metadata.published_at).toLocaleDateString()}</span>
+                            </div>
+                        ` : ''}
+                        ${concern.metadata?.url ? `
+                            <a href="${concern.metadata.url}" class="text-indigo-600 text-sm hover:underline block mt-2">
+                                Read Full Article →
+                            </a>
+                        ` : ''}
+                    </div>
+
+                    <!-- Active Quest Preview -->
+                    ${quest ? `
+                        <div class="border border-indigo-300 rounded-lg p-4 bg-indigo-50">
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 class="font-bold flex items-center gap-2">
+                                    <span>🎯</span>
+                                    Active Quest: ${quest.title}
+                                </h3>
+                                <span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">🔄 Active</span>
+                            </div>
+                            <div class="flex gap-4 text-sm mb-3">
+                                <span>💰 ${quest.total_bounty}C</span>
+                                <span>📊 Evidence: ${quest.evidence_count}</span>
+                            </div>
+                            <div class="space-y-2 mb-3">
+                                ${hypotheses.map((h, i) => `
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs font-semibold w-8">H${i+1}:</span>
+                                        <div class="flex-1 h-3 bg-gray-200 rounded-full overflow-hidden">
+                                            <div class="h-full bg-indigo-600" style="width: ${h.current_probability * 100}%"></div>
+                                        </div>
+                                        <span class="text-xs font-bold w-12 text-right">${(h.current_probability * 100).toFixed(0)}%</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick='showQuestFromEntity("${quest.id}")' class="px-3 py-1 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-700">
+                                    View Full Quest →
+                                </button>
+                                <button class="px-3 py-1 border border-indigo-600 text-indigo-600 rounded text-sm hover:bg-indigo-50">
+                                    Submit Evidence
+                                </button>
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    <!-- Key Entities -->
+                    <div class="border border-gray-300 rounded-lg p-4">
+                        <h3 class="font-bold mb-3">Key Entities</h3>
+                        <div class="flex items-center justify-center gap-4 text-sm bg-gray-100 rounded p-4">
+                            <span class="px-3 py-1 bg-blue-200 rounded-full">Donald Trump</span>
+                            <span>←→</span>
+                            <span class="px-3 py-1 bg-blue-200 rounded-full">Jeffrey Epstein</span>
+                            <span>←→</span>
+                            <span class="px-3 py-1 bg-blue-200 rounded-full">Ghislaine Maxwell</span>
+                        </div>
+                        <button class="text-indigo-600 text-sm hover:underline mt-2">Explore Graph →</button>
+                    </div>
+
+                    <!-- Discussion Preview -->
+                    <div class="border border-gray-300 rounded-lg p-4">
+                        <h3 class="font-bold mb-3">Community Discussion (89 comments)</h3>
+                        <div class="space-y-2">
+                            <div class="p-2 bg-gray-50 rounded">
+                                <p class="text-sm mb-1">"This confirms the flight logs from 1997..."</p>
+                                <span class="text-xs text-gray-600">↑ 67 • @expert_user</span>
+                            </div>
+                            <button class="text-indigo-600 text-sm hover:underline">View All Comments →</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderPollLayout(concern) {
+            const options = concern.metadata.options;
+            const totalVotes = concern.metadata.total_votes;
+
+            return `
+                <div class="space-y-6">
+                    <div>
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="text-3xl">📊</span>
+                            <h2 class="text-2xl font-bold">${concern.title}</h2>
+                        </div>
+                        <p class="text-gray-700">${concern.description}</p>
+                    </div>
+
+                    <!-- Poll Results -->
+                    <div class="border border-gray-300 rounded-lg p-6">
+                        <div class="space-y-4">
+                            ${options.map((opt, i) => {
+                                const percentage = (opt.votes / totalVotes * 100).toFixed(1);
+                                return `
+                                    <div>
+                                        <div class="flex justify-between mb-2">
+                                            <span class="font-semibold">${opt.text}</span>
+                                            <span class="font-bold text-indigo-600">${percentage}%</span>
+                                        </div>
+                                        <div class="h-6 bg-gray-200 rounded-full overflow-hidden">
+                                            <div class="h-full bg-indigo-600 flex items-center px-2" style="width: ${percentage}%">
+                                                <span class="text-xs text-white font-semibold">${opt.votes.toLocaleString()} votes</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                        <div class="mt-4 text-sm text-gray-600">
+                            Total votes: ${totalVotes.toLocaleString()}
+                        </div>
+                    </div>
+
+                    <!-- Escalate to Quest -->
+                    <div class="border border-amber-300 rounded-lg p-4 bg-amber-50">
+                        <p class="text-sm mb-3">
+                            📈 This poll has reached <strong>${totalVotes.toLocaleString()} votes</strong> with divided results (${options[0].votes/(totalVotes)*100}% vs ${options[1].votes/(totalVotes)*100}%).
+                            <br>
+                            Consider escalating to a Quest for evidence-based resolution?
+                        </p>
+                        <button class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">
+                            🎯 Escalate to Quest
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function showQuestFromEntity(questId) {
+            const quest = data.quests.find(q => q.id === questId);
+            if (quest) {
+                document.getElementById('detail-view').innerHTML = renderQuestLayout(quest);
+            }
+        }
+
+        // Share Box Functions
+        function expandShareBox() {
+            document.getElementById('share-collapsed').classList.add('hidden');
+            document.getElementById('share-expanded').classList.remove('hidden');
+            document.getElementById('share-text').focus();
+        }
+
+        function collapseShareBox() {
+            document.getElementById('share-expanded').classList.add('hidden');
+            document.getElementById('share-collapsed').classList.remove('hidden');
+            document.getElementById('share-text').value = '';
+            // Reset type selector to default
+            selectShareType('evidence');
+        }
+
+        function selectShareType(type) {
+            // Update button styles
+            const types = ['evidence', 'question', 'opinion'];
+            types.forEach(t => {
+                const btn = document.querySelector(`[data-share-type="${t}"]`);
+                if (btn) {
+                    if (t === type) {
+                        btn.classList.remove('bg-gray-100', 'text-gray-700', 'hover:bg-gray-200');
+                        btn.classList.add('bg-indigo-600', 'text-white');
+                    } else {
+                        btn.classList.remove('bg-indigo-600', 'text-white');
+                        btn.classList.add('bg-gray-100', 'text-gray-700', 'hover:bg-gray-200');
+                    }
+                }
+            });
+        }
+
+        function handleShare() {
+            const text = document.getElementById('share-text').value.trim();
+            if (!text) {
+                alert('Please enter some text to share');
+                return;
+            }
+
+            // Simulate successful share
+            alert('Share posted successfully! 🎉\n\n(This is a mockup - no actual data was saved)');
+            collapseShareBox();
+        }
+    </script>
+</body>
+</html>

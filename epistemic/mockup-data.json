@@ -1,0 +1,340 @@
+{
+  "concerns": [
+    {
+      "id": "concern-story-1",
+      "type": "story",
+      "title": "Newly Released Emails Raise Questions About Trump's Ties to Epstein and Maxwell",
+      "description": "Recently released emails from 1997-2001 reveal frequent communication between Donald Trump and Jeffrey Epstein, including plans for social gatherings and business discussions.",
+      "heat_score": 95.3,
+      "created_at": "2025-11-12T08:00:00Z",
+      "metadata": {
+        "url": "https://example.com/trump-epstein-emails",
+        "source": "New York Times",
+        "published_at": "2025-11-12T06:00:00Z"
+      },
+      "activeQuest": "quest-1"
+    },
+    {
+      "id": "concern-person-1",
+      "type": "person",
+      "title": "Who is Jimmy Lai?",
+      "description": "Hong Kong media tycoon and pro-democracy activist, founder of Apple Daily newspaper.",
+      "heat_score": 87.2,
+      "created_at": "2025-11-10T12:00:00Z",
+      "neo4j_node_id": "person:jimmy-lai",
+      "metadata": {
+        "fullName": "Jimmy Lai Chee-ying (黎智英)",
+        "born": "1948",
+        "nationality": "Hong Kong",
+        "occupation": "Media entrepreneur, activist",
+        "status": "Imprisoned since December 2020"
+      }
+    },
+    {
+      "id": "concern-quest-1",
+      "type": "quest",
+      "title": "Did Trump mention Jimmy Lai during meeting with Xi?",
+      "description": "Investigation into whether Donald Trump raised the case of imprisoned Hong Kong activist Jimmy Lai during his meeting with Chinese President Xi Jinping.",
+      "heat_score": 92.1,
+      "created_at": "2025-11-11T09:00:00Z"
+    },
+    {
+      "id": "concern-event-1",
+      "type": "event",
+      "title": "US Mint Stops Penny Production",
+      "description": "The United States Mint announced it will cease production of the one-cent penny coin due to production costs exceeding face value.",
+      "heat_score": 82.5,
+      "created_at": "2025-11-13T10:00:00Z",
+      "metadata": {
+        "event_date": "2025-11-15",
+        "location": "Washington, D.C."
+      }
+    },
+    {
+      "id": "concern-poll-1",
+      "type": "poll",
+      "title": "Do you think Trump engaged in illegal activities with Epstein?",
+      "description": "Community poll on allegations regarding Trump's relationship with Jeffrey Epstein.",
+      "heat_score": 88.9,
+      "created_at": "2025-11-12T14:00:00Z",
+      "metadata": {
+        "options": [
+          {"text": "Yes, strong evidence suggests illegal activities", "votes": 1203},
+          {"text": "No, only social/business relationship", "votes": 1087}
+        ],
+        "total_votes": 2290
+      }
+    },
+    {
+      "id": "concern-org-1",
+      "type": "org",
+      "title": "What happened to OpenAI?",
+      "description": "Leadership changes and strategic shifts at OpenAI in 2025",
+      "heat_score": 79.3,
+      "created_at": "2025-11-09T16:00:00Z",
+      "neo4j_node_id": "org:openai",
+      "metadata": {
+        "founded": "2015",
+        "headquarters": "San Francisco, CA",
+        "ceo": "Sam Altman"
+      }
+    }
+  ],
+
+  "quests": [
+    {
+      "id": "quest-1",
+      "concern_id": "concern-story-1",
+      "title": "Trump-Epstein Connection: Business or Personal?",
+      "description": "What was the true nature of Donald Trump's relationship with Jeffrey Epstein? Were they close personal friends with frequent social interaction, or merely business acquaintances with occasional social contact?",
+      "total_bounty": 450,
+      "status": "active",
+      "created_by": "user-investigator",
+      "created_at": "2025-11-12T09:30:00Z",
+      "evidence_count": 18,
+      "participant_count": 12,
+      "entropy": 0.48,
+      "convergence_threshold": 0.75
+    },
+    {
+      "id": "quest-2",
+      "concern_id": "concern-quest-1",
+      "title": "Did Trump mention Jimmy Lai during meeting with Xi?",
+      "description": "Investigation into whether Trump raised the case of imprisoned activist Jimmy Lai in his October 2024 meeting with Xi Jinping.",
+      "total_bounty": 320,
+      "status": "active",
+      "created_by": "user-alice",
+      "created_at": "2025-11-11T09:00:00Z",
+      "evidence_count": 7,
+      "participant_count": 5,
+      "entropy": 0.62,
+      "convergence_threshold": 0.75
+    }
+  ],
+
+  "hypotheses": [
+    {
+      "id": "hyp-1-1",
+      "quest_id": "quest-1",
+      "statement": "Trump and Epstein were close personal friends with frequent social interaction",
+      "current_probability": 0.583,
+      "is_winner": false
+    },
+    {
+      "id": "hyp-1-2",
+      "quest_id": "quest-1",
+      "statement": "Trump and Epstein were business acquaintances with occasional social contact",
+      "current_probability": 0.417,
+      "is_winner": false
+    },
+    {
+      "id": "hyp-2-1",
+      "quest_id": "quest-2",
+      "statement": "Yes, Trump explicitly mentioned Jimmy Lai's case",
+      "current_probability": 0.34,
+      "is_winner": false
+    },
+    {
+      "id": "hyp-2-2",
+      "quest_id": "quest-2",
+      "statement": "No direct mention, but may have discussed Hong Kong broadly",
+      "current_probability": 0.48,
+      "is_winner": false
+    },
+    {
+      "id": "hyp-2-3",
+      "quest_id": "quest-2",
+      "statement": "No mention at all, focus was on trade and Taiwan",
+      "current_probability": 0.18,
+      "is_winner": false
+    }
+  ],
+
+  "evidence": [
+    {
+      "id": "ev-1",
+      "quest_id": "quest-1",
+      "submitted_by": "user-bob",
+      "source_url": "https://example.com/flight-logs-1997",
+      "synopsis": "Flight logs from 1997 show Trump flew on Epstein's private plane at least 7 times",
+      "source_type": "court_document",
+      "epistemic_value": 0.85,
+      "novelty_score": 0.92,
+      "clarity_contribution": 0.12,
+      "submitted_at": "2025-11-13T13:00:00Z",
+      "upvotes": 45,
+      "downvotes": 3
+    },
+    {
+      "id": "ev-2",
+      "quest_id": "quest-1",
+      "submitted_by": "user-alice",
+      "source_url": "https://youtube.com/watch?v=example",
+      "synopsis": "2015 Interview where Trump calls Epstein 'an acquaintance' and distances himself",
+      "source_type": "video",
+      "epistemic_value": 0.62,
+      "novelty_score": 0.45,
+      "clarity_contribution": 0.03,
+      "submitted_at": "2025-11-13T08:00:00Z",
+      "upvotes": 23,
+      "downvotes": 8
+    },
+    {
+      "id": "ev-3",
+      "quest_id": "quest-1",
+      "submitted_by": "user-carol",
+      "source_url": "https://courtlistener.com/example",
+      "synopsis": "Court documents reveal business partnerships between Trump and Epstein in 1980s-90s real estate",
+      "source_type": "court_document",
+      "epistemic_value": 0.71,
+      "novelty_score": 0.68,
+      "clarity_contribution": 0.09,
+      "submitted_at": "2025-11-12T16:00:00Z",
+      "upvotes": 67,
+      "downvotes": 5
+    },
+    {
+      "id": "ev-4",
+      "quest_id": "quest-2",
+      "submitted_by": "user-david",
+      "source_url": "https://whitehouse.gov/readout",
+      "synopsis": "Official White House readout makes no mention of Jimmy Lai, Hong Kong, or human rights",
+      "source_type": "government_doc",
+      "epistemic_value": 0.78,
+      "novelty_score": 0.61,
+      "clarity_contribution": 0.14,
+      "submitted_at": "2025-11-12T11:00:00Z",
+      "upvotes": 32,
+      "downvotes": 2
+    },
+    {
+      "id": "ev-5",
+      "quest_id": "quest-2",
+      "submitted_by": "user-emily",
+      "source_url": "https://scmp.com/example",
+      "synopsis": "Hong Kong activists report that Trump's team reached out before the meeting to discuss Lai's case",
+      "source_type": "news_article",
+      "epistemic_value": 0.54,
+      "novelty_score": 0.73,
+      "clarity_contribution": -0.02,
+      "submitted_at": "2025-11-13T09:30:00Z",
+      "upvotes": 18,
+      "downvotes": 12
+    }
+  ],
+
+  "comments": [
+    {
+      "id": "com-1",
+      "evidence_id": "ev-1",
+      "user_id": "user-expert",
+      "text": "This is significant. The frequency of flights suggests more than casual business contact. We should cross-reference with Epstein's calendar entries from the same period.",
+      "reaction_type": "support",
+      "upvotes": 23,
+      "downvotes": 1,
+      "created_at": "2025-11-13T13:15:00Z"
+    },
+    {
+      "id": "com-2",
+      "evidence_id": "ev-2",
+      "user_id": "user-media-critic",
+      "text": "Public statements versus private actions need to be considered separately. This interview was years after their association, during Trump's political campaign. Need more corroborating evidence.",
+      "reaction_type": "question",
+      "upvotes": 18,
+      "downvotes": 2,
+      "created_at": "2025-11-13T08:20:00Z"
+    },
+    {
+      "id": "com-3",
+      "evidence_id": "ev-1",
+      "user_id": "user-frank",
+      "parent_comment_id": "com-1",
+      "text": "Good point. I found Epstein's calendar from that period - will submit as new evidence.",
+      "reaction_type": "support",
+      "upvotes": 12,
+      "downvotes": 0,
+      "created_at": "2025-11-13T13:45:00Z"
+    }
+  ],
+
+  "users": [
+    {
+      "id": "user-alice",
+      "username": "alice_chen",
+      "epistemic_reputation": 8.5,
+      "total_credits": 1240,
+      "rank": "Expert",
+      "evidence_submitted": 23,
+      "accuracy_rate": 0.78
+    },
+    {
+      "id": "user-bob",
+      "username": "bob_investigator",
+      "epistemic_reputation": 9.2,
+      "total_credits": 2180,
+      "rank": "Master",
+      "evidence_submitted": 45,
+      "accuracy_rate": 0.82
+    },
+    {
+      "id": "user-carol",
+      "username": "carol_reporter",
+      "epistemic_reputation": 7.9,
+      "total_credits": 980,
+      "rank": "Contributor",
+      "evidence_submitted": 18,
+      "accuracy_rate": 0.75
+    },
+    {
+      "id": "user-expert",
+      "username": "expert_analyst",
+      "epistemic_reputation": 8.8,
+      "total_credits": 1650,
+      "rank": "Expert",
+      "evidence_submitted": 31,
+      "accuracy_rate": 0.81
+    }
+  ],
+
+  "entities": {
+    "person:jimmy-lai": {
+      "name": "Jimmy Lai Chee-ying",
+      "name_chinese": "黎智英",
+      "type": "Person",
+      "bio": "Hong Kong media tycoon and pro-democracy activist. Founder of Apple Daily (蘋果日報) newspaper. Arrested in 2020 under National Security Law and has been imprisoned since December 2020.",
+      "born": "1948",
+      "nationality": "Hong Kong",
+      "connections": [
+        {"rel": "FOUNDED", "to": "org:apple-daily"},
+        {"rel": "SUPPORTS", "to": "movement:hk-democracy"},
+        {"rel": "ARRESTED_UNDER", "to": "law:nsl-2020"}
+      ],
+      "timeline": [
+        {"date": "2024-11-10", "event": "Trial continues on sedition charges"},
+        {"date": "2023-12-28", "event": "Convicted under National Security Law"},
+        {"date": "2020-12-11", "event": "Arrested and denied bail"},
+        {"date": "2020-06-30", "event": "National Security Law enacted"}
+      ]
+    },
+    "person:donald-trump": {
+      "name": "Donald Trump",
+      "type": "Person",
+      "bio": "45th and 47th President of the United States. Business mogul and media personality.",
+      "born": "1946",
+      "connections": [
+        {"rel": "MET_WITH", "to": "person:xi-jinping"},
+        {"rel": "ASSOCIATED_WITH", "to": "person:jeffrey-epstein"}
+      ]
+    },
+    "person:jeffrey-epstein": {
+      "name": "Jeffrey Epstein",
+      "type": "Person",
+      "bio": "American financier and convicted sex offender. Died in custody in 2019.",
+      "died": "2019",
+      "connections": [
+        {"rel": "ASSOCIATED_WITH", "to": "person:donald-trump"},
+        {"rel": "ASSOCIATED_WITH", "to": "person:ghislaine-maxwell"}
+      ]
+    }
+  }
+}
