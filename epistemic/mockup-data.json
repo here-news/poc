@@ -10,7 +10,9 @@
       "metadata": {
         "url": "https://example.com/trump-epstein-emails",
         "source": "New York Times",
-        "published_at": "2025-11-12T06:00:00Z"
+        "published_at": "2025-11-12T06:00:00Z",
+        "topics": ["Trump Presidency", "Sexual Misconduct", "Legal Investigations"],
+        "collection": "Epstein Files"
       },
       "activeQuest": "quest-1"
     },
@@ -27,7 +29,9 @@
         "born": "1948",
         "nationality": "Hong Kong",
         "occupation": "Media entrepreneur, activist",
-        "status": "Imprisoned since December 2020"
+        "status": "Imprisoned since December 2020",
+        "topics": ["Hong Kong Democracy", "Press Freedom", "China Relations"],
+        "collection": "HK Democracy Movement"
       }
     },
     {
@@ -36,7 +40,11 @@
       "title": "Did Trump mention Jimmy Lai during meeting with Xi?",
       "description": "Investigation into whether Donald Trump raised the case of imprisoned Hong Kong activist Jimmy Lai during his meeting with Chinese President Xi Jinping.",
       "heat_score": 92.1,
-      "created_at": "2025-11-11T09:00:00Z"
+      "created_at": "2025-11-11T09:00:00Z",
+      "metadata": {
+        "topics": ["US-China Relations", "Hong Kong Democracy", "Diplomacy"],
+        "collection": "Trump Foreign Policy"
+      }
     },
     {
       "id": "concern-event-1",

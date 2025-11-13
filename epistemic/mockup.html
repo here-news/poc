@@ -165,6 +165,14 @@
                             <span class="font-semibold">Back</span>
                         </button>
                     </div>
+                    <!-- Context metadata (animated) -->
+                    <div id="detail-metadata" class="border-b border-gray-100 px-4 md:px-6 bg-gray-50 text-xs md:text-sm text-gray-600 overflow-hidden transition-all duration-700 ease-out hidden" style="max-height: 0; opacity: 0;">
+                        <div class="py-2">
+                            <span class="font-semibold">About:</span> <span id="metadata-topics"></span>
+                            <span class="mx-2">•</span>
+                            <span class="font-semibold">Via:</span> <span id="metadata-source"></span>
+                        </div>
+                    </div>
                     <!-- Detail content -->
                     <div id="detail-content" class="p-4 md:p-6">
                         <p class="text-gray-500 text-center py-12">Select a concern to view details</p>
@@ -232,6 +240,7 @@
         function showDetail(concern) {
             const detailView = document.getElementById('detail-view');
             const detailContent = document.getElementById('detail-content');
+            const metadata = document.getElementById('detail-metadata');
 
             // On mobile: hide concerns panel and personal space
             // On desktop: just hide personal space (concerns stay visible)
@@ -242,6 +251,11 @@
             // Hide share box and activity feed when viewing concern details
             document.getElementById('share-box').classList.add('hidden');
             document.getElementById('activity-feed').classList.add('hidden');
+
+            // Reset metadata bar
+            metadata.style.maxHeight = '0';
+            metadata.style.opacity = '0';
+            metadata.classList.add('hidden');
 
             // Show detail view
             detailView.classList.remove('hidden');
@@ -260,6 +274,22 @@
             }
 
             detailContent.innerHTML = content;
+
+            // Populate and show metadata after 1 second with slide-down animation
+            if (concern.metadata?.topics && concern.metadata?.collection) {
+                setTimeout(() => {
+                    const topics = concern.metadata.topics.join(', ');
+                    document.getElementById('metadata-topics').textContent = topics;
+                    document.getElementById('metadata-source').textContent = concern.metadata.collection;
+
+                    metadata.classList.remove('hidden');
+                    // Trigger slide-down animation
+                    setTimeout(() => {
+                        metadata.style.maxHeight = '100px'; // Enough for content
+                        metadata.style.opacity = '1';
+                    }, 50);
+                }, 1000); // 1 second delay
+            }
 
             // Scroll to top on mobile
             if (window.innerWidth < 1024) {
