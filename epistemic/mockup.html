@@ -17,31 +17,38 @@
 <body class="bg-gray-50">
     <!-- Header -->
     <header class="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-            <div class="flex items-center gap-4">
-                <h1 class="text-2xl font-bold text-indigo-600">Epistemic</h1>
-                <input type="text" placeholder="Search concerns, quests..."
-                    class="px-4 py-2 border border-gray-300 rounded-lg w-96 focus:outline-none focus:border-indigo-500">
-            </div>
-            <div class="flex items-center gap-4">
-                <button class="relative">
-                    <span class="text-2xl">🔔</span>
-                    <span class="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">3</span>
-                </button>
-                <div class="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg">
-                    <span class="text-sm font-medium">alice_chen</span>
-                    <span class="text-xs text-gray-600">(85R)</span>
+        <div class="max-w-7xl mx-auto px-4 py-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2 md:gap-4">
+                    <h1 class="text-xl md:text-2xl font-bold text-indigo-600">Epistemic</h1>
+                    <input type="text" placeholder="Search..."
+                        class="hidden md:block px-4 py-2 border border-gray-300 rounded-lg w-64 lg:w-96 focus:outline-none focus:border-indigo-500">
                 </div>
+                <div class="flex items-center gap-2 md:gap-4">
+                    <button class="relative">
+                        <span class="text-xl md:text-2xl">🔔</span>
+                        <span class="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-4 h-4 md:w-5 md:h-5 flex items-center justify-center">3</span>
+                    </button>
+                    <div class="flex items-center gap-1 md:gap-2 px-2 md:px-3 py-1 md:py-2 bg-gray-100 rounded-lg">
+                        <span class="text-xs md:text-sm font-medium">alice_chen</span>
+                        <span class="text-xs text-gray-600 hidden sm:inline">(85R)</span>
+                    </div>
+                </div>
+            </div>
+            <!-- Mobile Search -->
+            <div class="md:hidden mt-2">
+                <input type="text" placeholder="Search concerns, quests..."
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-indigo-500">
             </div>
         </div>
     </header>
 
     <!-- Main Layout -->
-    <div class="max-w-7xl mx-auto px-4 py-6">
-        <div class="grid grid-cols-12 gap-6">
+    <div class="max-w-7xl mx-auto px-2 md:px-4 py-3 md:py-6">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 md:gap-6">
             <!-- Left Panel: Concerns Feed -->
-            <div class="col-span-4 space-y-4">
-                <div class="bg-white rounded-lg shadow p-4">
+            <div class="lg:col-span-4 space-y-3 md:space-y-4">
+                <div class="bg-white rounded-lg shadow p-3 md:p-4">
                     <div class="flex gap-2 mb-4 overflow-x-auto">
                         <button class="px-3 py-1 bg-indigo-600 text-white rounded-full text-sm whitespace-nowrap">🔥 Hot</button>
                         <button class="px-3 py-1 bg-gray-200 text-gray-700 rounded-full text-sm whitespace-nowrap">📰 Stories</button>
@@ -57,53 +64,53 @@
             </div>
 
             <!-- Right Panel: Personal Space + Detail View -->
-            <div class="col-span-8 space-y-6">
+            <div class="lg:col-span-8 space-y-3 md:space-y-6">
                 <!-- Personal Share Box -->
                 <div id="share-box" class="bg-white rounded-lg shadow">
-                    <div id="share-collapsed" class="p-4 cursor-pointer hover:bg-gray-50" onclick="expandShareBox()">
-                        <p class="text-gray-500">💭 What's on your mind? <span class="text-indigo-600">Click to share...</span></p>
+                    <div id="share-collapsed" class="p-3 md:p-4 cursor-pointer hover:bg-gray-50" onclick="expandShareBox()">
+                        <p class="text-sm md:text-base text-gray-500">💭 What's on your mind? <span class="text-indigo-600">Click to share...</span></p>
                     </div>
                     <div id="share-expanded" class="p-4 hidden">
-                        <p class="font-semibold mb-3">💭 Share an observation, evidence, or question...</p>
+                        <p class="font-semibold mb-3 text-sm md:text-base">💭 Share an observation, evidence, or question...</p>
                         <textarea
                             id="share-text"
-                            class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-indigo-500 resize-none"
+                            class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-indigo-500 resize-none text-sm md:text-base"
                             rows="3"
                             placeholder="What do you want to share?"></textarea>
-                        <div class="flex gap-2 mt-3 mb-3">
-                            <button class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50">🔗 Add URL</button>
-                            <button class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50">📎 Attach file</button>
-                            <button class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50">🎯 Link to quest</button>
+                        <div class="flex flex-wrap gap-2 mt-3 mb-3">
+                            <button class="px-2 md:px-3 py-1 text-xs md:text-sm border border-gray-300 rounded hover:bg-gray-50">🔗 URL</button>
+                            <button class="px-2 md:px-3 py-1 text-xs md:text-sm border border-gray-300 rounded hover:bg-gray-50">📎 File</button>
+                            <button class="px-2 md:px-3 py-1 text-xs md:text-sm border border-gray-300 rounded hover:bg-gray-50">🎯 Quest</button>
                         </div>
-                        <div class="flex items-center justify-between">
-                            <div class="flex gap-2">
-                                <button data-share-type="evidence" onclick="selectShareType('evidence')" class="px-3 py-1 text-sm bg-indigo-600 text-white rounded">Evidence</button>
-                                <button data-share-type="question" onclick="selectShareType('question')" class="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200">Question</button>
-                                <button data-share-type="opinion" onclick="selectShareType('opinion')" class="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200">Opinion</button>
+                        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                            <div class="flex gap-2 flex-wrap">
+                                <button data-share-type="evidence" onclick="selectShareType('evidence')" class="px-3 py-1 text-xs md:text-sm bg-indigo-600 text-white rounded">Evidence</button>
+                                <button data-share-type="question" onclick="selectShareType('question')" class="px-3 py-1 text-xs md:text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200">Question</button>
+                                <button data-share-type="opinion" onclick="selectShareType('opinion')" class="px-3 py-1 text-xs md:text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200">Opinion</button>
                             </div>
                             <div class="flex gap-2">
-                                <button onclick="collapseShareBox()" class="px-4 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50">Cancel</button>
-                                <button onclick="handleShare()" class="px-4 py-2 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700">Share →</button>
+                                <button onclick="collapseShareBox()" class="flex-1 sm:flex-none px-3 md:px-4 py-2 text-xs md:text-sm border border-gray-300 rounded hover:bg-gray-50">Cancel</button>
+                                <button onclick="handleShare()" class="flex-1 sm:flex-none px-3 md:px-4 py-2 text-xs md:text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700">Share →</button>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Your Activity Feed -->
-                <div id="activity-feed" class="bg-white rounded-lg shadow p-4">
+                <div id="activity-feed" class="bg-white rounded-lg shadow p-3 md:p-4">
                     <div class="flex items-center justify-between mb-4">
-                        <h3 class="font-bold">Your Activity (12)</h3>
-                        <button class="text-sm text-indigo-600 hover:underline">See All →</button>
+                        <h3 class="font-bold text-sm md:text-base">Your Activity (12)</h3>
+                        <button class="text-xs md:text-sm text-indigo-600 hover:underline">See All →</button>
                     </div>
                     <div class="space-y-3">
                         <!-- Activity 1: Evidence Used -->
-                        <div class="p-3 border border-green-200 bg-green-50 rounded-lg">
+                        <div class="p-2 md:p-3 border border-green-200 bg-green-50 rounded-lg">
                             <div class="flex items-center gap-2 mb-1">
-                                <span>✅</span>
-                                <span class="font-semibold text-sm">Your evidence was used in a quest!</span>
+                                <span class="text-sm md:text-base">✅</span>
+                                <span class="font-semibold text-xs md:text-sm">Your evidence was used in a quest!</span>
                             </div>
-                            <p class="text-sm text-gray-700 mb-1">"Flight logs from 1997..." → Quest: Trump-Epstein</p>
-                            <div class="flex gap-3 text-xs text-gray-600">
+                            <p class="text-xs md:text-sm text-gray-700 mb-1">"Flight logs from 1997..." → Quest: Trump-Epstein</p>
+                            <div class="flex flex-wrap gap-2 md:gap-3 text-xs text-gray-600">
                                 <span>💎 EV: 0.85</span>
                                 <span>↑ 45</span>
                                 <span>💬 12</span>
@@ -113,35 +120,35 @@
                         </div>
 
                         <!-- Activity 2: Upvotes -->
-                        <div class="p-3 border border-orange-200 bg-orange-50 rounded-lg">
+                        <div class="p-2 md:p-3 border border-orange-200 bg-orange-50 rounded-lg">
                             <div class="flex items-center gap-2 mb-1">
-                                <span>🔥</span>
-                                <span class="font-semibold text-sm">Your comment is trending!</span>
+                                <span class="text-sm md:text-base">🔥</span>
+                                <span class="font-semibold text-xs md:text-sm">Your comment is trending!</span>
                             </div>
-                            <p class="text-sm text-gray-700 mb-1">"This is significant. The frequency..." got 23 upvotes</p>
+                            <p class="text-xs md:text-sm text-gray-700 mb-1">"This is significant. The frequency..." got 23 upvotes</p>
                             <div class="text-xs text-gray-600">On evidence by @bob_investigator • 5h ago</div>
                             <button class="text-xs text-indigo-600 hover:underline mt-1">View →</button>
                         </div>
 
                         <!-- Activity 3: Reply -->
-                        <div class="p-3 border border-indigo-200 bg-indigo-50 rounded-lg">
+                        <div class="p-2 md:p-3 border border-indigo-200 bg-indigo-50 rounded-lg">
                             <div class="flex items-center gap-2 mb-1">
-                                <span>💬</span>
-                                <span class="font-semibold text-sm">New reply to your comment</span>
+                                <span class="text-sm md:text-base">💬</span>
+                                <span class="font-semibold text-xs md:text-sm">New reply to your comment</span>
                             </div>
-                            <p class="text-sm text-gray-700 mb-1">@frank replied: "Good point. I found Epstein's calendar..."</p>
+                            <p class="text-xs md:text-sm text-gray-700 mb-1 break-words">@frank replied: "Good point. I found Epstein's calendar..."</p>
                             <div class="text-xs text-gray-600">On Quest: Trump-Epstein Connection • 1d ago</div>
                             <button class="text-xs text-indigo-600 hover:underline mt-1">View →</button>
                         </div>
 
                         <!-- Activity 4: Payout -->
-                        <div class="p-3 border border-yellow-200 bg-yellow-50 rounded-lg">
+                        <div class="p-2 md:p-3 border border-yellow-200 bg-yellow-50 rounded-lg">
                             <div class="flex items-center gap-2 mb-1">
-                                <span>💰</span>
-                                <span class="font-semibold text-sm">Quest payout received: +50 credits</span>
+                                <span class="text-sm md:text-base">💰</span>
+                                <span class="font-semibold text-xs md:text-sm">Quest payout received: +50 credits</span>
                             </div>
-                            <p class="text-sm text-gray-700 mb-1">Quest "Trump-Epstein Connection" converged</p>
-                            <div class="text-xs text-gray-600">Your evidence contributed to winning hypothesis • New balance: 1,290C • 2d ago</div>
+                            <p class="text-xs md:text-sm text-gray-700 mb-1">Quest "Trump-Epstein Connection" converged</p>
+                            <div class="text-xs text-gray-600 break-words">Your evidence contributed to winning hypothesis • New balance: 1,290C • 2d ago</div>
                         </div>
                     </div>
                 </div>
