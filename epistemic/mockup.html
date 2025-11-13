@@ -20,7 +20,7 @@
         <div class="max-w-7xl mx-auto px-4 py-3">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2 md:gap-4">
-                    <h1 class="text-xl md:text-2xl font-bold text-indigo-600">Epistemic</h1>
+                    <h1 class="text-xl md:text-2xl font-bold text-indigo-600 cursor-pointer hover:text-indigo-700" onclick="showHome()">Epistemic</h1>
                     <input type="text" placeholder="Search..."
                         class="hidden md:block px-4 py-2 border border-gray-300 rounded-lg w-64 lg:w-96 focus:outline-none focus:border-indigo-500">
                 </div>
@@ -154,7 +154,7 @@
                 </div>
 
                 <!-- Detail View -->
-                <div id="detail-view" class="bg-white rounded-lg shadow p-6">
+                <div id="detail-view" class="bg-white rounded-lg shadow p-6 hidden">
                     <p class="text-gray-500 text-center py-12">Select a concern to view details</p>
                 </div>
             </div>
@@ -219,6 +219,13 @@
         function showDetail(concern) {
             const container = document.getElementById('detail-view');
 
+            // Hide share box and activity feed when viewing concern details
+            document.getElementById('share-box').classList.add('hidden');
+            document.getElementById('activity-feed').classList.add('hidden');
+
+            // Show detail view
+            container.classList.remove('hidden');
+
             // Route to appropriate layout
             if (concern.type === 'person' || concern.type === 'org') {
                 container.innerHTML = renderEntityLayout(concern);
@@ -230,6 +237,11 @@
             } else if (concern.type === 'poll') {
                 container.innerHTML = renderPollLayout(concern);
             }
+
+            // Scroll to detail view on mobile (after a brief delay for rendering)
+            setTimeout(() => {
+                container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
         }
 
         function renderEntityLayout(concern) {
@@ -621,6 +633,23 @@
             // Simulate successful share
             alert('Share posted successfully! 🎉\n\n(This is a mockup - no actual data was saved)');
             collapseShareBox();
+        }
+
+        function showHome() {
+            // Hide detail view
+            document.getElementById('detail-view').classList.add('hidden');
+
+            // Show share box and activity feed
+            document.getElementById('share-box').classList.remove('hidden');
+            document.getElementById('activity-feed').classList.remove('hidden');
+
+            // Collapse share box if it's expanded
+            if (!document.getElementById('share-expanded').classList.contains('hidden')) {
+                collapseShareBox();
+            }
+
+            // Scroll to top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
     </script>
 </body>
