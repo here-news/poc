@@ -79,7 +79,7 @@ echo -e "${YELLOW}📝 Config updated: nginx.conf -> nginx.conf.$APP${NC}"
 # Restart nginx container
 echo -e "${YELLOW}🔄 Restarting nginx...${NC}"
 cd "$SCRIPT_DIR"
-docker-compose restart nginx
+docker compose restart nginx 2>/dev/null || docker-compose restart nginx
 
 echo ""
 echo -e "${GREEN}✅ Success! $APP is now active at:${NC}"
