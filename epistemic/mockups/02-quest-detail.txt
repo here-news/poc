@@ -1,0 +1,97 @@
+================================================================================
+                    EPISTEMIC - Quest Detail (v0.1)
+================================================================================
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ [≡] EPISTEMIC    [🔍 Search...]                  [🔔 3] [👤 alice_chen (85R)]│
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ ← Back to Concerns                                                           │
+│                                                                              │
+│ 🎯 QUEST: Trump-Epstein Connection?                                         │
+│ ─────────────────────────────────────────────────────────────────────────  │
+│ Created by @investigative_journalist │ 💰 450 credits │ 🔄 Active (3d 4h)  │
+│                                                                              │
+│ Question: What was the nature of Donald Trump's relationship with Jeffrey   │
+│ Epstein? Were they close personal friends or merely business acquaintances? │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ HYPOTHESES                                                                   │
+│ ──────────────────────────────────────────────────────────────────────────  │
+│                                                                              │
+│ H1: Close personal friends with frequent social interaction                 │
+│ ████████████████████████████████████░░░░░░░░░░░░░░░░░░░░ 58.3%             │
+│ Supporting evidence: 12 │ Refuting: 3                                       │
+│                                                                              │
+│ H2: Business acquaintances with occasional social contact                   │
+│ █████████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ 41.7%             │
+│ Supporting evidence: 8 │ Refuting: 7                                        │
+│                                                                              │
+│ Entropy (uncertainty): ▓▓▓▓▓▓░░░░ 0.48 (moderate)                          │
+│ ΔClarity (total): +0.24 (18 evidence pieces)                                │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ EVIDENCE TIMELINE                                    [⚙ Filter] [📊 Sort by:│
+│                                                       Newest | Value | Votes]│
+│ ──────────────────────────────────────────────────────────────────────────  │
+│                                                                              │
+│ ┌──────────────────────────────────────────────────────────────────────────┐│
+│ │ 📄 Flight logs from 1997 show Trump flew on Epstein's plane 7 times    ││
+│ │ https://example.com/flight-logs-1997                                    ││
+│ │ ──────────────────────────────────────────────────────────────────────  ││
+│ │ 💎 EV: 0.85 │ Novelty: 0.92 │ ΔClarity: +0.12                         ││
+│ │ 👤 @bob_investigator (Rep: 92) │ 🕐 2 hours ago                         ││
+│ │ ↑ 45  ↓ 3  💬 12 comments                                               ││
+│ │                                                                          ││
+│ │ [💬 Top comment by @expert_analyst (Rep: 88):                           ││
+│ │  "This is significant. The frequency suggests more than business.       ││
+│ │   Cross-reference with Epstein's calendar?" ↑ 23 ↓ 1]                  ││
+│ │                                                                          ││
+│ │ [💬 Show 11 more comments...] [➕ Add comment] [🚩 Flag]                ││
+│ └──────────────────────────────────────────────────────────────────────────┘│
+│                                                                              │
+│ ┌──────────────────────────────────────────────────────────────────────────┐│
+│ │ 🎥 2015 Interview: Trump calls Epstein "an acquaintance"                ││
+│ │ https://youtube.com/watch?v=example                                     ││
+│ │ ──────────────────────────────────────────────────────────────────────  ││
+│ │ 💎 EV: 0.62 │ Novelty: 0.45 │ ΔClarity: +0.03                         ││
+│ │ 👤 @alice_chen (Rep: 85) │ 🕐 5 hours ago                              ││
+│ │ ↑ 23  ↓ 8  💬 34 comments                                               ││
+│ │                                                                          ││
+│ │ [💬 Top comment by @media_critic (Rep: 76):                             ││
+│ │  "Public statements vs private actions. Need corroborating evidence."   ││
+│ │  ↑ 18 ↓ 2]                                                              ││
+│ │                                                                          ││
+│ │ [💬 Show 33 more comments...] [➕ Add comment] [🚩 Flag]                ││
+│ └──────────────────────────────────────────────────────────────────────────┘│
+│                                                                              │
+│ ┌──────────────────────────────────────────────────────────────────────────┐│
+│ │ 📰 Court documents reveal business partnerships in 1980s-90s            ││
+│ │ https://courtlistener.com/example                                       ││
+│ │ ──────────────────────────────────────────────────────────────────────  ││
+│ │ 💎 EV: 0.71 │ Novelty: 0.68 │ ΔClarity: +0.09                         ││
+│ │ 👤 @carol_reporter (Rep: 79) │ 🕐 1 day ago                            ││
+│ │ ↑ 67  ↓ 5  💬 8 comments                                                ││
+│ │ [💬 Show comments...] [➕ Add comment] [🚩 Flag]                        ││
+│ └──────────────────────────────────────────────────────────────────────────┘│
+│                                                                              │
+│ [▼ Load 15 more evidence pieces...]                                         │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ [➕ SUBMIT EVIDENCE]                                                         │
+│                                                                              │
+│ Have relevant information? Contribute to this investigation:                │
+│ • Court documents, news articles, interviews, academic papers               │
+│ • Primary sources preferred (original documents, direct quotes)             │
+│ • Be objective - let the evidence speak                                     │
+│                                                                              │
+│ [Submit Evidence]  [Add Bounty: +50C]                                       │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+LEGEND:
+💎 EV = Epistemic Value  ΔClarity = Uncertainty reduction  Rep = Reputation
+↑↓ Votes  💬 Comments  🚩 Flag as problematic  🕐 Time posted
