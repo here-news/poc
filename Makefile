@@ -1,4 +1,4 @@
-.PHONY: help use-storychat use-jimmylai status restart-nginx
+.PHONY: help use-storychat use-jimmylai use-epistemic status restart-nginx
 
 help: ## Show this help message
 	@echo ""
@@ -13,6 +13,9 @@ use-storychat: ## Switch to storychat at /app
 
 use-jimmylai: ## Switch to jimmylai at /app
 	@bash switch-app.sh jimmylai
+
+use-epistemic: ## Switch to epistemic at /app
+	@bash switch-app.sh epistemic
 
 status: ## Show currently active app
 	@echo ""
@@ -33,3 +36,4 @@ restart-nginx: ## Restart nginx container
 # Aliases for convenience
 storychat: use-storychat ## Alias for use-storychat
 jimmylai: use-jimmylai ## Alias for use-jimmylai
+epistemic: use-epistemic ## Alias for use-epistemic

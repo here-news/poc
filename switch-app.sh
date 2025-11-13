@@ -20,11 +20,12 @@ NC='\033[0m' # No Color
 
 show_usage() {
     echo ""
-    echo "Usage: $0 [storychat|jimmylai]"
+    echo "Usage: $0 [storychat|jimmylai|epistemic]"
     echo ""
     echo "Examples:"
     echo "  $0 storychat    # Make storychat active at /app"
     echo "  $0 jimmylai     # Make jimmylai active at /app"
+    echo "  $0 epistemic    # Make epistemic active at /app"
     echo ""
     exit 1
 }
@@ -35,9 +36,9 @@ if [ -z "$APP" ]; then
     show_usage
 fi
 
-if [[ "$APP" != "storychat" && "$APP" != "jimmylai" ]]; then
+if [[ "$APP" != "storychat" && "$APP" != "jimmylai" && "$APP" != "epistemic" ]]; then
     echo -e "${RED}Error: Unknown app '$APP'${NC}"
-    echo -e "${YELLOW}Available apps: storychat, jimmylai${NC}"
+    echo -e "${YELLOW}Available apps: storychat, jimmylai, epistemic${NC}"
     show_usage
 fi
 
@@ -88,4 +89,5 @@ echo ""
 echo -e "${YELLOW}📌 Namespaced routes still work:${NC}"
 echo -e "   http://localhost:7272/storychat/"
 echo -e "   http://localhost:7272/jimmylai/"
+echo -e "   http://localhost:7272/epistemic/"
 echo ""

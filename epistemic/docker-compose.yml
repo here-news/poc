@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  epistemic:
+    build: .
+    container_name: epistemic
+    ports:
+      - "8002:8000"  # Expose on port 8002 for nginx routing
+    environment:
+      - GATEWAY_URL=http://gateway:3000
+    networks:
+      - apps_default
+    restart: unless-stopped
+
+networks:
+  apps_default:
+    external: true

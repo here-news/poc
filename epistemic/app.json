@@ -1,0 +1,13 @@
+{
+  "id": "epistemic",
+  "name": "Epistemic",
+  "version": "0.1.0",
+  "description": "Epistemological truth-seeking platform with concerns, quests, and evidence-based resolution",
+  "status": "development",
+  "icon": "🔍",
+  "routes": {
+    "base": "/epistemic",
+    "app": "/epistemic/app",
+    "api": "/epistemic/api"
+  }
+}

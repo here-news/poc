@@ -13,6 +13,7 @@ services:
       - gateway
       - storychat
       - jimmylai
+      - epistemic
     restart: unless-stopped
     networks:
       - re_news_network
@@ -62,6 +63,19 @@ services:
       - GATEWAY_URL=http://gateway:3000
     volumes:
       - ./jimmylai/data:/app/data  # Persist database
+    restart: unless-stopped
+    networks:
+      - re_news_network
+
+  # Epistemic - Truth-seeking platform with concerns & quests (accessible at /epistemic)
+  epistemic:
+    build: ./epistemic
+    container_name: epistemic
+    expose:
+      - "8000"
+    environment:
+      - BASE_PATH=/epistemic
+      - GATEWAY_URL=http://gateway:3000
     restart: unless-stopped
     networks:
       - re_news_network
