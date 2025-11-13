@@ -6,6 +6,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import Optional, Literal, List, Dict
 from pydantic import BaseModel
+from contextlib import asynccontextmanager
 import os
 from openai import OpenAI
 
@@ -17,6 +18,7 @@ from .dynamics import compute_ask_dynamics
 from .hypotheses import generate_hypotheses_for_ask
 from . import database as sqldb
 from .llm_service import get_llm_service
+from .beacon import BeaconClient
 
 # Load OpenAI API key from environment
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
@@ -25,8 +27,24 @@ openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 # Initialize LLM service
 llm_service = get_llm_service()
 
+# Initialize beacon client
+beacon = BeaconClient(
+    gateway_url=os.getenv("GATEWAY_URL", "http://gateway:3000")
+)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan manager"""
+    # Startup: Register with gateway and start heartbeats
+    await beacon.start()
+    yield
+    # Shutdown: Stop heartbeats
+    beacon.stop()
+
 
 app = FastAPI(
+    lifespan=lifespan,
     title="Truth Market Experiment",
     description="Recursive journalism prototype with ΔClarity tracking",
     version="0.2.0",

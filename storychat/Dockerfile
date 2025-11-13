@@ -43,6 +43,9 @@ COPY server.py ./
 COPY services/ ./services/
 COPY templates/ ./templates/
 
+# Copy app metadata for beacon
+COPY app.json ./
+
 # Copy GCS credentials
 COPY sage-striker-294302-b89a8b7e205b.json ./
 

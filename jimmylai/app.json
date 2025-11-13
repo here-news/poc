@@ -1,0 +1,13 @@
+{
+  "id": "jimmylai",
+  "name": "Truth Market",
+  "version": "1.0.0",
+  "description": "Epistemological truth market experiment with hypothesis tracking",
+  "status": "active",
+  "icon": "⚖️",
+  "routes": {
+    "base": "/jimmylai",
+    "app": "/jimmylai/app",
+    "api": "/jimmylai/api"
+  }
+}

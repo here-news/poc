@@ -21,9 +21,15 @@ from typing import Optional, List, Dict, Any, Set
 from services.task_store import get_task_store, TaskStatus
 from services.pubsub_publisher import pubsub_publisher
 from services.neo4j_client import neo4j_client
+from services.beacon import BeaconClient
 
 # Initialize task store (Firestore by default)
 task_store = get_task_store()
+
+# Initialize beacon client
+beacon = BeaconClient(
+    gateway_url=os.getenv("GATEWAY_URL", "http://gateway:3000")
+)
 
 # Load environment variables
 BACKEND_SERVICE_URL = os.getenv('BACKEND_SERVICE_URL', 'https://story-engine-here-3n5yrhhfpa-uc.a.run.app')
@@ -562,6 +568,8 @@ async def lifespan(app: FastAPI):
 
     # Startup: Start background tasks
     print("🚀 Starting background tasks...")
+    await beacon.start()
+    print("✅ Beacon client started")
     curation_task = asyncio.create_task(generate_top_stories_curation())
     print("✅ Top Stories curation task started")
 
@@ -569,6 +577,8 @@ async def lifespan(app: FastAPI):
 
     # Shutdown: Cancel background tasks
     print("🛑 Stopping background tasks...")
+    beacon.stop()
+    print("✅ Beacon client stopped")
     if curation_task:
         curation_task.cancel()
         try:

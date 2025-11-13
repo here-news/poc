@@ -39,6 +39,7 @@ services:
       - NODE_ENV=production
       - GOOGLE_APPLICATION_CREDENTIALS=/app/hn4-local-dev-key.json
       - BASE_PATH=/storychat
+      - GATEWAY_URL=http://gateway:3000
     volumes:
       - ./storychat/hn4-local-dev-key.json:/app/hn4-local-dev-key.json:ro
       - ./storychat/static:/app/static
@@ -58,6 +59,9 @@ services:
       - ./jimmylai/.env
     environment:
       - BASE_PATH=/jimmylai
+      - GATEWAY_URL=http://gateway:3000
+    volumes:
+      - ./jimmylai/data:/app/data  # Persist database
     restart: unless-stopped
     networks:
       - re_news_network

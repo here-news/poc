@@ -29,6 +29,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # App code
 COPY app/ ./app/
 
+# App metadata for beacon
+COPY app.json ./
+
 # Simulation scripts
 COPY simulate_jimmy_lai_quest_full.py ./
 COPY simulate_jimmy_lai_quest.py ./

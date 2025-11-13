@@ -1,0 +1,13 @@
+{
+  "id": "storychat",
+  "name": "Story Chat",
+  "version": "1.0.0",
+  "description": "Interactive news story exploration and verification",
+  "status": "active",
+  "icon": "💬",
+  "routes": {
+    "base": "/storychat",
+    "app": "/storychat/app",
+    "api": "/storychat/api"
+  }
+}
