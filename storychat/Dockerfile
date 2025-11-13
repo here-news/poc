@@ -47,7 +47,7 @@ COPY templates/ ./templates/
 COPY app.json ./
 
 # Copy GCS credentials
-COPY sage-striker-294302-b89a8b7e205b.json ./
+COPY hn4-local-dev-key.json ./
 
 # Expose port 8001
 EXPOSE 8001
