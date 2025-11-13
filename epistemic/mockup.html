@@ -25,6 +25,9 @@
                         class="hidden md:block px-4 py-2 border border-gray-300 rounded-lg w-64 lg:w-96 focus:outline-none focus:border-indigo-500">
                 </div>
                 <div class="flex items-center gap-2 md:gap-4">
+                    <button onclick="showHomeAndFocusShare()" class="text-xl md:text-2xl hover:opacity-70 transition" title="Create new share">
+                        ➕
+                    </button>
                     <button class="relative">
                         <span class="text-xl md:text-2xl">🔔</span>
                         <span class="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-4 h-4 md:w-5 md:h-5 flex items-center justify-center">3</span>
@@ -47,7 +50,7 @@
     <div class="max-w-7xl mx-auto px-2 md:px-4 py-3 md:py-6">
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 md:gap-6">
             <!-- Left Panel: Concerns Feed -->
-            <div class="lg:col-span-4 space-y-3 md:space-y-4">
+            <div id="concerns-panel" class="lg:col-span-4 space-y-3 md:space-y-4">
                 <div class="bg-white rounded-lg shadow p-3 md:p-4">
                     <div class="flex gap-2 mb-4 overflow-x-auto">
                         <button class="px-3 py-1 bg-indigo-600 text-white rounded-full text-sm whitespace-nowrap">🔥 Hot</button>
@@ -64,7 +67,7 @@
             </div>
 
             <!-- Right Panel: Personal Space + Detail View -->
-            <div class="lg:col-span-8 space-y-3 md:space-y-6">
+            <div id="detail-panel" class="lg:col-span-8 space-y-3 md:space-y-6">
                 <!-- Personal Share Box -->
                 <div id="share-box" class="bg-white rounded-lg shadow">
                     <div id="share-collapsed" class="p-3 md:p-4 cursor-pointer hover:bg-gray-50" onclick="expandShareBox()">
@@ -154,8 +157,18 @@
                 </div>
 
                 <!-- Detail View -->
-                <div id="detail-view" class="bg-white rounded-lg shadow p-6 hidden">
-                    <p class="text-gray-500 text-center py-12">Select a concern to view details</p>
+                <div id="detail-view" class="bg-white rounded-lg shadow hidden">
+                    <!-- Back button (mobile only) -->
+                    <div class="lg:hidden border-b border-gray-200 p-3 flex items-center gap-3">
+                        <button onclick="showHome()" class="flex items-center gap-2 text-indigo-600 hover:text-indigo-700">
+                            <span class="text-xl">←</span>
+                            <span class="font-semibold">Back</span>
+                        </button>
+                    </div>
+                    <!-- Detail content -->
+                    <div id="detail-content" class="p-4 md:p-6">
+                        <p class="text-gray-500 text-center py-12">Select a concern to view details</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -217,31 +230,41 @@
         }
 
         function showDetail(concern) {
-            const container = document.getElementById('detail-view');
+            const detailView = document.getElementById('detail-view');
+            const detailContent = document.getElementById('detail-content');
+
+            // On mobile: hide concerns panel and personal space
+            // On desktop: just hide personal space (concerns stay visible)
+            if (window.innerWidth < 1024) { // lg breakpoint
+                document.getElementById('concerns-panel').classList.add('hidden');
+            }
 
             // Hide share box and activity feed when viewing concern details
             document.getElementById('share-box').classList.add('hidden');
             document.getElementById('activity-feed').classList.add('hidden');
 
             // Show detail view
-            container.classList.remove('hidden');
+            detailView.classList.remove('hidden');
 
-            // Route to appropriate layout
+            // Route to appropriate layout and render into detail-content
+            let content = '';
             if (concern.type === 'person' || concern.type === 'org') {
-                container.innerHTML = renderEntityLayout(concern);
+                content = renderEntityLayout(concern);
             } else if (concern.type === 'quest') {
                 const quest = data.quests.find(q => q.concern_id === concern.id || q.id === concern.id);
-                container.innerHTML = renderQuestLayout(quest || {title: concern.title, id: 'quest-2'});
+                content = renderQuestLayout(quest || {title: concern.title, id: 'quest-2'});
             } else if (concern.type === 'story' || concern.type === 'event') {
-                container.innerHTML = renderHybridLayout(concern);
+                content = renderHybridLayout(concern);
             } else if (concern.type === 'poll') {
-                container.innerHTML = renderPollLayout(concern);
+                content = renderPollLayout(concern);
             }
 
-            // Scroll to detail view on mobile (after a brief delay for rendering)
-            setTimeout(() => {
-                container.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }, 100);
+            detailContent.innerHTML = content;
+
+            // Scroll to top on mobile
+            if (window.innerWidth < 1024) {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
         }
 
         function renderEntityLayout(concern) {
@@ -636,6 +659,9 @@
         }
 
         function showHome() {
+            // Show concerns panel (important for mobile)
+            document.getElementById('concerns-panel').classList.remove('hidden');
+
             // Hide detail view
             document.getElementById('detail-view').classList.add('hidden');
 
@@ -650,6 +676,16 @@
 
             // Scroll to top
             window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function showHomeAndFocusShare() {
+            // Navigate to home
+            showHome();
+
+            // Wait for home to render, then expand share box and focus
+            setTimeout(() => {
+                expandShareBox();
+            }, 100);
         }
     </script>
 </body>
