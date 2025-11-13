@@ -5,7 +5,8 @@ Epistemological truth-seeking platform with concerns, quests, and evidence-based
 """
 
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from contextlib import asynccontextmanager
@@ -25,7 +26,8 @@ beacon = BeaconClient(
     gateway_url=settings.gateway_url
 )
 
-# Load mockup HTML and data
+# Paths
+STATIC_DIR = Path(__file__).parent.parent / "static"
 MOCKUP_HTML_PATH = Path(__file__).parent.parent / "mockup.html"
 MOCKUP_DATA_PATH = Path(__file__).parent / "mockup-data.json"
 
@@ -68,18 +70,29 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(timeline.router)
 
+# Mount static files (built frontend)
+if STATIC_DIR.exists():
+    app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")
+
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
-    """App homepage - serve the mockup"""
-    with open(MOCKUP_HTML_PATH, "r") as f:
-        html_content = f.read()
-    # Replace the fetch URL to use the API endpoint
-    html_content = html_content.replace(
-        "fetch('./mockup-data.json')",
-        "fetch('/api/data')"
-    )
-    return html_content
+    """App homepage - serve built frontend or fallback to mockup"""
+    index_html = STATIC_DIR / "index.html"
+
+    if index_html.exists():
+        # Serve built TypeScript frontend
+        with open(index_html, "r") as f:
+            return f.read()
+    else:
+        # Fallback to mockup
+        with open(MOCKUP_HTML_PATH, "r") as f:
+            html_content = f.read()
+        html_content = html_content.replace(
+            "fetch('./mockup-data.json')",
+            "fetch('/api/data')"
+        )
+        return html_content
 
 
 @app.get("/app", response_class=HTMLResponse)
