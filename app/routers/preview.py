@@ -55,7 +55,7 @@ def extract_domain(url: str) -> str:
     return match.group(1) if match else url
 
 
-@router.post("/", response_model=URLPreviewResponse)
+@router.post("", response_model=URLPreviewResponse)
 async def submit_url_preview(request: URLPreviewRequest):
     """
     Submit URL to Cloud Run service for preview

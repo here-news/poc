@@ -3,11 +3,46 @@ Story detail API router
 """
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 from app.services.neo4j_client import neo4j_client
 from app.services.tcf_feed_service import TCFFeedService
 from typing import Optional
 
 router = APIRouter(prefix="/api/stories", tags=["stories"])
+
+
+class StorySearchRequest(BaseModel):
+    """Search request body"""
+    query: str
+    limit: Optional[int] = 5
+
+
+@router.post("/search")
+async def search_stories(request: StorySearchRequest):
+    """
+    Search stories by query string
+
+    Uses hybrid search:
+    - Substring matching on titles, descriptions, artifacts
+    - Semantic similarity via OpenAI embeddings (if available)
+
+    Returns top matches ranked by relevance
+    """
+    try:
+        matches = neo4j_client.search_story_summaries(
+            query=request.query,
+            limit=request.limit
+        )
+
+        return {
+            "status": "success",
+            "matches": matches,
+            "total": len(matches)
+        }
+
+    except Exception as e:
+        print(f"Error searching stories: {e}")
+        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
 
 
 @router.get("/{story_id}")

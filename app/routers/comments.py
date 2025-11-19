@@ -37,7 +37,7 @@ class CommentResponse(BaseModel):
     updated_at: Optional[str]
 
 
-@router.post("/", response_model=CommentResponse)
+@router.post("", response_model=CommentResponse)
 async def create_comment(
     comment_data: CommentCreate,
     db: AsyncSession = Depends(get_db),

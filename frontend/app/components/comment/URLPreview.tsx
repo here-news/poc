@@ -31,7 +31,7 @@ function URLPreview({ url }: URLPreviewProps) {
       setError(false)
 
       // Submit URL for preview
-      const response = await fetch('/api/preview/', {
+      const response = await fetch('/api/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url })

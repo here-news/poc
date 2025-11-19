@@ -1,26 +1,55 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { ChatMessage, ChatSession } from '../../types/chat'
+import { ChatMessage, ChatSession, User } from '../../types/chat'
 import ChatInput from './ChatInput'
+import ChatUnlockModal from './ChatUnlockModal'
 
 interface ChatSidebarProps {
   storyId: string
+  storyTitle?: string
   isOpen: boolean
   onClose: () => void
 }
 
-function ChatSidebar({ storyId, isOpen, onClose }: ChatSidebarProps) {
+function ChatSidebar({ storyId, storyTitle = 'this story', isOpen, onClose }: ChatSidebarProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isSending, setIsSending] = useState(false)
   const [session, setSession] = useState<ChatSession | null>(null)
   const [remainingMessages, setRemainingMessages] = useState(100)
+  const [showUnlockModal, setShowUnlockModal] = useState(false)
+  const [isUnlocking, setIsUnlocking] = useState(false)
+  const [user, setUser] = useState<User | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (storyId) {
-      loadConversationHistory()
-      loadSession()
+    if (storyId && isOpen) {
+      loadUser()
+      checkUnlockStatus()
     }
-  }, [storyId])
+  }, [storyId, isOpen])
+
+  const loadUser = async () => {
+    try {
+      const response = await fetch('/api/auth/status', { credentials: 'include' })
+      if (response.ok) {
+        const data = await response.json()
+        if (data.authenticated) {
+          setUser(data.user)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load user:', error)
+    }
+  }
+
+  const checkUnlockStatus = async () => {
+    loadConversationHistory()
+    const sessionData = await loadSession()
+
+    // If no session found, show unlock modal
+    if (!sessionData) {
+      setShowUnlockModal(true)
+    }
+  }
 
   useEffect(() => {
     scrollToBottom()
@@ -45,7 +74,7 @@ function ChatSidebar({ storyId, isOpen, onClose }: ChatSidebarProps) {
     }
   }
 
-  const loadSession = async () => {
+  const loadSession = async (): Promise<ChatSession | null> => {
     try {
       const response = await fetch(`/api/chat/session/${storyId}`, {
         credentials: 'include'
@@ -57,9 +86,12 @@ function ChatSidebar({ storyId, isOpen, onClose }: ChatSidebarProps) {
         if (data) {
           setRemainingMessages(Math.max(0, 100 - data.message_count))
         }
+        return data
       }
+      return null
     } catch (error) {
       console.error('Failed to load session:', error)
+      return null
     }
   }
 
@@ -85,6 +117,15 @@ function ChatSidebar({ storyId, isOpen, onClose }: ChatSidebarProps) {
 
       if (!response.ok) {
         const error = await response.json()
+
+        // Handle insufficient credits
+        if (response.status === 402) {
+          alert(error.detail || 'Insufficient credits to continue chatting')
+          // Remove the optimistic user message
+          setMessages(messages)
+          return
+        }
+
         throw new Error(error.detail || 'Failed to send message')
       }
 
@@ -99,11 +140,48 @@ function ChatSidebar({ storyId, isOpen, onClose }: ChatSidebarProps) {
       if (data.session_status === 'exhausted') {
         setSession({ ...session!, status: 'exhausted' })
       }
+
+      // Show credits info if provided
+      if (data.credits_remaining !== undefined) {
+        console.log(`Message sent! ${data.credits_remaining} credits remaining`)
+      }
     } catch (error) {
       console.error('Error sending message:', error)
       alert(error instanceof Error ? error.message : 'Failed to send message')
+      // Remove the optimistic user message on error
+      setMessages(messages)
     } finally {
       setIsSending(false)
+    }
+  }
+
+  const handleUnlock = async () => {
+    try {
+      setIsUnlocking(true)
+      const response = await fetch('/api/chat/unlock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ story_id: storyId })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.detail || 'Failed to unlock chat')
+      }
+
+      const data = await response.json()
+      setSession(data)
+      setShowUnlockModal(false)
+
+      // Refresh user credits
+      await loadUser()
+    } catch (error) {
+      console.error('Unlock failed:', error)
+      alert(error instanceof Error ? error.message : 'Failed to unlock chat')
+      throw error
+    } finally {
+      setIsUnlocking(false)
     }
   }
 
@@ -116,6 +194,18 @@ function ChatSidebar({ storyId, isOpen, onClose }: ChatSidebarProps) {
   const isExhausted = session?.status === 'exhausted'
 
   if (!isOpen) return null
+
+  // Show unlock modal if chat is not unlocked
+  if (showUnlockModal && user) {
+    return (
+      <ChatUnlockModal
+        storyTitle={storyTitle}
+        userCredits={user.credits}
+        onUnlock={handleUnlock}
+        onCancel={onClose}
+      />
+    )
+  }
 
   return (
     <>
