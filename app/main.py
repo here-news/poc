@@ -14,7 +14,6 @@ from contextlib import asynccontextmanager
 from app.config import get_settings
 from app.routers import auth, coherence, story, comments, chat, preview
 from app.database.connection import init_db
-from app.auth.google_oauth import oauth
 
 # Initialize settings
 settings = get_settings()
@@ -38,20 +37,15 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CRITICAL: Session middleware MUST be added before OAuth init
-# https_only: False for localhost, True for production HTTPS
-is_production = settings.google_redirect_uri.startswith("https://")
+# CRITICAL: Session middleware for OAuth
 app.add_middleware(
     SessionMiddleware,
     secret_key=settings.jwt_secret_key,
     session_cookie="session",
     max_age=86400,  # 24 hours
     same_site="lax",
-    https_only=is_production
+    https_only=False  # Must be False when nginx terminates SSL
 )
-
-# Initialize OAuth with app AFTER middleware
-oauth.init_app(app)
 
 # CORS middleware
 app.add_middleware(
