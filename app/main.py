@@ -374,12 +374,12 @@ async def catch_all(full_path: str):
     Serves index.html for all non-API routes to enable path-based routing.
     """
     # Don't catch API routes, assets, health checks
-    if full_path.startswith(("api/", "assets/", "health", "app")):
+    if full_path.startswith(("api/", "app/assets/", "health")):
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Not found")
 
-    # Serve index.html for all SPA routes
-    return await root()
+    # Serve index.html for all SPA routes (including /app/story/...)
+    return await app_route()
 
 
 if __name__ == "__main__":
