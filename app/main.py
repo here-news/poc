@@ -14,6 +14,7 @@ from contextlib import asynccontextmanager
 from app.config import get_settings
 from app.routers import auth, coherence, story, comments, chat, preview
 from app.database.connection import init_db
+from app.auth.google_oauth import oauth
 
 # Initialize settings
 settings = get_settings()
@@ -37,14 +38,19 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Initialize OAuth with app (required for Starlette integration)
+oauth.init_app(app)
+
 # CRITICAL: Session middleware for OAuth
+# https_only: False for localhost, True for production HTTPS
+is_production = settings.google_redirect_uri.startswith("https://")
 app.add_middleware(
     SessionMiddleware,
     secret_key=settings.jwt_secret_key,
     session_cookie="session",
     max_age=86400,  # 24 hours
     same_site="lax",
-    https_only=False  # Set to True in production with HTTPS
+    https_only=is_production
 )
 
 # CORS middleware
