@@ -125,7 +125,7 @@ function StoryPage() {
               {/* Story Content */}
               {story.content && (
                 <div className="mt-6">
-                  <StoryContent content={story.content} entities={story.entities} />
+                  <StoryContent content={story.content} />
                 </div>
               )}
             </div>
@@ -268,7 +268,6 @@ function StoryPage() {
       {storyId && (
         <ChatSidebar
           storyId={storyId}
-          storyTitle={story?.title}
           isOpen={chatOpen}
           onClose={() => setChatOpen(false)}
         />
