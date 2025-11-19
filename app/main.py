@@ -367,20 +367,23 @@ async def health():
     }
 
 
-# DISABLED: Catch-all interferes with API routing
-# @app.get("/{full_path:path}", response_class=HTMLResponse)
-# async def catch_all(full_path: str):
-#     """
-#     Catch-all route for SPA client-side routing.
-#     Serves index.html for all non-API routes to enable path-based routing.
-#     """
-#     # Don't catch API routes, assets, health checks
-#     if full_path.startswith(("api/", "app/assets/", "health")):
-#         from fastapi import HTTPException
-#         raise HTTPException(status_code=404, detail="Not found")
-#
-#     # Serve index.html for all SPA routes (including /app/story/...)
-#     return await app_route()
+@app.get("/{full_path:path}", response_class=HTMLResponse)
+async def serve_spa(full_path: str):
+    """
+    Catch-all for React SPA client-side routing.
+    Serves index.html for all routes not matched by API endpoints.
+
+    Must be registered LAST so API routes take precedence.
+    """
+    index_path = Path("static/index.html")
+    if not index_path.exists():
+        return HTMLResponse(
+            content="<h1>App Not Built</h1>",
+            status_code=503
+        )
+
+    with open(index_path, "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
 
 
 if __name__ == "__main__":
