@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>φ HERE - The Future of Truth</title>
+    <style>
+        :root {
+            --bg-color: #030305;
+            --text-color: #ffffff;
+            --accent-primary: #818cf8;
+            /* Indigo 400 */
+            --accent-secondary: #c084fc;
+            /* Purple 400 */
+            --accent-glow: rgba(129, 140, 248, 0.5);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            cursor: none;
+            /* Custom cursor effect via canvas */
+        }
+
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .content-overlay {
+            position: relative;
+            z-index: 10;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            pointer-events: none;
+            background: radial-gradient(circle at center, transparent 0%, rgba(3, 3, 5, 0.8) 100%);
+        }
+
+        .hero-content {
+            opacity: 0;
+            transform: translateY(30px);
+            animation: fadeUp 1.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            animation-delay: 0.5s;
+        }
+
+        h1 {
+            font-size: 7rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(135deg, #ffffff 0%, #a5b4fc 50%, #e0e7ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 40px rgba(165, 180, 252, 0.2));
+            line-height: 1;
+        }
+
+        .phi-symbol {
+            display: inline-block;
+            background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 20px rgba(192, 132, 252, 0.4));
+        }
+
+        p.subtitle {
+            font-size: 1.5rem;
+            color: #94a3b8;
+            font-weight: 300;
+            max-width: 600px;
+            line-height: 1.6;
+            margin: 0 auto;
+            letter-spacing: 0.02em;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.6rem 1.2rem;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 100px;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: #a5b4fc;
+            margin-bottom: 2.5rem;
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            background-color: #818cf8;
+            border-radius: 50%;
+            margin-right: 10px;
+            box-shadow: 0 0 10px #818cf8;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes fadeUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 0.5;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1.5);
+            }
+
+            100% {
+                opacity: 0.5;
+                transform: scale(1);
+            }
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 4rem;
+            }
+
+            p.subtitle {
+                font-size: 1.1rem;
+                padding: 0 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="canvas-container">
+        <canvas id="coherence-canvas"></canvas>
+    </div>
+
+    <div class="content-overlay">
+        <div class="hero-content">
+            <div class="status-badge">
+                <div class="status-dot"></div>System Initializing
+            </div>
+            <h1><span class="phi-symbol">φ</span> HERE</h1>
+            <p class="subtitle">Signal in the noise. <br>The first coherence-based news platform.</p>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('coherence-canvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+        let particles = [];
+        let mouse = { x: -1000, y: -1000 }; // Start off-screen
+
+        // Configuration
+        const PARTICLE_COUNT = 120;
+        const CONNECTION_DISTANCE = 180;
+        const MOUSE_RADIUS = 300;
+
+        // Resize handler
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Mouse tracking
+        window.addEventListener('mousemove', (e) => {
+            // Smooth mouse movement could be added here, but raw is fine for responsiveness
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+        });
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.vx = (Math.random() - 0.5) * 0.8;
+                this.vy = (Math.random() - 0.5) * 0.8;
+                this.size = Math.random() * 2 + 1;
+                // Randomly assign "data" colors
+                this.colorType = Math.random();
+                if (this.colorType > 0.9) {
+                    this.color = 'rgba(192, 132, 252, '; // Purple accent
+                } else if (this.colorType > 0.6) {
+                    this.color = 'rgba(129, 140, 248, '; // Indigo accent
+                } else {
+                    this.color = 'rgba(148, 163, 184, '; // Slate/Grey base
+                }
+                this.baseAlpha = Math.random() * 0.5 + 0.2;
+            }
+
+            update() {
+                // Move
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Wrap around edges for continuous flow
+                if (this.x < 0) this.x = width;
+                if (this.x > width) this.x = 0;
+                if (this.y < 0) this.y = height;
+                if (this.y > height) this.y = 0;
+
+                // Mouse interaction - "Clarity Field"
+                // Particles slow down and organize slightly near mouse
+                let dx = mouse.x - this.x;
+                let dy = mouse.y - this.y;
+                let distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < MOUSE_RADIUS) {
+                    const force = (MOUSE_RADIUS - distance) / MOUSE_RADIUS;
+
+                    // Gentle repulsion to create a "bubble" of clarity
+                    // or attraction to create a "singularity"
+                    // Let's do a subtle attraction + slowing down
+
+                    this.x += (dx / distance) * force * 0.5;
+                    this.y += (dy / distance) * force * 0.5;
+
+                    // Friction/Slowing effect
+                    // this.vx *= 0.95;
+                    // this.vy *= 0.95;
+                }
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color + this.baseAlpha + ')';
+                ctx.fill();
+            }
+        }
+
+        function init() {
+            particles = [];
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                particles.push(new Particle());
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            ctx.clearRect(0, 0, width, height);
+
+            // Draw custom cursor
+            if (mouse.x > 0) {
+                ctx.beginPath();
+                ctx.arc(mouse.x, mouse.y, 8, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.fill();
+
+                // Glow ring
+                ctx.beginPath();
+                ctx.arc(mouse.x, mouse.y, 20, 0, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(129, 140, 248, 0.3)';
+                ctx.stroke();
+            }
+
+            // Update and draw particles
+            particles.forEach(particle => {
+                particle.update();
+                particle.draw();
+            });
+
+            // Draw connections
+            connectParticles();
+        }
+
+        function connectParticles() {
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i; j < particles.length; j++) {
+                    let p1 = particles[i];
+                    let p2 = particles[j];
+
+                    let dx = p1.x - p2.x;
+                    let dy = p1.y - p2.y;
+                    let distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < CONNECTION_DISTANCE) {
+                        let opacity = 1 - (distance / CONNECTION_DISTANCE);
+
+                        // Mouse proximity enhances connections
+                        let mouseDist = Math.sqrt(Math.pow(mouse.x - (p1.x + p2.x) / 2, 2) + Math.pow(mouse.y - (p1.y + p2.y) / 2, 2));
+                        if (mouseDist < MOUSE_RADIUS) {
+                            opacity += (1 - mouseDist / MOUSE_RADIUS) * 0.5;
+                        }
+
+                        if (opacity > 0) {
+                            ctx.beginPath();
+                            // Gradient line
+                            let gradient = ctx.createLinearGradient(p1.x, p1.y, p2.x, p2.y);
+                            gradient.addColorStop(0, p1.color + (opacity * 0.4) + ')');
+                            gradient.addColorStop(1, p2.color + (opacity * 0.4) + ')');
+
+                            ctx.strokeStyle = gradient;
+                            ctx.lineWidth = 1;
+                            ctx.moveTo(p1.x, p1.y);
+                            ctx.lineTo(p2.x, p2.y);
+                            ctx.stroke();
+                        }
+                    }
+                }
+            }
+        }
+
+        init();
+        animate();
+    </script>
+</body>
+
+</html>
