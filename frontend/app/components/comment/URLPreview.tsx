@@ -117,20 +117,20 @@ function URLPreview({ url }: URLPreviewProps) {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="mt-2 block border border-slate-200 rounded-lg overflow-hidden bg-white hover:border-indigo-300 hover:shadow-md transition-all"
+      className="mt-2 flex gap-3 border border-slate-200 rounded-lg overflow-hidden bg-white hover:border-indigo-300 hover:shadow-md transition-all p-3"
     >
       {metadata.image && (
         <img
           src={metadata.image}
           alt={metadata.title || url}
-          className="w-full h-48 object-cover"
+          className="w-20 h-20 rounded object-cover flex-shrink-0"
           onError={(e) => {
             e.currentTarget.style.display = 'none'
           }}
         />
       )}
 
-      <div className="p-3">
+      <div className="flex-1 min-w-0">
         {metadata.site_name && (
           <div className="text-xs text-slate-500 mb-1">{metadata.site_name}</div>
         )}
@@ -140,12 +140,12 @@ function URLPreview({ url }: URLPreviewProps) {
         </div>
 
         {metadata.description && (
-          <div className="text-xs text-slate-600 line-clamp-2">
+          <div className="text-xs text-slate-600 line-clamp-2 mb-1">
             {metadata.description}
           </div>
         )}
 
-        <div className="text-xs text-indigo-600 mt-2 flex items-center gap-1">
+        <div className="text-xs text-indigo-600 flex items-center gap-1">
           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
           </svg>
