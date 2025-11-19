@@ -7,7 +7,9 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from starlette.middleware.sessions import SessionMiddleware
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from pathlib import Path
 from contextlib import asynccontextmanager
 
@@ -355,62 +357,6 @@ async def app_route():
         return HTMLResponse(content=f.read())
 
 
-@app.get("/app/story/{story_id}/{slug}", response_class=HTMLResponse)
-async def app_story_route_with_slug(story_id: str, slug: str):
-    """Story detail page with SEO-friendly slug (serves frontend SPA)"""
-    index_path = Path("static/index.html")
-    if not index_path.exists():
-        return HTMLResponse(
-            content="<h1>App Not Built</h1>",
-            status_code=503
-        )
-
-    with open(index_path, "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
-
-
-@app.get("/app/story/{story_id}", response_class=HTMLResponse)
-async def app_story_route(story_id: str):
-    """Story detail page (serves frontend SPA)"""
-    index_path = Path("static/index.html")
-    if not index_path.exists():
-        return HTMLResponse(
-            content="<h1>App Not Built</h1>",
-            status_code=503
-        )
-
-    with open(index_path, "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
-
-
-@app.get("/story/{story_id}/{slug}", response_class=HTMLResponse)
-async def story_route_with_slug(story_id: str, slug: str):
-    """Story detail page with SEO-friendly slug (serves frontend SPA) - legacy route"""
-    index_path = Path("static/index.html")
-    if not index_path.exists():
-        return HTMLResponse(
-            content="<h1>App Not Built</h1>",
-            status_code=503
-        )
-
-    with open(index_path, "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
-
-
-@app.get("/story/{story_id}", response_class=HTMLResponse)
-async def story_route(story_id: str):
-    """Story detail page (serves frontend SPA) - legacy route"""
-    index_path = Path("static/index.html")
-    if not index_path.exists():
-        return HTMLResponse(
-            content="<h1>App Not Built</h1>",
-            status_code=503
-        )
-
-    with open(index_path, "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
-
-
 @app.get("/health")
 async def health():
     """Health check endpoint"""
@@ -419,6 +365,21 @@ async def health():
         "service": "phi_here",
         "version": "1.0.0"
     }
+
+
+@app.get("/{full_path:path}", response_class=HTMLResponse)
+async def catch_all(full_path: str):
+    """
+    Catch-all route for SPA client-side routing.
+    Serves index.html for all non-API routes to enable path-based routing.
+    """
+    # Don't catch API routes, assets, health checks
+    if full_path.startswith(("api/", "assets/", "health", "app")):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Not found")
+
+    # Serve index.html for all SPA routes
+    return await root()
 
 
 if __name__ == "__main__":
