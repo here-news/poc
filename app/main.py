@@ -38,10 +38,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Initialize OAuth with app (required for Starlette integration)
-oauth.init_app(app)
-
-# CRITICAL: Session middleware for OAuth
+# CRITICAL: Session middleware MUST be added before OAuth init
 # https_only: False for localhost, True for production HTTPS
 is_production = settings.google_redirect_uri.startswith("https://")
 app.add_middleware(
@@ -52,6 +49,9 @@ app.add_middleware(
     same_site="lax",
     https_only=is_production
 )
+
+# Initialize OAuth with app AFTER middleware
+oauth.init_app(app)
 
 # CORS middleware
 app.add_middleware(
