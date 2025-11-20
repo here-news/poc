@@ -1,6 +1,7 @@
 import React, { useState, useRef, KeyboardEvent, useEffect } from 'react'
 import URLPreview from '../comment/URLPreview'
 import { extractUrls } from '../../utils/urlExtractor'
+import { formatTime } from '../../utils/timeFormat'
 
 interface Comment {
   id: string
@@ -44,6 +45,9 @@ function CommentItem({ comment, allComments, depth, onReply, replyingTo, replyIn
   // Extract URLs from comment text
   const urls = extractUrls(comment.text)
 
+  // Format timestamp
+  const timeInfo = formatTime(comment.created_at)
+
   return (
     <div className={`${depth > 0 ? 'ml-8 pl-4 border-l-2 border-slate-200' : ''}`}>
       <div className="flex gap-3 py-3">
@@ -64,8 +68,11 @@ function CommentItem({ comment, allComments, depth, onReply, replyingTo, replyIn
           {/* User info */}
           <div className="flex items-center gap-2 mb-1">
             <span className="font-semibold text-slate-900">{comment.user_name}</span>
-            <span className="text-xs text-slate-400">
-              {new Date(comment.created_at).toLocaleDateString()}
+            <span
+              className="text-xs text-slate-400 cursor-help"
+              title={timeInfo.fullDateTime}
+            >
+              {timeInfo.relative}
             </span>
           </div>
 

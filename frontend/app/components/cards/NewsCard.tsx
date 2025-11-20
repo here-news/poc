@@ -1,5 +1,6 @@
 import React from 'react'
 import { Story } from '../../types/story'
+import { formatTime } from '../../utils/timeFormat'
 
 interface NewsCardProps {
   story: Story
@@ -7,6 +8,8 @@ interface NewsCardProps {
 }
 
 function NewsCard({ story, onClick }: NewsCardProps) {
+  const timeInfo = formatTime(story.last_updated || story.created_at)
+
   return (
     <div
       onClick={onClick}
@@ -32,7 +35,7 @@ function NewsCard({ story, onClick }: NewsCardProps) {
             </p>
           )}
 
-          <div className="flex items-center gap-4 text-sm">
+          <div className="flex items-center gap-4 text-sm flex-wrap">
             {story.coherence !== undefined && (
               <div className="flex items-center gap-1">
                 <span className="text-slate-500">Coherence:</span>
@@ -48,6 +51,17 @@ function NewsCard({ story, onClick }: NewsCardProps) {
                 <span className="font-semibold text-slate-700">
                   {story.claim_count}
                 </span>
+              </div>
+            )}
+
+            {/* Time Information */}
+            {timeInfo.absolute !== 'Date unknown' && (
+              <div
+                className="flex items-center gap-1 cursor-help"
+                title={timeInfo.fullDateTime}
+              >
+                <span className="text-slate-400">•</span>
+                <span className="text-slate-500">{timeInfo.relative}</span>
               </div>
             )}
           </div>

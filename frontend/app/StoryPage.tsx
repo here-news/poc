@@ -10,6 +10,7 @@ import ArtifactsList from './components/story/ArtifactsList'
 import CoherenceBreakdown from './components/story/CoherenceBreakdown'
 import RelatedStories from './components/story/RelatedStories'
 import { Story } from './types/story'
+import { formatTime } from './utils/timeFormat'
 
 function StoryPage() {
   const { storyId } = useParams<{ storyId: string }>()
@@ -120,6 +121,37 @@ function StoryPage() {
                     <span className="font-semibold text-emerald-600">{story.timely.toFixed(0)}%</span>
                   </div>
                 )}
+
+                {/* Time Information */}
+                {(() => {
+                  const createdInfo = formatTime(story.created_at)
+                  const updatedInfo = formatTime(story.last_updated)
+                  const showUpdated = story.last_updated && story.last_updated !== story.created_at
+
+                  return (
+                    <div className="flex items-center gap-4">
+                      {createdInfo.absolute !== 'Date unknown' && (
+                        <div
+                          className="cursor-help"
+                          title={`Created: ${createdInfo.fullDateTime}`}
+                        >
+                          <span className="text-slate-500">Created: </span>
+                          <span className="text-slate-700">{createdInfo.absolute}</span>
+                        </div>
+                      )}
+
+                      {showUpdated && updatedInfo.absolute !== 'Date unknown' && (
+                        <div
+                          className="cursor-help"
+                          title={`Last updated: ${updatedInfo.fullDateTime}`}
+                        >
+                          <span className="text-slate-500">Updated: </span>
+                          <span className="text-slate-700">{updatedInfo.relative}</span>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
               </div>
 
               {/* Story Content */}
