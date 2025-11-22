@@ -9,6 +9,7 @@ import json
 import logging
 import httpx
 import uuid
+from datetime import datetime
 
 from app.auth.middleware import get_current_user_optional
 from app.database.connection import get_db
@@ -76,34 +77,46 @@ async def create_event_submission(
     url = submission_data.urls.strip() if submission_data.urls else None
     if url:
         try:
-            # Generate task ID
-            task_id = str(uuid.uuid4())
+            # Get instant preview from service_farm
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                preview_response = await client.get(
+                    f"{settings.service_farm_url}/api/preview",
+                    params={"url": url},
+                    timeout=10.0
+                )
 
-            # Update submission with task_id and status
+                preview_meta = None
+                task_id = None
+
+                if preview_response.status_code == 200:
+                    preview_data = preview_response.json()
+
+                    # Extract task_id from preview response
+                    task_id = preview_data.get("task_id") or str(uuid.uuid4())
+
+                    # Extract preview metadata
+                    if preview_data.get("found") and preview_data.get("preview"):
+                        preview_info = preview_data["preview"]
+                        preview_meta = {
+                            "title": preview_info.get("title"),
+                            "description": preview_info.get("description"),
+                            "thumbnail_url": preview_info.get("image") or preview_info.get("thumbnail_url"),
+                            "site_name": preview_info.get("site_name"),
+                            "canonical_url": preview_info.get("canonical_url")
+                        }
+                else:
+                    # Preview failed, generate task_id
+                    task_id = str(uuid.uuid4())
+
+            # Update submission with task_id, status, and preview
             submission.task_id = task_id
             submission.status = "extracting"
+            if preview_meta:
+                submission.preview_meta = json.dumps(preview_meta)
             await db.commit()
             await db.refresh(submission)
 
-            logger.info(f"🚀 Triggering extraction for URL: {url} (task_id: {task_id})")
-
-            # Trigger extraction on service_farm
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                # Call service_farm's submit endpoint
-                response = await client.post(
-                    f"{settings.service_farm_url}/submit",
-                    data={
-                        "url": url,
-                        "task_id": task_id,
-                        "response_format": "json"
-                    },
-                    timeout=5.0
-                )
-
-                if response.status_code == 200 or response.status_code == 303:
-                    logger.info(f"✅ Extraction triggered successfully for task {task_id}")
-                else:
-                    logger.warning(f"⚠️  Service farm returned {response.status_code}: {response.text[:200]}")
+            logger.info(f"🚀 Extraction started for URL: {url} (task_id: {task_id})")
 
         except Exception as e:
             logger.error(f"❌ Failed to trigger extraction: {e}")

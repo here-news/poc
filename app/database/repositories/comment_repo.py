@@ -66,7 +66,7 @@ class CommentRepository:
         """
         query = (
             select(Comment, User)
-            .join(User, Comment.user_id == User.id)
+            .join(User, Comment.user_id == User.user_id)
             .where(Comment.story_id == story_id)
             .order_by(Comment.created_at.asc())
         )

@@ -66,7 +66,7 @@ async def create_comment(
         comment = await CommentRepository.create_comment(
             db=db,
             story_id=comment_data.story_id,
-            user_id=current_user.id,
+            user_id=current_user.user_id,
             text=comment_data.text,
             parent_comment_id=comment_data.parent_comment_id,
             reaction_type=comment_data.reaction_type
@@ -135,7 +135,7 @@ async def delete_comment(
     success = await CommentRepository.delete_comment(
         db=db,
         comment_id=comment_id,
-        user_id=current_user.id
+        user_id=current_user.user_id
     )
 
     if not success:

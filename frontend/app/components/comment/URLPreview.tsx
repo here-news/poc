@@ -46,10 +46,16 @@ function URLPreview({ url }: URLPreviewProps) {
       const data = await response.json()
       setMetadata(data)
 
-      // If still fetching, poll for status
+      // Handle different statuses
       if (data.status === 'fetching') {
+        // Still fetching, poll for status
         pollForStatus(data.task_id)
+      } else if (data.status === 'failed' || data.status === 'timeout') {
+        // Preview failed, show fallback
+        setError(true)
+        setLoading(false)
       } else {
+        // Completed or extracting with preview data
         setLoading(false)
       }
     } catch (err) {
@@ -109,7 +115,20 @@ function URLPreview({ url }: URLPreviewProps) {
   }
 
   if (error || !metadata) {
-    return null
+    // Fallback to simple link if preview fails
+    return (
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-2 flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-800 underline"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+        </svg>
+        {new URL(url).hostname}
+      </a>
+    )
   }
 
   return (

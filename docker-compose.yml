@@ -1,35 +1,15 @@
 services:
-  postgres:
-    image: postgres:15-alpine
-    container_name: phi_here_db
-    environment:
-      POSTGRES_DB: phi_here
-      POSTGRES_USER: phi_user
-      POSTGRES_PASSWORD: phi_password_dev
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U phi_user -d phi_here"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   app:
     build: .
     container_name: phi_here
-    ports:
-      - "7272:8000"
+    network_mode: host
     env_file:
       - .env
-    volumes:
-      - ./data:/app/data
     restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-
-volumes:
-  postgres_data:
+    # Using host network mode to access Yggdrasil IPv6 addresses
+    # App will be accessible on localhost:7272
+    # Note: Database and Neo4j are external services accessed via Yggdrasil network
+    # PostgreSQL: 200:d9ce:5252:7e25:c770:1715:a84e:ab3a:5432
+    # Neo4j: 200:d9ce:5252:7e25:c770:1715:a84e:ab3a:7687
+    environment:
+      - PORT=7272

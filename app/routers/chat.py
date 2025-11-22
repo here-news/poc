@@ -143,7 +143,7 @@ async def unlock_chat(
     # Check if already unlocked
     existing_session = await chat_repo.get_by_story_and_user(
         request.story_id,
-        current_user.id
+        current_user.user_id
     )
 
     if existing_session:
@@ -153,7 +153,7 @@ async def unlock_chat(
     try:
         session = await chat_repo.create_session(
             story_id=request.story_id,
-            user_id=current_user.id,
+            user_id=current_user.user_id,
             cost=CHAT_UNLOCK_COST
         )
         await db.commit()
@@ -180,7 +180,7 @@ async def get_session(
         return None
 
     chat_repo = ChatSessionRepository(db)
-    session = await chat_repo.get_by_story_and_user(story_id, current_user.id)
+    session = await chat_repo.get_by_story_and_user(story_id, current_user.user_id)
 
     if not session:
         return None
@@ -211,7 +211,7 @@ async def send_message(
     # Get session
     session = await chat_repo.get_by_story_and_user(
         request.story_id,
-        current_user.id
+        current_user.user_id
     )
 
     if not session:
@@ -304,12 +304,12 @@ async def get_credits(
         raise HTTPException(status_code=401, detail="Authentication required")
 
     user_repo = UserRepository(db)
-    user = await user_repo.get_by_id(current_user.id)
+    user = await user_repo.get_by_id(current_user.user_id)
 
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
     return {
-        "credits": user.credits,
+        "credits": user.credits_balance,
         "reputation": user.reputation
     }

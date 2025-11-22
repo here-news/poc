@@ -5,8 +5,9 @@ User repository for database operations
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.sql import func
-from typing import Optional
+from typing import Optional, Union
 from datetime import datetime
+from uuid import UUID
 
 from ..models import User
 from ...models.user import UserCreate
@@ -18,10 +19,10 @@ class UserRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_by_id(self, user_id: str) -> Optional[User]:
+    async def get_by_id(self, user_id: Union[UUID, str]) -> Optional[User]:
         """Get user by ID"""
         result = await self.db.execute(
-            select(User).where(User.id == user_id)
+            select(User).where(User.user_id == user_id)
         )
         return result.scalar_one_or_none()
 
@@ -44,9 +45,9 @@ class UserRepository:
         user = User(
             email=user_create.email,
             name=user_create.name,
-            picture=user_create.picture,
+            picture_url=user_create.picture,
             google_id=user_create.google_id,
-            credits=1000,  # Starting credits
+            credits_balance=1000,  # Starting credits
             reputation=0
         )
         self.db.add(user)
@@ -54,10 +55,10 @@ class UserRepository:
         await self.db.refresh(user)
         return user
 
-    async def update_last_login(self, user_id: str):
+    async def update_last_login(self, user_id: Union[UUID, str]):
         """Update user's last login timestamp"""
         result = await self.db.execute(
-            select(User).where(User.id == user_id)
+            select(User).where(User.user_id == user_id)
         )
         user = result.scalar_one_or_none()
         if user:

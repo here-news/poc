@@ -86,9 +86,9 @@ async def submit_url_preview(request: URLPreviewRequest):
 
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
-            # Call unified /preview endpoint (handles everything)
+            # Call unified /api/preview endpoint (handles everything)
             preview_response = await client.get(
-                f"{settings.service_farm_url}/preview",
+                f"{settings.service_farm_url}/api/preview",
                 params={"url": url},
                 timeout=15.0  # Fail faster to avoid gateway timeouts
             )

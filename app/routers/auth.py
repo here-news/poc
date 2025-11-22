@@ -77,7 +77,7 @@ async def auth_callback(
             user = await user_repo.create(user_create)
         else:
             # Update last login
-            await user_repo.update_last_login(user.id)
+            await user_repo.update_last_login(user.user_id)
 
         # Create JWT token
         access_token = create_access_token(user)
@@ -96,7 +96,9 @@ async def auth_callback(
         return response
 
     except Exception as e:
+        import traceback
         print(f"OAuth callback error: {e}")
+        print(f"Full traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="Authentication failed")
 
 
@@ -128,7 +130,7 @@ async def get_current_user_info(
 
     # Fetch full user details from database
     user_repo = UserRepository(db)
-    user = await user_repo.get_by_id(current_user.id)
+    user = await user_repo.get_by_id(current_user.user_id)
 
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -149,7 +151,7 @@ async def auth_status(
     if current_user:
         # Get full user data from database
         user_repo = UserRepository(db)
-        user = await user_repo.get_by_id(current_user.id)
+        user = await user_repo.get_by_id(current_user.user_id)
 
         if user:
             return {

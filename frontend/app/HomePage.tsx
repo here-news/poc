@@ -1,9 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import Header from './components/layout/Header'
 import NewsCard from './components/cards/NewsCard'
 import StoryCardSkeleton from './components/cards/StoryCardSkeleton'
+import ShareBox from './components/home/ShareBox'
+import PendingSubmission, { EventSubmission } from './components/home/PendingSubmission'
 import { Story, FeedResponse } from './types/story'
+import { useSubmissionPolling } from './hooks/useSubmissionPolling'
+
+// Union type for feed items
+type FeedItem =
+  | { type: 'story'; data: Story; timestamp: string }
+  | { type: 'submission'; data: EventSubmission; timestamp: string }
 
 function HomePage() {
   const [stories, setStories] = useState<Story[]>([])
@@ -13,19 +21,40 @@ function HomePage() {
   const [hasMore, setHasMore] = useState(true)
   const [newStoriesCount, setNewStoriesCount] = useState(0)
 
+  // ShareBox state
+  const [showShareBox, setShowShareBox] = useState(false)
+  const [pendingSubmissions, setPendingSubmissions] = useState<EventSubmission[]>([])
+
+  // Merged feed (stories + submissions)
+  const [mergedFeed, setMergedFeed] = useState<FeedItem[]>([])
+
   // Filters
   const [minCoherence, setMinCoherence] = useState(0.0)
   const [debouncedCoherence, setDebouncedCoherence] = useState(0.0)
 
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const pageSize = 12
   const scrollThreshold = 1000
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const coherenceDebounceRef = useRef<NodeJS.Timeout | null>(null)
 
+  // Handle submission updates from polling
+  const handleSubmissionUpdate = useCallback((updatedSubmissions: EventSubmission[]) => {
+    setPendingSubmissions(updatedSubmissions)
+  }, [])
+
+  // Enable polling for active submissions
+  useSubmissionPolling({
+    submissions: pendingSubmissions,
+    onUpdate: handleSubmissionUpdate,
+    enabled: true
+  })
+
   useEffect(() => {
     loadPreferences()
     loadFeed(true)
+    loadPendingSubmissions()
     startBackgroundRefresh()
     window.addEventListener('scroll', handleScroll)
 
@@ -35,11 +64,48 @@ function HomePage() {
     }
   }, [])
 
+  // Check for share URL parameter
+  useEffect(() => {
+    if (searchParams.get('share') === 'true') {
+      setShowShareBox(true)
+      // Remove the parameter from URL
+      searchParams.delete('share')
+      setSearchParams(searchParams, { replace: true })
+    }
+  }, [searchParams, setSearchParams])
+
   useEffect(() => {
     if (debouncedCoherence !== minCoherence) {
       loadFeed(true)
     }
   }, [debouncedCoherence])
+
+  // Merge stories and submissions by timestamp
+  useEffect(() => {
+    const merged: FeedItem[] = [
+      // Convert stories to feed items
+      ...stories.map(story => ({
+        type: 'story' as const,
+        data: story,
+        timestamp: story.last_updated || story.created_at || ''
+      })),
+      // Convert submissions to feed items
+      ...pendingSubmissions.map(submission => ({
+        type: 'submission' as const,
+        data: submission,
+        timestamp: submission.created_at
+      }))
+    ]
+
+    // Sort by timestamp (newest first)
+    merged.sort((a, b) => {
+      const dateA = new Date(a.timestamp).getTime()
+      const dateB = new Date(b.timestamp).getTime()
+      return dateB - dateA
+    })
+
+    setMergedFeed(merged)
+  }, [stories, pendingSubmissions])
 
   const loadPreferences = () => {
     const saved = localStorage.getItem('story_min_coherence')
@@ -186,6 +252,49 @@ function HomePage() {
     navigate(`/story/${storyId}`)
   }
 
+  const loadPendingSubmissions = async () => {
+    try {
+      const response = await fetch('/api/events/mine', {
+        credentials: 'include'
+      })
+      if (response.ok) {
+        const data = await response.json()
+        console.log('Submissions data:', data)
+        if (data.length > 0) {
+          console.log('First submission user_picture:', data[0].user_picture)
+        }
+        setPendingSubmissions(data)
+      }
+    } catch (err) {
+      console.error('Failed to load pending submissions:', err)
+    }
+  }
+
+  const handleSubmitEvent = async (content: string, urls: string[]) => {
+    const response = await fetch('/api/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        content,
+        urls: urls.join(',')
+      })
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.detail || 'Failed to submit event')
+    }
+
+    const data = await response.json()
+
+    // Add to pending submissions
+    setPendingSubmissions([data, ...pendingSubmissions])
+
+    // Close sharebox
+    setShowShareBox(false)
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500">
       <Header />
@@ -202,6 +311,31 @@ function HomePage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white rounded-xl shadow-lg p-6">
+          {/* ShareBox Trigger Button */}
+          {!showShareBox && (
+            <button
+              onClick={() => setShowShareBox(true)}
+              className="w-full mb-6 p-4 border-2 border-dashed border-indigo-300 rounded-xl hover:border-indigo-500 hover:bg-indigo-50 transition-all group cursor-pointer"
+            >
+              <div className="flex items-center gap-3 text-slate-600 group-hover:text-indigo-600">
+                <div className="w-10 h-10 rounded-full bg-indigo-100 group-hover:bg-indigo-200 flex items-center justify-center text-2xl transition-colors">
+                  +
+                </div>
+                <span className="text-base font-medium">
+                  Report an event or breaking news
+                </span>
+              </div>
+            </button>
+          )}
+
+          {/* ShareBox (expanded) */}
+          {showShareBox && (
+            <ShareBox
+              onSubmit={handleSubmitEvent}
+              onCancel={() => setShowShareBox(false)}
+            />
+          )}
+
           {/* Coherence Filter */}
           <div className="mb-6 pb-6 border-b border-slate-200">
             <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -235,20 +369,31 @@ function HomePage() {
                 <StoryCardSkeleton key={i} />
               ))}
             </div>
-          ) : stories.length === 0 ? (
+          ) : mergedFeed.length === 0 ? (
             <div className="text-center py-16">
-              <div className="text-lg text-slate-600">No stories found</div>
+              <div className="text-lg text-slate-600">No stories or submissions found</div>
             </div>
           ) : (
             <>
               <div className="grid gap-6">
-                {stories.map((story) => (
-                  <NewsCard
-                    key={story.story_id}
-                    story={story}
-                    onClick={() => story.story_id && handleStoryClick(story.story_id)}
-                  />
-                ))}
+                {mergedFeed.map((item) => {
+                  if (item.type === 'story') {
+                    return (
+                      <NewsCard
+                        key={item.data.story_id}
+                        story={item.data}
+                        onClick={() => item.data.story_id && handleStoryClick(item.data.story_id)}
+                      />
+                    )
+                  } else {
+                    return (
+                      <PendingSubmission
+                        key={item.data.id}
+                        submission={item.data}
+                      />
+                    )
+                  }
+                })}
               </div>
 
               {loadingMore && (

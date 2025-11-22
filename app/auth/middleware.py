@@ -5,6 +5,7 @@ Authentication middleware and dependencies
 from fastapi import Request, Depends, HTTPException
 from jose import JWTError
 from typing import Optional
+from uuid import UUID
 
 from .session import decode_access_token
 from app.models.user import UserPublic
@@ -29,10 +30,10 @@ async def get_current_user_optional(request: Request) -> Optional[UserPublic]:
 
         # Create UserPublic from payload
         user = UserPublic(
-            id=payload.get("sub"),
+            user_id=UUID(payload.get("sub")),
             email=payload.get("email"),
             name=payload.get("name"),
-            picture=None  # Not stored in JWT
+            picture_url=None  # Not stored in JWT
         )
 
         return user

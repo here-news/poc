@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { User } from '../../types/chat'
 import SearchBar from './SearchBar'
 import UserProfile from './UserProfile'
@@ -7,6 +7,7 @@ import UserProfile from './UserProfile'
 function Header() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const navigate = useNavigate()
 
   useEffect(() => {
     checkAuth()
@@ -37,7 +38,7 @@ function Header() {
   }
 
   const handleCreate = () => {
-    alert('Create story/quest coming soon!')
+    navigate('/?share=true')
   }
 
   return (
@@ -72,6 +73,15 @@ function Header() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
                 </button>
+                <Link
+                  to="/archive"
+                  className="p-2 rounded-lg hover:bg-slate-100 transition text-slate-600"
+                  title="My Archive"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                  </svg>
+                </Link>
                 <button
                   onClick={handleNotifications}
                   className="p-2 rounded-lg hover:bg-slate-100 transition text-slate-600 relative"

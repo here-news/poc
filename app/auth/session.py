@@ -23,7 +23,7 @@ def create_access_token(user) -> str:
     expire = datetime.utcnow() + timedelta(minutes=settings.jwt_expire_minutes)
 
     payload = {
-        "sub": user.id,
+        "sub": str(user.user_id),
         "email": user.email,
         "name": user.name,
         "exp": expire,
