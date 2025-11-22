@@ -178,11 +178,18 @@ function CommentThread({ storyId }: CommentThreadProps) {
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [replyingTo, setReplyingTo] = useState<{ id: string; name: string } | null>(null)
+  const [inputUrls, setInputUrls] = useState<string[]>([])
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     loadComments()
   }, [storyId])
+
+  useEffect(() => {
+    // Extract URLs from input text
+    const extractedUrls = extractUrls(input)
+    setInputUrls(extractedUrls)
+  }, [input])
 
   const loadComments = async () => {
     try {
@@ -335,6 +342,21 @@ function CommentThread({ storyId }: CommentThreadProps) {
             className="w-full resize-none px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-400 text-sm leading-relaxed"
             style={{ minHeight: '80px', maxHeight: '200px' }}
           />
+
+          {/* URL Previews */}
+          {inputUrls.length > 0 && (
+            <div className="space-y-2 mt-3">
+              {inputUrls.slice(0, 2).map((url, index) => (
+                <URLPreview key={index} url={url} />
+              ))}
+              {inputUrls.length > 2 && (
+                <div className="text-xs text-slate-500">
+                  +{inputUrls.length - 2} more link{inputUrls.length - 2 > 1 ? 's' : ''}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="flex justify-between items-center mt-2">
             <p className="text-xs text-slate-500">
               Press <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded">Enter</kbd> to post,

@@ -79,9 +79,9 @@ class CommentRepository:
             comments.append({
                 'id': comment.id,
                 'story_id': comment.story_id,
-                'user_id': comment.user_id,
+                'user_id': str(comment.user_id),
                 'user_name': user.name,
-                'user_picture': user.picture,
+                'user_picture': user.picture_url,
                 'user_email': user.email,
                 'text': comment.text,
                 'parent_comment_id': comment.parent_comment_id,

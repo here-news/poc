@@ -76,9 +76,9 @@ async def create_comment(
         return CommentResponse(
             id=comment.id,
             story_id=comment.story_id,
-            user_id=comment.user_id,
+            user_id=str(comment.user_id),
             user_name=current_user.name,
-            user_picture=current_user.picture,
+            user_picture=current_user.picture_url,
             user_email=current_user.email,
             text=comment.text,
             parent_comment_id=comment.parent_comment_id,

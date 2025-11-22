@@ -90,12 +90,24 @@ async def create_event_submission(
 
                 if preview_response.status_code == 200:
                     preview_data = preview_response.json()
+                    logger.info(f"✅ Preview response from service_farm: {preview_data}")
 
                     # Extract task_id from preview response
                     task_id = preview_data.get("task_id") or str(uuid.uuid4())
 
                     # Extract preview metadata
-                    if preview_data.get("found") and preview_data.get("preview"):
+                    # New service_farm format: data is at top level
+                    if preview_data.get("title"):
+                        preview_meta = {
+                            "title": preview_data.get("title"),
+                            "description": preview_data.get("description"),
+                            "thumbnail_url": preview_data.get("image") or preview_data.get("thumbnail_url"),
+                            "site_name": preview_data.get("site_name"),
+                            "canonical_url": preview_data.get("url")
+                        }
+                        logger.info(f"✅ Preview meta extracted (new format): {preview_meta}")
+                    # Old format fallback: nested in "preview" object
+                    elif preview_data.get("found") and preview_data.get("preview"):
                         preview_info = preview_data["preview"]
                         preview_meta = {
                             "title": preview_info.get("title"),
@@ -104,6 +116,7 @@ async def create_event_submission(
                             "site_name": preview_info.get("site_name"),
                             "canonical_url": preview_info.get("canonical_url")
                         }
+                        logger.info(f"✅ Preview meta extracted (old format): {preview_meta}")
                 else:
                     # Preview failed, generate task_id
                     task_id = str(uuid.uuid4())

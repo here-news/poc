@@ -87,18 +87,37 @@ async def submit_url_preview(request: URLPreviewRequest):
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             # Call unified /api/preview endpoint (handles everything)
+            service_url = f"{settings.service_farm_url}/api/preview"
+            logger.info(f"🔍 Calling service_farm at: {service_url} with url={url}")
             preview_response = await client.get(
-                f"{settings.service_farm_url}/api/preview",
+                service_url,
                 params={"url": url},
                 timeout=15.0  # Fail faster to avoid gateway timeouts
             )
+            logger.info(f"📡 Service_farm response: status={preview_response.status_code}")
 
             # Handle response codes
             if preview_response.status_code == 200:
                 result = preview_response.json()
 
-                # Case 1: Cached/iFramely preview available
-                if result.get("found") and result.get("preview"):
+                # Case 1: New service_farm format (direct fields)
+                if result.get("title") and not result.get("found"):
+                    # New format from service_farm on port 8080
+                    return URLPreviewResponse(
+                        task_id="preview-cached",
+                        url=url,
+                        status="completed",
+                        title=result.get("title"),
+                        description=result.get("description"),
+                        image=result.get("image"),
+                        domain=extract_domain(url),
+                        favicon=None,
+                        ontology=None,
+                        entities=None
+                    )
+
+                # Case 2: Old format - Cached/iFramely preview available
+                elif result.get("found") and result.get("preview"):
                     preview_data = result["preview"]
                     task_id = preview_data.get("task_id", "preview-cached")
 
@@ -119,7 +138,7 @@ async def submit_url_preview(request: URLPreviewRequest):
                         entities=preview_data.get("entities")
                     )
 
-                # Case 2: Not found, but extraction started (found: false, extraction_started: true)
+                # Case 3: Not found, but extraction started (found: false, extraction_started: true)
                 elif result.get("extraction_started"):
                     task_id = result.get("task_id")
 
@@ -133,7 +152,7 @@ async def submit_url_preview(request: URLPreviewRequest):
                     )
 
                 # Unexpected 200 response
-                logger.error(f"Unexpected 200 response from Cloud Run for {url}: {result}")
+                logger.error(f"Unexpected 200 response from service farm for {url}: {result}")
                 raise HTTPException(
                     status_code=500,
                     detail=f"Unexpected response format: {result}"
