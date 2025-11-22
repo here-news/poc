@@ -14,8 +14,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/preview", tags=["preview"])
 
-# Cloud Run service URL (same as storychat uses)
-CLOUD_RUN_URL = "https://story-engine-here-179431661561.us-central1.run.app"
+# Get settings for service farm URL
+from app.config import get_settings
+settings = get_settings()
 
 
 class URLPreviewRequest(BaseModel):
@@ -84,12 +85,12 @@ async def submit_url_preview(request: URLPreviewRequest):
     url = str(request.url)
 
     try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=15.0) as client:
             # Call unified /preview endpoint (handles everything)
             preview_response = await client.get(
-                f"{CLOUD_RUN_URL}/preview",
+                f"{settings.service_farm_url}/preview",
                 params={"url": url},
-                timeout=30.0  # Allow time for iFramely preview (can take 5-15s)
+                timeout=15.0  # Fail faster to avoid gateway timeouts
             )
 
             # Handle response codes
@@ -156,14 +157,14 @@ async def submit_url_preview(request: URLPreviewRequest):
             # Log the actual response for debugging
             try:
                 error_detail = preview_response.json()
-                logger.error(f"Cloud Run error {preview_response.status_code} for {url}: {error_detail}")
+                logger.error(f"Service farm error {preview_response.status_code} for {url}: {error_detail}")
             except:
                 error_text = preview_response.text
-                logger.error(f"Cloud Run error {preview_response.status_code} for {url}: {error_text}")
+                logger.error(f"Service farm error {preview_response.status_code} for {url}: {error_text}")
 
-            # For 500 errors from Cloud Run, return a failed status instead of propagating error
+            # For 500 errors from service farm, return a failed status instead of propagating error
             if preview_response.status_code >= 500:
-                # Cloud Run itself had an error - return a task response with failed status
+                # Service farm itself had an error - return a task response with failed status
                 return URLPreviewResponse(
                     task_id="failed",
                     url=url,
@@ -178,8 +179,14 @@ async def submit_url_preview(request: URLPreviewRequest):
             )
 
     except httpx.TimeoutException as e:
-        logger.error(f"Preview timeout for URL {url}: {e}")
-        raise HTTPException(status_code=504, detail="Preview service timeout")
+        logger.warning(f"Preview timeout for URL {url}: {e}")
+        # Return failed status instead of error to allow graceful fallback
+        return URLPreviewResponse(
+            task_id="timeout",
+            url=url,
+            status="failed",
+            domain=extract_domain(url)
+        )
     except httpx.HTTPStatusError as e:
         logger.error(f"HTTP error for URL {url}: {e.response.status_code} - {e}")
         raise HTTPException(status_code=e.response.status_code, detail=f"Preview service error: {e}")
@@ -218,15 +225,15 @@ async def get_task_status(task_id: str):
             if task_id == "cached":
                 raise HTTPException(status_code=400, detail="Invalid task_id")
 
-            # Check task status from Cloud Run service
+            # Check task status from service farm
             response = await client.get(
-                f"{CLOUD_RUN_URL}/api/task/{task_id}"
+                f"{settings.service_farm_url}/api/task/{task_id}"
             )
             response.raise_for_status()
 
             result = response.json()
 
-            # Extract relevant fields from Cloud Run response
+            # Extract relevant fields from service farm response
             status = result.get("status", "unknown")
             url = result.get("url", "")
 
@@ -269,7 +276,7 @@ async def get_task_status(task_id: str):
     except httpx.HTTPStatusError as e:
         if e.response.status_code == 404:
             raise HTTPException(status_code=404, detail=f"Task not found: {task_id}")
-        raise HTTPException(status_code=e.response.status_code, detail=f"Cloud Run service error: {e}")
+        raise HTTPException(status_code=e.response.status_code, detail=f"Service farm error: {e}")
     except httpx.RequestError as e:
         raise HTTPException(status_code=503, detail=f"Network error: {str(e)}")
     except Exception as e:
