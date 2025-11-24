@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     # Google OAuth
     google_client_id: str
     google_client_secret: str
-    google_redirect_uri: str
+    google_redirect_uri: Optional[str] = None  # Optional: will be auto-constructed from request host
 
     # JWT
     jwt_secret_key: str

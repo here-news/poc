@@ -27,7 +27,15 @@ async def login(request: Request):
     Redirects user to Google consent screen
     """
     google = get_google_oauth()
-    redirect_uri = settings.google_redirect_uri
+
+    # Construct redirect URI dynamically from request host if not explicitly set
+    if settings.google_redirect_uri:
+        redirect_uri = settings.google_redirect_uri
+    else:
+        # Automatically construct from current request
+        scheme = "https" if request.url.scheme == "https" else "http"
+        host = request.headers.get("host", "localhost:7272")
+        redirect_uri = f"{scheme}://{host}/api/auth/callback"
 
     return await google.authorize_redirect(request, redirect_uri)
 
