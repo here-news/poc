@@ -60,13 +60,12 @@ async def get_story(story_id: str):
     try:
         # Get story from Neo4j
         with neo4j_client.driver.session(database=neo4j_client.database) as session:
+            # Get story basic info
             result = session.run('''
                 MATCH (s:Story {id: $story_id})
-                OPTIONAL MATCH (s)-[:MENTIONS_ENTITY]->(e)
                 OPTIONAL MATCH (s)-[:HAS_CLAIM]->(c:Claim)
                 OPTIONAL MATCH (s)<-[:PART_OF]-(page:Page)
                 WITH s,
-                     collect(DISTINCT e) as entities,
                      collect(DISTINCT c) as claims,
                      collect(DISTINCT page) as pages
                 RETURN s.id as id,
@@ -75,7 +74,7 @@ async def get_story(story_id: str):
                        s.content as content,
                        s.created_at as created_at,
                        s.health_indicator as health_indicator,
-                       entities,
+                       s.cover_image as cover_image,
                        claims,
                        pages
             ''', story_id=story_id)
@@ -85,28 +84,51 @@ async def get_story(story_id: str):
             if not record:
                 raise HTTPException(status_code=404, detail="Story not found")
 
+            # Get entities using storychat pattern
+            entity_result = session.run('''
+                MATCH (story:Story {id: $story_id})
+                OPTIONAL MATCH (story)-[:MENTIONS]->(person:Person)
+                OPTIONAL MATCH (story)-[:MENTIONS_ORG]->(org:Organization)
+                OPTIONAL MATCH (story)-[:MENTIONS_LOCATION]->(location:Location)
+                WITH collect(DISTINCT person) as people,
+                     collect(DISTINCT org) as orgs,
+                     collect(DISTINCT location) as locations
+                WITH people + orgs + locations as all_entities
+                UNWIND all_entities as entity
+                WITH entity
+                WHERE entity IS NOT NULL
+                RETURN DISTINCT
+                       labels(entity)[0] as entity_type,
+                       entity.canonical_id as canonical_id,
+                       entity.canonical_name as name,
+                       entity.wikidata_qid as qid,
+                       entity.wikidata_thumbnail as wikidata_thumbnail,
+                       entity.description as description,
+                       entity.confidence as confidence
+                ORDER BY entity.canonical_name
+            ''', story_id=story_id)
+
             # Parse entities
             people = []
             orgs = []
             locations = []
 
-            for entity in record['entities']:
-                entity_data = dict(entity)
-                entity_type = entity_data.get('type', '').lower()
-
+            for ent_record in entity_result:
+                entity_type = ent_record.get("entity_type", "").lower()
                 entity_obj = {
-                    'id': entity_data.get('id') or entity_data.get('canonical_id'),
-                    'canonical_id': entity_data.get('canonical_id'),
-                    'name': entity_data.get('canonical_name') or entity_data.get('name'),
-                    'wikidata_qid': entity_data.get('wikidata_qid'),
-                    'wikidata_thumbnail': entity_data.get('wikidata_thumbnail'),
-                    'wikidata_description': entity_data.get('wikidata_description'),
-                    'description': entity_data.get('description') or entity_data.get('wikidata_description'),
+                    'id': ent_record.get("canonical_id"),
+                    'canonical_id': ent_record.get("canonical_id"),
+                    'name': ent_record.get("name"),
+                    'canonical_name': ent_record.get("name"),
+                    'wikidata_qid': ent_record.get("qid"),
+                    'wikidata_thumbnail': ent_record.get("wikidata_thumbnail"),
+                    'description': ent_record.get("description"),
+                    'confidence': ent_record.get("confidence")
                 }
 
                 if entity_type == 'person':
                     people.append(entity_obj)
-                elif entity_type in ['organization', 'org']:
+                elif entity_type == 'organization':
                     orgs.append(entity_obj)
                 elif entity_type == 'location':
                     locations.append(entity_obj)
@@ -148,16 +170,23 @@ async def get_story(story_id: str):
                 funding=0.0
             )
 
-            # Get related stories
+            # Get related stories (using all entity relationship types)
             related_result = session.run('''
-                MATCH (s:Story {id: $story_id})-[:MENTIONS_ENTITY]->(e)<-[:MENTIONS_ENTITY]-(related:Story)
+                MATCH (s:Story {id: $story_id})
+                OPTIONAL MATCH (s)-[:MENTIONS]->(p:Person)<-[:MENTIONS]-(related:Story)
                 WHERE related.id <> $story_id
-                WITH related, count(e) as shared_entities
-                ORDER BY shared_entities DESC
-                LIMIT 5
+                WITH s, collect(DISTINCT {story: related, entity: p}) as person_matches
+                OPTIONAL MATCH (s)-[:MENTIONS_ORG]->(o:Organization)<-[:MENTIONS_ORG]-(related2:Story)
+                WHERE related2.id <> $story_id
+                WITH s, person_matches + collect(DISTINCT {story: related2, entity: o}) as all_matches
+                UNWIND all_matches as match
+                WITH match.story as related, count(DISTINCT match.entity) as shared_entities
+                WHERE shared_entities > 0 AND related IS NOT NULL
                 RETURN related.id as id,
                        coalesce(related.title, related.topic) as title,
                        shared_entities
+                ORDER BY shared_entities DESC
+                LIMIT 5
             ''', story_id=story_id)
 
             related_stories = []
@@ -177,6 +206,7 @@ async def get_story(story_id: str):
                     "content": record['content'],
                     "created_at": record['created_at'],
                     "health_indicator": record['health_indicator'],
+                    "cover_image": record['cover_image'],
                     "claim_count": len(claim_list),
                     "artifact_count": len(artifacts),
                     **tcf_data,
