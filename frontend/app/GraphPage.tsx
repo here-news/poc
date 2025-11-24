@@ -10,25 +10,25 @@ interface Story {
     cover_image?: string;
 }
 
-interface Entity {
+interface Person {
     id: string;
     name: string;
-    type: string;
+    canonical_id?: string;
+    wikidata_thumbnail?: string;
 }
 
 interface GraphNode {
     id: string;
     name: string;
-    type: 'hero' | 'story' | 'entity';
+    type: 'person' | 'story';
     val: number;
     color?: string;
     imgUrl?: string;
     img?: HTMLImageElement;
-    data?: any; // Original data object
+    data?: any;
     x?: number;
     y?: number;
-    fx?: number; // Fixed x position
-    fy?: number; // Fixed y position
+    storyIds?: string[]; // For people: which stories they appear in
 }
 
 interface GraphLink {
@@ -46,6 +46,7 @@ interface GraphData {
 const GraphPage: React.FC = () => {
     const [data, setData] = useState<GraphData>({ nodes: [], links: [] });
     const [loading, setLoading] = useState(true);
+    const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
     const navigate = useNavigate();
     const graphRef = useRef<any>();
     const containerRef = useRef<HTMLDivElement>(null);
@@ -70,8 +71,8 @@ const GraphPage: React.FC = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                // 1. Fetch Feed
-                const feedResponse = await fetch('/api/coherence/feed?limit=20');
+                // 1. Fetch top stories
+                const feedResponse = await fetch('/api/coherence/feed?limit=30');
                 const feedResult = await feedResponse.json();
 
                 if (!feedResult.stories || feedResult.stories.length === 0) {
@@ -80,96 +81,101 @@ const GraphPage: React.FC = () => {
                 }
 
                 const stories = feedResult.stories;
-                const heroStory = stories[0]; // Most recent/top story is Hero
 
-                // 2. Fetch Hero Details
-                const heroResponse = await fetch(`/api/stories/${heroStory.story_id}`);
-                const heroResult = await heroResponse.json();
-                const heroDetails = heroResult.story;
+                // 2. Fetch details for each story to get entities
+                const storyDetailsPromises = stories.slice(0, 20).map((story: Story) =>
+                    fetch(`/api/stories/${story.story_id}`)
+                        .then(res => res.json())
+                        .catch(err => {
+                            console.error(`Failed to fetch story ${story.story_id}:`, err);
+                            return null;
+                        })
+                );
 
+                const storyDetailsResults = await Promise.all(storyDetailsPromises);
+                const validStoryDetails = storyDetailsResults.filter(r => r && r.story);
+
+                // 3. Extract all people across all stories
+                const peopleMap = new Map<string, { person: Person; storyIds: string[] }>();
+                const storyMap = new Map<string, Story>();
+
+                validStoryDetails.forEach((result) => {
+                    const story = result.story;
+                    storyMap.set(story.id, story);
+
+                    // Extract people entities
+                    const people = story.entities?.people || [];
+                    people.forEach((person: any) => {
+                        const personId = person.canonical_id || person.id;
+                        const personName = person.canonical_name || person.name;
+
+                        if (personId && personName) {
+                            if (!peopleMap.has(personId)) {
+                                peopleMap.set(personId, {
+                                    person: {
+                                        id: personId,
+                                        name: personName,
+                                        canonical_id: person.canonical_id,
+                                        wikidata_thumbnail: person.wikidata_thumbnail
+                                    },
+                                    storyIds: []
+                                });
+                            }
+                            peopleMap.get(personId)!.storyIds.push(story.id);
+                        }
+                    });
+                });
+
+                // 4. Build graph data: People as primary nodes, Stories as secondary
                 const nodes: GraphNode[] = [];
                 const links: GraphLink[] = [];
                 const addedNodeIds = new Set<string>();
 
-                // --- Add Hero Node ---
-                nodes.push({
-                    id: heroStory.story_id,
-                    name: heroStory.title,
-                    type: 'hero',
-                    val: 30, // Large size
-                    imgUrl: heroStory.cover_image || '/static/placeholder.jpg', // Fallback if needed
-                    data: heroStory,
-                    fx: 0, // Fix to center
-                    fy: 0
-                });
-                addedNodeIds.add(heroStory.story_id);
-
-                // --- Add Entities from Hero ---
-                if (heroDetails.entities) {
-                    const allEntities = [
-                        ...(heroDetails.entities.people || []),
-                        ...(heroDetails.entities.organizations || []),
-                        ...(heroDetails.entities.locations || [])
-                    ];
-
-                    // Limit entities to avoid clutter
-                    allEntities.slice(0, 10).forEach((entity: any) => {
-                        if (!addedNodeIds.has(entity.id)) {
-                            nodes.push({
-                                id: entity.id,
-                                name: entity.name,
-                                type: 'entity',
-                                val: 5,
-                                color: getEntityColor(entity), // Helper for entity colors
-                                data: entity
-                            });
-                            addedNodeIds.add(entity.id);
-                        }
-                        // Link to Hero
-                        links.push({
-                            source: heroStory.story_id,
-                            target: entity.id,
-                            color: 'rgba(255,255,255,0.2)',
-                            width: 1
-                        });
-                    });
-                }
-
-                // --- Add Related Stories ---
-                if (heroDetails.related_stories) {
-                    heroDetails.related_stories.forEach((rel: any) => {
-                        if (!addedNodeIds.has(rel.id)) {
-                            nodes.push({
-                                id: rel.id,
-                                name: rel.title,
-                                type: 'story',
-                                val: 10,
-                                data: rel
-                            });
-                            addedNodeIds.add(rel.id);
-                        }
-                        links.push({
-                            source: heroStory.story_id,
-                            target: rel.id,
-                            color: 'rgba(100,100,255,0.3)',
-                            width: 2
-                        });
-                    });
-                }
-
-                // --- Add Remaining Feed Stories (Background) ---
-                stories.slice(1).forEach((story: Story) => {
-                    if (!addedNodeIds.has(story.story_id)) {
+                // Add people nodes (primary, larger, circular)
+                peopleMap.forEach(({ person, storyIds }, personId) => {
+                    // Only show people who appear in multiple stories (more interesting)
+                    if (storyIds.length >= 1) {
                         nodes.push({
-                            id: story.story_id,
-                            name: story.title,
-                            type: 'story',
-                            val: 8,
-                            imgUrl: story.cover_image,
-                            data: story
+                            id: personId,
+                            name: person.name,
+                            type: 'person',
+                            val: 8 + Math.min(storyIds.length * 2, 20), // Size based on # of stories
+                            color: '#a78bfa', // Purple for people
+                            imgUrl: person.wikidata_thumbnail,
+                            data: person,
+                            storyIds: storyIds
                         });
-                        addedNodeIds.add(story.story_id);
-                        // No links for now, just floating in background
+                        addedNodeIds.add(personId);
+                    }
+                });
+
+                // Add story nodes (secondary, smaller, rectangular)
+                storyMap.forEach((story, storyId) => {
+                    nodes.push({
+                        id: storyId,
+                        name: story.title,
+                        type: 'story',
+                        val: 6, // Smaller than people
+                        color: '#60a5fa', // Blue for stories
+                        imgUrl: story.cover_image,
+                        data: story
+                    });
+                    addedNodeIds.add(storyId);
+                });
+
+                // Add links: people -> stories they appear in
+                peopleMap.forEach(({ storyIds }, personId) => {
+                    if (addedNodeIds.has(personId)) {
+                        storyIds.forEach(storyId => {
+                            if (addedNodeIds.has(storyId)) {
+                                links.push({
+                                    source: personId,
+                                    target: storyId,
+                                    color: 'rgba(167, 139, 250, 0.2)', // Purple, transparent
+                                    width: 1
+                                });
+                            }
+                        });
                     }
                 });
 
@@ -185,7 +191,7 @@ const GraphPage: React.FC = () => {
                 });
 
                 setData({ nodes, links });
-                console.log(`GraphPage: Loaded ${nodes.length} nodes and ${links.length} links`);
+                console.log(`GraphPage: Loaded ${nodes.length} nodes (${Array.from(peopleMap.keys()).length} people, ${storyMap.size} stories) and ${links.length} links`);
 
             } catch (error) {
                 console.error('Error fetching graph data:', error);
@@ -197,53 +203,50 @@ const GraphPage: React.FC = () => {
         fetchData();
     }, []);
 
-    const getEntityColor = (_entity: any) => {
-        // Simple color mapping based on type (if available in your data structure)
-        // Adjust logic based on actual entity data structure
-        return '#a78bfa'; // Purple-ish default
-    };
-
     const handleNodeClick = useCallback((node: any) => {
-        if (node.type === 'hero' || node.type === 'story') {
+        if (node.type === 'person') {
+            // Toggle selection on person
+            setSelectedPersonId(prev => prev === node.id ? null : node.id);
+        } else if (node.type === 'story') {
+            // Navigate to story page
             navigate(`/story/${node.id}`);
-        } else if (node.type === 'entity') {
-            // Maybe navigate to entity page or filter?
-            // For now, just log
-            console.log('Clicked entity:', node.name);
         }
     }, [navigate]);
 
     const nodeCanvasObject = useCallback((node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
         const label = node.name;
         const fontSize = 12 / globalScale;
+        const isPersonSelected = node.type === 'person' && selectedPersonId === node.id;
+        const isStoryHighlighted = node.type === 'story' && selectedPersonId &&
+            data.nodes.find(n => n.id === selectedPersonId)?.storyIds?.includes(node.id);
 
-        // --- Draw Node ---
-        if (node.type === 'hero' || (node.type === 'story' && node.img)) {
-            // Draw Image Node
+        // Determine if this node should be highlighted
+        const isHighlighted = isPersonSelected || isStoryHighlighted;
+        const opacity = selectedPersonId && !isHighlighted ? 0.2 : 1.0;
+
+        ctx.globalAlpha = opacity;
+
+        if (node.type === 'person') {
+            // --- Draw Person Node (Circle) ---
             const size = node.val;
 
-            ctx.save();
-            ctx.beginPath();
-            ctx.arc(node.x, node.y, size, 0, 2 * Math.PI, false);
-            ctx.fillStyle = node.type === 'hero' ? '#ffffff' : 'rgba(255, 255, 255, 0.5)'; // Dim background stories
-            ctx.fill();
-
-            // Clip for image
-            ctx.clip();
-
             if (node.img) {
+                // Draw circular image
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, size, 0, 2 * Math.PI, false);
+                ctx.fillStyle = node.color || '#a78bfa';
+                ctx.fill();
+                ctx.clip();
+
                 try {
-                    // Maintain aspect ratio - cover the circle
+                    // Maintain aspect ratio - cover style
                     const imgWidth = node.img.width;
                     const imgHeight = node.img.height;
                     const circleDiameter = size * 2;
-
-                    // Calculate scale to cover the circle (like object-fit: cover)
                     const scale = Math.max(circleDiameter / imgWidth, circleDiameter / imgHeight);
                     const scaledWidth = imgWidth * scale;
                     const scaledHeight = imgHeight * scale;
-
-                    // Center the image
                     const offsetX = (circleDiameter - scaledWidth) / 2;
                     const offsetY = (circleDiameter - scaledHeight) / 2;
 
@@ -255,52 +258,132 @@ const GraphPage: React.FC = () => {
                         scaledHeight
                     );
                 } catch (e) {
-                    // Fallback if image fails
-                    ctx.fillStyle = '#374151';
+                    ctx.fillStyle = '#a78bfa';
                     ctx.fill();
                 }
+
+                ctx.restore();
             } else {
-                ctx.fillStyle = '#374151';
+                // No image, just colored circle
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, size, 0, 2 * Math.PI, false);
+                ctx.fillStyle = node.color || '#a78bfa';
                 ctx.fill();
             }
 
-            ctx.restore();
-
-            // Border
+            // Border (thicker if selected)
             ctx.beginPath();
             ctx.arc(node.x, node.y, size, 0, 2 * Math.PI, false);
-            ctx.lineWidth = node.type === 'hero' ? 2 / globalScale : 1 / globalScale;
-            ctx.strokeStyle = node.type === 'hero' ? '#60a5fa' : '#4b5563';
+            ctx.lineWidth = (isPersonSelected ? 3 : 1.5) / globalScale;
+            ctx.strokeStyle = isPersonSelected ? '#fbbf24' : '#8b5cf6'; // Gold if selected, purple otherwise
             ctx.stroke();
 
-        } else {
-            // Draw Simple Dot Node (Entity or Story without image)
-            const size = node.val;
-            ctx.beginPath();
-            ctx.arc(node.x, node.y, size, 0, 2 * Math.PI, false);
-            ctx.fillStyle = node.color || '#9ca3af';
-            ctx.fill();
-        }
-
-        // --- Draw Label ---
-        // Show label for Hero, Entities, or on Hover (not implemented here easily without state)
-        // Let's show labels for Hero and Entities always, others maybe small?
-        if (node.type === 'hero' || node.type === 'entity') {
+            // Label (always show for people)
             ctx.font = `${fontSize}px Sans-Serif`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-            // Draw below the node
-            ctx.fillText(label, node.x, node.y + node.val + fontSize + 2);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.fillText(label, node.x, node.y + size + fontSize + 2);
+
+        } else if (node.type === 'story') {
+            // --- Draw Story Node (Rectangle) ---
+            const width = node.val * 4;
+            const height = node.val * 2.5;
+
+            if (node.img) {
+                // Draw image in rectangle
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(node.x - width / 2, node.y - height / 2, width, height);
+                ctx.fillStyle = node.color || '#60a5fa';
+                ctx.fill();
+                ctx.clip();
+
+                try {
+                    const imgWidth = node.img.width;
+                    const imgHeight = node.img.height;
+                    const scale = Math.max(width / imgWidth, height / imgHeight);
+                    const scaledWidth = imgWidth * scale;
+                    const scaledHeight = imgHeight * scale;
+                    const offsetX = (width - scaledWidth) / 2;
+                    const offsetY = (height - scaledHeight) / 2;
+
+                    ctx.drawImage(
+                        node.img,
+                        node.x - width / 2 + offsetX,
+                        node.y - height / 2 + offsetY,
+                        scaledWidth,
+                        scaledHeight
+                    );
+                } catch (e) {
+                    ctx.fillStyle = '#60a5fa';
+                    ctx.fill();
+                }
+
+                ctx.restore();
+            } else {
+                // No image, just colored rectangle
+                ctx.fillStyle = node.color || '#60a5fa';
+                ctx.fillRect(node.x - width / 2, node.y - height / 2, width, height);
+            }
+
+            // Border (thicker if highlighted)
+            ctx.strokeStyle = isStoryHighlighted ? '#fbbf24' : '#3b82f6'; // Gold if highlighted
+            ctx.lineWidth = (isStoryHighlighted ? 2.5 : 1) / globalScale;
+            ctx.strokeRect(node.x - width / 2, node.y - height / 2, width, height);
+
+            // Label (show if highlighted or zoomed in)
+            if (isStoryHighlighted || globalScale > 1.5) {
+                ctx.font = `${fontSize * 0.8}px Sans-Serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                const maxWidth = width * 0.9;
+                const truncated = label.length > 30 ? label.substring(0, 30) + '...' : label;
+                ctx.fillText(truncated, node.x, node.y + height / 2 + fontSize + 2);
+            }
         }
-    }, []);
+
+        ctx.globalAlpha = 1.0;
+    }, [selectedPersonId, data.nodes]);
+
+    const linkColor = useCallback((link: any) => {
+        // Highlight links connected to selected person
+        if (selectedPersonId) {
+            if (link.source.id === selectedPersonId || link.target.id === selectedPersonId ||
+                link.source === selectedPersonId || link.target === selectedPersonId) {
+                return 'rgba(251, 191, 36, 0.6)'; // Gold, more visible
+            }
+            return 'rgba(167, 139, 250, 0.05)'; // Very faint for non-selected
+        }
+        return link.color || 'rgba(167, 139, 250, 0.2)';
+    }, [selectedPersonId]);
+
+    const linkWidth = useCallback((link: any) => {
+        if (selectedPersonId) {
+            if (link.source.id === selectedPersonId || link.target.id === selectedPersonId ||
+                link.source === selectedPersonId || link.target === selectedPersonId) {
+                return 2;
+            }
+            return 0.5;
+        }
+        return link.width || 1;
+    }, [selectedPersonId]);
 
     return (
         <div className="h-screen flex flex-col bg-gray-900 text-white">
             <div className="p-4 border-b border-gray-800 flex justify-between items-center z-10 bg-gray-900">
-                <h1 className="text-xl font-bold">Story Graph</h1>
+                <h1 className="text-xl font-bold">Knowledge Graph: People & Stories</h1>
                 <div className="text-sm text-gray-400">
-                    Center: Latest Story | Connected: Entities & Related
+                    {selectedPersonId ? (
+                        <span className="text-yellow-400">
+                            Click person again to deselect • Click story to view
+                        </span>
+                    ) : (
+                        <span>
+                            People (circles) • Stories (rectangles) • Click person to highlight their stories
+                        </span>
+                    )}
                 </div>
             </div>
 
@@ -311,7 +394,7 @@ const GraphPage: React.FC = () => {
                     </div>
                 ) : data.nodes.length === 0 ? (
                     <div className="absolute inset-0 flex items-center justify-center text-gray-400">
-                        No stories found to visualize.
+                        No data found to visualize.
                     </div>
                 ) : (
                     <ForceGraph2D
@@ -322,17 +405,24 @@ const GraphPage: React.FC = () => {
                         nodeCanvasObject={nodeCanvasObject}
                         nodePointerAreaPaint={(node: any, color, ctx) => {
                             ctx.fillStyle = color;
-                            ctx.beginPath();
-                            ctx.arc(node.x, node.y, node.val, 0, 2 * Math.PI, false);
-                            ctx.fill();
+                            if (node.type === 'person') {
+                                ctx.beginPath();
+                                ctx.arc(node.x, node.y, node.val, 0, 2 * Math.PI, false);
+                                ctx.fill();
+                            } else {
+                                const width = node.val * 4;
+                                const height = node.val * 2.5;
+                                ctx.fillRect(node.x - width / 2, node.y - height / 2, width, height);
+                            }
                         }}
                         onNodeClick={handleNodeClick}
                         backgroundColor="#111827"
-                        linkColor={(link: any) => link.color || '#374151'}
-                        linkWidth={(link: any) => link.width || 1}
-                        d3AlphaDecay={0.02} // Slower decay for better settling
+                        linkColor={linkColor}
+                        linkWidth={linkWidth}
+                        d3AlphaDecay={0.02}
                         d3VelocityDecay={0.3}
                         cooldownTicks={100}
+                        nodeRelSize={1}
                     />
                 )}
             </div>
