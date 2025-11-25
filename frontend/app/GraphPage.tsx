@@ -46,7 +46,6 @@ interface GraphData {
 const GraphPage: React.FC = () => {
     const [data, setData] = useState<GraphData>({ nodes: [], links: [] });
     const [loading, setLoading] = useState(true);
-    const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
     const navigate = useNavigate();
     const graphRef = useRef<any>();
     const containerRef = useRef<HTMLDivElement>(null);
@@ -71,8 +70,8 @@ const GraphPage: React.FC = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                // 1. Fetch top stories
-                const feedResponse = await fetch('/api/coherence/feed?limit=30');
+                // 1. Fetch top stories (reduced for faster loading)
+                const feedResponse = await fetch('/api/coherence/feed?limit=15');
                 const feedResult = await feedResponse.json();
 
                 if (!feedResult.stories || feedResult.stories.length === 0) {
@@ -82,8 +81,8 @@ const GraphPage: React.FC = () => {
 
                 const stories = feedResult.stories;
 
-                // 2. Fetch details for each story to get entities
-                const storyDetailsPromises = stories.slice(0, 20).map((story: Story) =>
+                // 2. Fetch details for each story to get entities (limit to 10 for speed)
+                const storyDetailsPromises = stories.slice(0, 10).map((story: Story) =>
                     fetch(`/api/stories/${story.story_id}`)
                         .then(res => res.json())
                         .catch(err => {
@@ -155,9 +154,8 @@ const GraphPage: React.FC = () => {
                         id: storyId,
                         name: story.title,
                         type: 'story',
-                        val: 6, // Smaller than people
-                        color: '#60a5fa', // Blue for stories
-                        imgUrl: story.cover_image,
+                        val: 1, // Base size, actual size determined by text
+                        color: '#3b82f6', // Blue for stories
                         data: story
                     });
                     addedNodeIds.add(storyId);
@@ -204,25 +202,25 @@ const GraphPage: React.FC = () => {
     }, []);
 
     const handleNodeClick = useCallback((node: any) => {
-        if (node.type === 'person') {
-            // Toggle selection on person
-            setSelectedPersonId(prev => prev === node.id ? null : node.id);
-        } else if (node.type === 'story') {
-            // Navigate to story page
+        // Only story boxes are clickable - navigate to story page
+        if (node.type === 'story') {
             navigate(`/story/${node.id}`);
         }
+        // People are not clickable - just decorative
     }, [navigate]);
 
     const nodeCanvasObject = useCallback((node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+        // Skip rendering if node position is not yet defined or invalid
+        if (typeof node.x !== 'number' || typeof node.y !== 'number' ||
+            !isFinite(node.x) || !isFinite(node.y)) {
+            return;
+        }
+
         const label = node.name;
         const fontSize = 12 / globalScale;
-        const isPersonSelected = node.type === 'person' && selectedPersonId === node.id;
-        const isStoryHighlighted = node.type === 'story' && selectedPersonId &&
-            data.nodes.find(n => n.id === selectedPersonId)?.storyIds?.includes(node.id);
 
-        // Determine if this node should be highlighted
-        const isHighlighted = isPersonSelected || isStoryHighlighted;
-        const opacity = selectedPersonId && !isHighlighted ? 0.2 : 1.0;
+        // No highlighting - people are just visual, stories are interactive
+        const opacity = 1.0;
 
         ctx.globalAlpha = opacity;
 
@@ -271,11 +269,11 @@ const GraphPage: React.FC = () => {
                 ctx.fill();
             }
 
-            // Border (thicker if selected)
+            // Border (consistent - no selection state)
             ctx.beginPath();
             ctx.arc(node.x, node.y, size, 0, 2 * Math.PI, false);
-            ctx.lineWidth = (isPersonSelected ? 3 : 1.5) / globalScale;
-            ctx.strokeStyle = isPersonSelected ? '#fbbf24' : '#8b5cf6'; // Gold if selected, purple otherwise
+            ctx.lineWidth = 1.5 / globalScale;
+            ctx.strokeStyle = '#8b5cf6'; // Purple
             ctx.stroke();
 
             // Label (always show for people)
@@ -286,104 +284,91 @@ const GraphPage: React.FC = () => {
             ctx.fillText(label, node.x, node.y + size + fontSize + 2);
 
         } else if (node.type === 'story') {
-            // --- Draw Story Node (Rectangle) ---
-            const width = node.val * 4;
-            const height = node.val * 2.5;
+            // --- Draw Story Node (Text Only - No Box) ---
+            // Small, faded text that doesn't obscure people
+            ctx.font = `${fontSize * 0.7}px Sans-Serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
 
-            if (node.img) {
-                // Draw image in rectangle
-                ctx.save();
-                ctx.beginPath();
-                ctx.rect(node.x - width / 2, node.y - height / 2, width, height);
-                ctx.fillStyle = node.color || '#60a5fa';
-                ctx.fill();
-                ctx.clip();
+            // Measure text to size for hit detection
+            const maxWidth = 150 / globalScale;
+            const lineHeight = fontSize * 0.7 * 1.2;
 
-                try {
-                    const imgWidth = node.img.width;
-                    const imgHeight = node.img.height;
-                    const scale = Math.max(width / imgWidth, height / imgHeight);
-                    const scaledWidth = imgWidth * scale;
-                    const scaledHeight = imgHeight * scale;
-                    const offsetX = (width - scaledWidth) / 2;
-                    const offsetY = (height - scaledHeight) / 2;
+            // Word wrap
+            const words = label.split(' ');
+            const lines: string[] = [];
+            let currentLine = '';
 
-                    ctx.drawImage(
-                        node.img,
-                        node.x - width / 2 + offsetX,
-                        node.y - height / 2 + offsetY,
-                        scaledWidth,
-                        scaledHeight
-                    );
-                } catch (e) {
-                    ctx.fillStyle = '#60a5fa';
-                    ctx.fill();
+            for (const word of words) {
+                const testLine = currentLine + (currentLine ? ' ' : '') + word;
+                const metrics = ctx.measureText(testLine);
+
+                if (metrics.width > maxWidth && currentLine) {
+                    lines.push(currentLine);
+                    currentLine = word;
+                } else {
+                    currentLine = testLine;
                 }
-
-                ctx.restore();
-            } else {
-                // No image, just colored rectangle
-                ctx.fillStyle = node.color || '#60a5fa';
-                ctx.fillRect(node.x - width / 2, node.y - height / 2, width, height);
+            }
+            if (currentLine) {
+                lines.push(currentLine);
             }
 
-            // Border (thicker if highlighted)
-            ctx.strokeStyle = isStoryHighlighted ? '#fbbf24' : '#3b82f6'; // Gold if highlighted
-            ctx.lineWidth = (isStoryHighlighted ? 2.5 : 1) / globalScale;
+            // Limit to 2 lines for compactness
+            const displayLines = lines.slice(0, 2);
+            if (lines.length > 2) {
+                displayLines[1] = displayLines[1].substring(0, displayLines[1].length - 3) + '...';
+            }
+
+            // Draw subtle box to show it's clickable
+            const padding = 4 / globalScale;
+            let maxLineWidth = 0;
+            for (const line of displayLines) {
+                const metrics = ctx.measureText(line);
+                maxLineWidth = Math.max(maxLineWidth, metrics.width);
+            }
+            const width = maxLineWidth + padding * 2;
+            const height = displayLines.length * lineHeight + padding * 2;
+
+            // Very subtle box to indicate clickability
+            ctx.fillStyle = 'rgba(30, 58, 138, 0.2)';
+            ctx.fillRect(node.x - width / 2, node.y - height / 2, width, height);
+
+            ctx.strokeStyle = 'rgba(59, 130, 246, 0.3)';
+            ctx.lineWidth = 0.5 / globalScale;
             ctx.strokeRect(node.x - width / 2, node.y - height / 2, width, height);
 
-            // Label (show if highlighted or zoomed in)
-            if (isStoryHighlighted || globalScale > 1.5) {
-                ctx.font = `${fontSize * 0.8}px Sans-Serif`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-                const maxWidth = width * 0.9;
-                const truncated = label.length > 30 ? label.substring(0, 30) + '...' : label;
-                ctx.fillText(truncated, node.x, node.y + height / 2 + fontSize + 2);
+            // Draw text - faded gray
+            ctx.fillStyle = 'rgba(156, 163, 175, 0.7)';
+            let textY = node.y - ((displayLines.length - 1) * lineHeight) / 2;
+
+            for (const line of displayLines) {
+                ctx.fillText(line, node.x, textY);
+                textY += lineHeight;
             }
         }
 
         ctx.globalAlpha = 1.0;
-    }, [selectedPersonId, data.nodes]);
+    }, [data.nodes]);
 
     const linkColor = useCallback((link: any) => {
-        // Highlight links connected to selected person
-        if (selectedPersonId) {
-            if (link.source.id === selectedPersonId || link.target.id === selectedPersonId ||
-                link.source === selectedPersonId || link.target === selectedPersonId) {
-                return 'rgba(251, 191, 36, 0.6)'; // Gold, more visible
-            }
-            return 'rgba(167, 139, 250, 0.05)'; // Very faint for non-selected
-        }
+        // All links same color - no selection highlighting
         return link.color || 'rgba(167, 139, 250, 0.2)';
-    }, [selectedPersonId]);
+    }, []);
 
     const linkWidth = useCallback((link: any) => {
-        if (selectedPersonId) {
-            if (link.source.id === selectedPersonId || link.target.id === selectedPersonId ||
-                link.source === selectedPersonId || link.target === selectedPersonId) {
-                return 2;
-            }
-            return 0.5;
-        }
+        // All links same width - no selection highlighting
         return link.width || 1;
-    }, [selectedPersonId]);
+    }, []);
 
     return (
         <div className="h-screen flex flex-col bg-gray-900 text-white">
             <div className="p-4 border-b border-gray-800 flex justify-between items-center z-10 bg-gray-900">
                 <h1 className="text-xl font-bold">Knowledge Graph: People & Stories</h1>
                 <div className="text-sm text-gray-400">
-                    {selectedPersonId ? (
-                        <span className="text-yellow-400">
-                            Click person again to deselect • Click story to view
-                        </span>
-                    ) : (
-                        <span>
-                            People (circles) • Stories (rectangles) • Click person to highlight their stories
-                        </span>
-                    )}
+                    <span>
+                        People (circles) • Stories (text boxes) • Click story to view details
+                    </span>
                 </div>
             </div>
 
@@ -410,9 +395,10 @@ const GraphPage: React.FC = () => {
                                 ctx.arc(node.x, node.y, node.val, 0, 2 * Math.PI, false);
                                 ctx.fill();
                             } else {
-                                const width = node.val * 4;
-                                const height = node.val * 2.5;
-                                ctx.fillRect(node.x - width / 2, node.y - height / 2, width, height);
+                                // Approximate hit area for story text boxes
+                                const approxWidth = 120;
+                                const approxHeight = 40;
+                                ctx.fillRect(node.x - approxWidth / 2, node.y - approxHeight / 2, approxWidth, approxHeight);
                             }
                         }}
                         onNodeClick={handleNodeClick}

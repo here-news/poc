@@ -170,32 +170,25 @@ async def get_story(story_id: str):
                 funding=0.0
             )
 
-            # Get related stories (using all entity relationship types)
+            # Get related stories using RELATED_TO relationship (like storychat)
             related_result = session.run('''
                 MATCH (s:Story {id: $story_id})
-                OPTIONAL MATCH (s)-[:MENTIONS]->(p:Person)<-[:MENTIONS]-(related:Story)
-                WHERE related.id <> $story_id
-                WITH s, collect(DISTINCT {story: related, entity: p}) as person_matches
-                OPTIONAL MATCH (s)-[:MENTIONS_ORG]->(o:Organization)<-[:MENTIONS_ORG]-(related2:Story)
-                WHERE related2.id <> $story_id
-                WITH s, person_matches + collect(DISTINCT {story: related2, entity: o}) as all_matches
-                UNWIND all_matches as match
-                WITH match.story as related, count(DISTINCT match.entity) as shared_entities
-                WHERE shared_entities > 0 AND related IS NOT NULL
+                OPTIONAL MATCH (s)-[rel:RELATED_TO]->(related:Story)
+                WHERE related IS NOT NULL
                 RETURN related.id as id,
                        coalesce(related.title, related.topic) as title,
-                       shared_entities
-                ORDER BY shared_entities DESC
+                       coalesce(rel.score_event, 0.5) as match_score
                 LIMIT 5
             ''', story_id=story_id)
 
             related_stories = []
             for rel in related_result:
-                related_stories.append({
-                    'id': rel['id'],
-                    'title': rel['title'],
-                    'shared_entities': rel['shared_entities']
-                })
+                if rel['id']:
+                    related_stories.append({
+                        'id': rel['id'],
+                        'title': rel['title'],
+                        'match_score': rel['match_score']
+                    })
 
             return {
                 "status": "success",
