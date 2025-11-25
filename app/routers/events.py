@@ -77,27 +77,35 @@ async def create_event_submission(
     url = submission_data.urls.strip() if submission_data.urls else None
     if url:
         try:
-            # Create ExtractionTask and trigger extraction
-            from app.models.extraction import ExtractionTask as ExtTask
-
-            task_id = str(uuid.uuid4())
-
-            # Create extraction task in database
-            extraction_task = ExtTask(
-                id=task_id,
-                url=url,
-                user_id=current_user.user_id,
-                status="pending",
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow()
-            )
-            db.add(extraction_task)
-            await db.flush()  # Persist task before triggering
-
-            # Get instant preview from service_farm for preview_meta
+            # Delegate to service-farm for proper URL normalization and deduplication
+            task_id = None
             preview_meta = None
-            try:
-                async with httpx.AsyncClient(timeout=5.0) as client:
+
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                # Submit to service-farm (handles normalization and deduplication)
+                submit_response = await client.post(
+                    f"{settings.service_farm_url}/submit",
+                    data={
+                        "url": url,
+                        "user_id": current_user.user_id,
+                        "response_format": "json"
+                    },
+                    timeout=10.0
+                )
+
+                if submit_response.status_code == 200:
+                    result = submit_response.json()
+                    task_id = result.get("task_id")
+                    logger.info(f"✅ Task created via service-farm: {task_id} for {url}")
+                else:
+                    logger.error(f"❌ Service-farm /submit failed: {submit_response.status_code}")
+                    raise HTTPException(
+                        status_code=503,
+                        detail="Failed to create extraction task"
+                    )
+
+                # Get instant preview from service_farm for preview_meta
+                try:
                     preview_response = await client.get(
                         f"{settings.service_farm_url}/api/preview",
                         params={"url": url},
@@ -113,26 +121,8 @@ async def create_event_submission(
                                 "site_name": preview_data.get("site_name"),
                                 "canonical_url": preview_data.get("url")
                             }
-            except Exception as e:
-                logger.warning(f"Preview fetch failed for {url}: {e}")
-
-            # Trigger extraction worker via /submit endpoint
-            try:
-                async with httpx.AsyncClient(timeout=5.0) as client:
-                    # Try new /submit endpoint (form-urlencoded)
-                    submit_response = await client.post(
-                        f"{settings.service_farm_url}/submit",
-                        data={"url": url, "task_id": task_id},
-                        headers={"Content-Type": "application/x-www-form-urlencoded"},
-                        timeout=5.0
-                    )
-                    if submit_response.status_code in [200, 201, 202]:
-                        logger.info(f"✅ Submitted extraction task {task_id} via /submit")
-                    else:
-                        logger.warning(f"⚠️  /submit returned {submit_response.status_code}, worker will poll for task")
-            except Exception as e:
-                logger.warning(f"⚠️  Failed to submit via /submit: {e}, worker will poll for pending tasks")
-                # Don't fail - worker polls for pending tasks
+                except Exception as e:
+                    logger.warning(f"Preview fetch failed for {url}: {e}")
 
             # Update submission with task_id, status, and preview
             submission.task_id = task_id
