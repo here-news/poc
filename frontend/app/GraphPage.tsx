@@ -70,8 +70,8 @@ const GraphPage: React.FC = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                // 1. Fetch top stories (reduced for faster loading)
-                const feedResponse = await fetch('/api/coherence/feed?limit=15');
+                // 1. Fetch top stories (balanced for variety and performance)
+                const feedResponse = await fetch('/api/coherence/feed?limit=20');
                 const feedResult = await feedResponse.json();
 
                 if (!feedResult.stories || feedResult.stories.length === 0) {
@@ -81,8 +81,8 @@ const GraphPage: React.FC = () => {
 
                 const stories = feedResult.stories;
 
-                // 2. Fetch details for each story to get entities (limit to 10 for speed)
-                const storyDetailsPromises = stories.slice(0, 10).map((story: Story) =>
+                // 2. Fetch details for each story to get entities (limit to 15 for better variety)
+                const storyDetailsPromises = stories.slice(0, 15).map((story: Story) =>
                     fetch(`/api/stories/${story.story_id}`)
                         .then(res => res.json())
                         .catch(err => {
@@ -134,11 +134,16 @@ const GraphPage: React.FC = () => {
                 peopleMap.forEach(({ person, storyIds }, personId) => {
                     // Only show people who appear in multiple stories (more interesting)
                     if (storyIds.length >= 1) {
+                        // More aggressive sizing: 10-30 range based on story count
+                        const baseSize = 10;
+                        const sizeMultiplier = 4; // More dramatic size differences
+                        const maxBonus = 20;
+
                         nodes.push({
                             id: personId,
                             name: person.name,
                             type: 'person',
-                            val: 8 + Math.min(storyIds.length * 2, 20), // Size based on # of stories
+                            val: baseSize + Math.min(storyIds.length * sizeMultiplier, maxBonus),
                             color: '#a78bfa', // Purple for people
                             imgUrl: person.wikidata_thumbnail,
                             data: person,
