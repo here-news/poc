@@ -1,0 +1,12 @@
+name: Deploy Webapp
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, deploy]
+    steps:
+      - name: Deploy webapp
+        run: /home/isaac/here_infra/scripts/deploy-webapp.sh
