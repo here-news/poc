@@ -40,18 +40,18 @@ class ChatSessionRepository:
 
         # Get user and check credits
         user_result = await self.db.execute(
-            select(User).where(User.id == user_id)
+            select(User).where(User.user_id == user_id)
         )
         user = user_result.scalar_one_or_none()
 
         if not user:
             raise ValueError("User not found")
 
-        if user.credits < cost:
-            raise ValueError(f"Insufficient credits. Need {cost}, have {user.credits}")
+        if user.credits_balance < cost:
+            raise ValueError(f"Insufficient credits. Need {cost}, have {user.credits_balance}")
 
         # Deduct credits
-        user.credits -= cost
+        user.credits_balance -= cost
 
         # Create session
         session = ChatSession(

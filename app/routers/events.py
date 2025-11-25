@@ -77,49 +77,62 @@ async def create_event_submission(
     url = submission_data.urls.strip() if submission_data.urls else None
     if url:
         try:
-            # Get instant preview from service_farm
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                preview_response = await client.get(
-                    f"{settings.service_farm_url}/api/preview",
-                    params={"url": url},
-                    timeout=10.0
-                )
+            # Create ExtractionTask and trigger extraction
+            from app.models.extraction import ExtractionTask as ExtTask
 
-                preview_meta = None
-                task_id = None
+            task_id = str(uuid.uuid4())
 
-                if preview_response.status_code == 200:
-                    preview_data = preview_response.json()
-                    logger.info(f"✅ Preview response from service_farm: {preview_data}")
+            # Create extraction task in database
+            extraction_task = ExtTask(
+                id=task_id,
+                url=url,
+                user_id=current_user.user_id,
+                status="pending",
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+            db.add(extraction_task)
+            await db.flush()  # Persist task before triggering
 
-                    # Extract task_id from preview response
-                    task_id = preview_data.get("task_id") or str(uuid.uuid4())
+            # Get instant preview from service_farm for preview_meta
+            preview_meta = None
+            try:
+                async with httpx.AsyncClient(timeout=5.0) as client:
+                    preview_response = await client.get(
+                        f"{settings.service_farm_url}/api/preview",
+                        params={"url": url},
+                        timeout=5.0
+                    )
+                    if preview_response.status_code == 200:
+                        preview_data = preview_response.json()
+                        if preview_data.get("title"):
+                            preview_meta = {
+                                "title": preview_data.get("title"),
+                                "description": preview_data.get("description"),
+                                "thumbnail_url": preview_data.get("image") or preview_data.get("thumbnail_url"),
+                                "site_name": preview_data.get("site_name"),
+                                "canonical_url": preview_data.get("url")
+                            }
+            except Exception as e:
+                logger.warning(f"Preview fetch failed for {url}: {e}")
 
-                    # Extract preview metadata
-                    # New service_farm format: data is at top level
-                    if preview_data.get("title"):
-                        preview_meta = {
-                            "title": preview_data.get("title"),
-                            "description": preview_data.get("description"),
-                            "thumbnail_url": preview_data.get("image") or preview_data.get("thumbnail_url"),
-                            "site_name": preview_data.get("site_name"),
-                            "canonical_url": preview_data.get("url")
-                        }
-                        logger.info(f"✅ Preview meta extracted (new format): {preview_meta}")
-                    # Old format fallback: nested in "preview" object
-                    elif preview_data.get("found") and preview_data.get("preview"):
-                        preview_info = preview_data["preview"]
-                        preview_meta = {
-                            "title": preview_info.get("title"),
-                            "description": preview_info.get("description"),
-                            "thumbnail_url": preview_info.get("image") or preview_info.get("thumbnail_url"),
-                            "site_name": preview_info.get("site_name"),
-                            "canonical_url": preview_info.get("canonical_url")
-                        }
-                        logger.info(f"✅ Preview meta extracted (old format): {preview_meta}")
-                else:
-                    # Preview failed, generate task_id
-                    task_id = str(uuid.uuid4())
+            # Trigger extraction worker via /submit endpoint
+            try:
+                async with httpx.AsyncClient(timeout=5.0) as client:
+                    # Try new /submit endpoint (form-urlencoded)
+                    submit_response = await client.post(
+                        f"{settings.service_farm_url}/submit",
+                        data={"url": url, "task_id": task_id},
+                        headers={"Content-Type": "application/x-www-form-urlencoded"},
+                        timeout=5.0
+                    )
+                    if submit_response.status_code in [200, 201, 202]:
+                        logger.info(f"✅ Submitted extraction task {task_id} via /submit")
+                    else:
+                        logger.warning(f"⚠️  /submit returned {submit_response.status_code}, worker will poll for task")
+            except Exception as e:
+                logger.warning(f"⚠️  Failed to submit via /submit: {e}, worker will poll for pending tasks")
+                # Don't fail - worker polls for pending tasks
 
             # Update submission with task_id, status, and preview
             submission.task_id = task_id
@@ -129,11 +142,11 @@ async def create_event_submission(
             await db.commit()
             await db.refresh(submission)
 
-            logger.info(f"🚀 Extraction started for URL: {url} (task_id: {task_id})")
+            logger.info(f"🚀 Extraction task created: {task_id} for {url}")
 
         except Exception as e:
-            logger.error(f"❌ Failed to trigger extraction: {e}")
-            # Don't fail the request - submission is created, extraction will be retried
+            logger.error(f"❌ Failed to create extraction task: {e}")
+            # Don't fail the request - submission is created
             submission.status = "pending"
             await db.commit()
 
@@ -185,6 +198,11 @@ async def get_my_submissions(
         current_status = sub.status
         current_story_match = parse_json_field(sub.story_match, StoryMatch)
         current_preview_meta = parse_json_field(sub.preview_meta, PreviewMeta)
+        current_stage = None
+        error = None
+        block_reason = None
+        result = None
+        semantic_data = None
 
         if sub.task_id:
             try:
@@ -201,14 +219,42 @@ async def get_my_submissions(
                             current_story_match = StoryMatch(**task.story_match) if isinstance(task.story_match, dict) else current_story_match
                     elif task.status == "failed":
                         current_status = "failed"
+                        error = task.error_message
                     elif task.status == "blocked":
                         current_status = "blocked"
+                        block_reason = task.block_reason
                     elif task.status == "processing":
                         current_status = "extracting"
+
+                    # Get current stage
+                    current_stage = task.current_stage
 
                     # Update preview_meta if available
                     if task.preview_meta and isinstance(task.preview_meta, dict):
                         current_preview_meta = PreviewMeta(**task.preview_meta)
+
+                    # Extract result data
+                    if task.result and isinstance(task.result, dict):
+                        from app.models.event_submission import ExtractionResult
+                        result = ExtractionResult(
+                            title=task.result.get("title"),
+                            author=task.result.get("author"),
+                            publish_date=task.result.get("publish_date"),
+                            meta_description=task.result.get("meta_description"),
+                            content_text=task.result.get("content_text"),
+                            screenshot_url=task.result.get("screenshot_url"),
+                            word_count=task.result.get("word_count"),
+                            reading_time_minutes=task.result.get("reading_time_minutes"),
+                            language=task.result.get("language")
+                        )
+
+                    # Extract semantic data
+                    if task.semantic_data and isinstance(task.semantic_data, dict):
+                        from app.models.event_submission import SemanticData
+                        semantic_data = SemanticData(
+                            claims=task.semantic_data.get("claims"),
+                            entities=task.semantic_data.get("entities")
+                        )
             except Exception as e:
                 logger.error(f"Failed to fetch extraction task {sub.task_id}: {e}")
 
@@ -223,7 +269,12 @@ async def get_my_submissions(
             task_id=sub.task_id,
             story_match=current_story_match,
             preview_meta=current_preview_meta,
-            created_at=sub.created_at
+            created_at=sub.created_at,
+            current_stage=current_stage,
+            error=error,
+            block_reason=block_reason,
+            result=result,
+            semantic_data=semantic_data
         ))
 
     return result_list

@@ -2,9 +2,10 @@
 Pydantic models for Chat Sessions
 """
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Any
+from uuid import UUID
 from app.database.models import ChatSessionStatus
 
 
@@ -19,6 +20,14 @@ class ChatSessionResponse(BaseModel):
     unlocked_at: datetime
     last_message_at: Optional[datetime] = None
     created_at: datetime
+
+    @field_validator('user_id', mode='before')
+    @classmethod
+    def convert_uuid_to_str(cls, v):
+        """Convert UUID to string"""
+        if isinstance(v, UUID):
+            return str(v)
+        return v
 
     model_config = {"from_attributes": True}
 

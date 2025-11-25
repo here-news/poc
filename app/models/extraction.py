@@ -54,7 +54,7 @@ class ExtractionTask(Base):
     block_reason = Column(Text, nullable=True)
 
     # Story assignment
-    target_story_id = Column(String, nullable=True, index=True)
+    target_story_id = Column(UUID(as_uuid=False), nullable=True, index=True)
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)

@@ -29,6 +29,25 @@ class PreviewMeta(BaseModel):
     site_name: Optional[str] = None
 
 
+class ExtractionResult(BaseModel):
+    """Extraction result data from completed tasks"""
+    title: Optional[str] = None
+    author: Optional[str] = None
+    publish_date: Optional[str] = None
+    meta_description: Optional[str] = None
+    content_text: Optional[str] = None
+    screenshot_url: Optional[str] = None
+    word_count: Optional[int] = None
+    reading_time_minutes: Optional[int] = None
+    language: Optional[str] = None
+
+
+class SemanticData(BaseModel):
+    """Semantic analysis data"""
+    claims: Optional[list] = None
+    entities: Optional[Dict[str, Any]] = None
+
+
 class EventSubmissionResponse(BaseModel):
     """Response model for event submission"""
     id: str
@@ -42,6 +61,12 @@ class EventSubmissionResponse(BaseModel):
     story_match: Optional[StoryMatch] = None
     preview_meta: Optional[PreviewMeta] = None
     created_at: datetime
+    # Extraction task details
+    current_stage: Optional[str] = None
+    error: Optional[str] = None
+    block_reason: Optional[str] = None
+    result: Optional[ExtractionResult] = None
+    semantic_data: Optional[SemanticData] = None
 
     class Config:
         from_attributes = True

@@ -16,6 +16,31 @@ export interface PreviewMeta {
   site_name?: string
 }
 
+export interface ExtractionResult {
+  title?: string
+  author?: string
+  publish_date?: string
+  meta_description?: string
+  content_text?: string
+  screenshot_url?: string
+  word_count?: number
+  reading_time_minutes?: number
+  language?: string
+}
+
+export interface SemanticData {
+  claims?: Array<{
+    text?: string
+    claim_text?: string
+    claim_type?: string
+  }>
+  entities?: {
+    people?: Array<{ name: string } | string>
+    organizations?: Array<{ name: string } | string>
+    locations?: Array<{ name: string } | string>
+  }
+}
+
 export interface EventSubmission {
   id: string
   user_id: string
@@ -23,11 +48,16 @@ export interface EventSubmission {
   user_picture?: string
   content: string
   urls?: string
-  status: 'pending' | 'extracting' | 'completed' | 'failed' | 'blocked'
+  status: 'pending' | 'extracting' | 'processing' | 'completed' | 'failed' | 'blocked'
   task_id?: string
   story_match?: StoryMatch
   preview_meta?: PreviewMeta
   created_at: string
+  current_stage?: string
+  error?: string
+  block_reason?: string
+  result?: ExtractionResult
+  semantic_data?: SemanticData
 }
 
 interface PendingSubmissionProps {
@@ -45,6 +75,7 @@ function PendingSubmission({ submission }: PendingSubmissionProps) {
       case 'pending':
         return { icon: '⏱️', text: 'queued', color: 'text-slate-600', borderColor: 'border-slate-300' }
       case 'extracting':
+      case 'processing':
         return { icon: '🔍', text: 'processing', color: 'text-blue-600', borderColor: 'border-blue-300' }
       case 'failed':
         return { icon: '❌', text: 'failed', color: 'text-red-600', borderColor: 'border-red-300' }
@@ -157,6 +188,56 @@ function PendingSubmission({ submission }: PendingSubmissionProps) {
         <span>{statusInfo.text}</span>
       </div>
 
+      {/* Extraction Pipeline Progress */}
+      {(submission.status === 'extracting' || submission.status === 'processing' || submission.status === 'completed') && submission.current_stage && (
+        <div className="mb-4 p-3 bg-white rounded-lg border border-slate-200">
+          <div className="flex items-center justify-between gap-2">
+            {[
+              { id: 'extraction', label: 'Metadata', icon: '📋' },
+              { id: 'cleaning', label: 'Metadata+', icon: '✨' },
+              { id: 'content', label: 'Content', icon: '📄' },
+              { id: 'semantization', label: 'Semantic', icon: '🧠' }
+            ].map((stage, index, stages) => {
+              const currentStageIndex = stages.findIndex(s => s.id === submission.current_stage)
+              const isCompleted = index < currentStageIndex || submission.status === 'completed'
+              const isActive = index === currentStageIndex && (submission.status === 'extracting' || submission.status === 'processing')
+
+              return (
+                <React.Fragment key={stage.id}>
+                  <div className="flex flex-col items-center gap-1 flex-1">
+                    <div
+                      className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-semibold transition-all ${
+                        isCompleted
+                          ? 'bg-green-500 text-white'
+                          : isActive
+                          ? 'bg-blue-500 text-white animate-pulse'
+                          : 'bg-slate-200 text-slate-400'
+                      }`}
+                    >
+                      {stage.icon}
+                    </div>
+                    <div
+                      className={`text-xs font-medium text-center ${
+                        isCompleted
+                          ? 'text-green-600'
+                          : isActive
+                          ? 'text-blue-600 font-semibold'
+                          : 'text-slate-400'
+                      }`}
+                    >
+                      {stage.label}
+                    </div>
+                  </div>
+                  {index < stages.length - 1 && (
+                    <div className="text-slate-300 text-lg mb-6">→</div>
+                  )}
+                </React.Fragment>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Content */}
       {submission.content && (
         <p className="text-slate-700 text-sm leading-relaxed mb-3 whitespace-pre-wrap">
@@ -235,6 +316,202 @@ function PendingSubmission({ submission }: PendingSubmissionProps) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
         </a>
+      )}
+
+      {/* Task Info Grid */}
+      {(submission.task_id || submission.current_stage) && (
+        <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
+          {submission.task_id && (
+            <div className="bg-white p-2 rounded border border-slate-200">
+              <div className="text-slate-500 uppercase font-medium mb-1">Task ID</div>
+              <div className="text-slate-700 font-mono">{submission.task_id.substring(0, 8)}...</div>
+            </div>
+          )}
+          {submission.current_stage && (
+            <div className="bg-white p-2 rounded border border-slate-200">
+              <div className="text-slate-500 uppercase font-medium mb-1">Current Stage</div>
+              <div className="text-slate-700">{submission.current_stage}</div>
+            </div>
+          )}
+          {submission.result?.word_count && (
+            <div className="bg-white p-2 rounded border border-slate-200">
+              <div className="text-slate-500 uppercase font-medium mb-1">Word Count</div>
+              <div className="text-slate-700">{submission.result.word_count}</div>
+            </div>
+          )}
+          {submission.result?.reading_time_minutes && (
+            <div className="bg-white p-2 rounded border border-slate-200">
+              <div className="text-slate-500 uppercase font-medium mb-1">Reading Time</div>
+              <div className="text-slate-700">{submission.result.reading_time_minutes} min</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Screenshot */}
+      {submission.result?.screenshot_url && (
+        <div className="mt-4">
+          <h4 className="font-semibold text-slate-900 mb-2 text-sm">Screenshot</h4>
+          <img
+            src={submission.result.screenshot_url}
+            alt="Page screenshot"
+            className="w-full max-w-2xl rounded-lg shadow-md border border-slate-200"
+          />
+        </div>
+      )}
+
+      {/* Extracted Content */}
+      {submission.status === 'completed' && submission.result && (
+        <div className="mt-4 bg-white p-4 rounded-lg border border-slate-200">
+          <h3 className="text-lg font-bold text-slate-900 mb-2">
+            {submission.result.title || 'Untitled'}
+          </h3>
+
+          {submission.result.author && (
+            <p className="text-sm text-slate-600 mb-1">
+              <strong>Author:</strong> {submission.result.author}
+            </p>
+          )}
+
+          {submission.result.publish_date && (
+            <p className="text-sm text-slate-600 mb-2">
+              <strong>Published:</strong> {new Date(submission.result.publish_date).toLocaleDateString()}
+            </p>
+          )}
+
+          {submission.result.meta_description && (
+            <p className="text-sm text-slate-700 leading-relaxed mb-2">
+              {submission.result.meta_description}
+            </p>
+          )}
+
+          {/* Full Content (Collapsible) */}
+          {submission.result.content_text && (
+            <details className="mt-3">
+              <summary className="cursor-pointer font-semibold text-indigo-600 hover:text-indigo-800 text-sm">
+                Show Full Content ({submission.result.word_count || 0} words)
+              </summary>
+              <div className="mt-2 p-3 bg-slate-50 rounded text-sm text-slate-700 leading-relaxed max-h-96 overflow-y-auto whitespace-pre-wrap">
+                {submission.result.content_text.substring(0, 5000)}
+                {submission.result.content_text.length > 5000 && '...'}
+              </div>
+            </details>
+          )}
+
+          {/* Meta Tags */}
+          {submission.result.language && (
+            <div className="flex flex-wrap gap-2 mt-3">
+              <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs">
+                Language: {submission.result.language}
+              </span>
+              {submission.result.word_count && (
+                <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs">
+                  📝 {submission.result.word_count} words
+                </span>
+              )}
+              {submission.result.reading_time_minutes && (
+                <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs">
+                  ⏱️ {submission.result.reading_time_minutes} min read
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Semantic Analysis */}
+      {submission.semantic_data && (submission.semantic_data.claims || submission.semantic_data.entities) && (
+        <div className="mt-4 bg-white p-4 rounded-lg border border-slate-200">
+          <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2 text-sm">
+            🧠 Semantic Analysis
+          </h4>
+
+          {/* Claims */}
+          {submission.semantic_data.claims && submission.semantic_data.claims.length > 0 && (
+            <details open className="mb-3">
+              <summary className="cursor-pointer font-medium text-indigo-600 hover:text-indigo-800 text-sm mb-2">
+                Claims ({submission.semantic_data.claims.length})
+              </summary>
+              <div className="space-y-2">
+                {submission.semantic_data.claims.slice(0, 10).map((claim, idx) => (
+                  <div key={idx} className="p-2 bg-slate-50 border-l-2 border-indigo-500 rounded text-sm">
+                    <div className="font-medium text-slate-900">
+                      {claim.text || claim.claim_text || ''}
+                    </div>
+                    {claim.claim_type && (
+                      <div className="text-xs text-slate-500 mt-1">Type: {claim.claim_type}</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+
+          {/* Entities */}
+          {submission.semantic_data.entities && (
+            <details className="mb-2">
+              <summary className="cursor-pointer font-medium text-indigo-600 hover:text-indigo-800 text-sm mb-2">
+                Entities
+              </summary>
+              <div className="space-y-2">
+                {submission.semantic_data.entities.people && submission.semantic_data.entities.people.length > 0 && (
+                  <div>
+                    <strong className="text-xs text-slate-600">People:</strong>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {submission.semantic_data.entities.people.slice(0, 10).map((p, idx) => (
+                        <span key={idx} className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs">
+                          {typeof p === 'string' ? p : p.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {submission.semantic_data.entities.organizations && submission.semantic_data.entities.organizations.length > 0 && (
+                  <div>
+                    <strong className="text-xs text-slate-600">Organizations:</strong>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {submission.semantic_data.entities.organizations.slice(0, 10).map((o, idx) => (
+                        <span key={idx} className="px-2 py-1 bg-purple-50 text-purple-700 rounded text-xs">
+                          {typeof o === 'string' ? o : o.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {submission.semantic_data.entities.locations && submission.semantic_data.entities.locations.length > 0 && (
+                  <div>
+                    <strong className="text-xs text-slate-600">Locations:</strong>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {submission.semantic_data.entities.locations.slice(0, 10).map((l, idx) => (
+                        <span key={idx} className="px-2 py-1 bg-green-50 text-green-700 rounded text-xs">
+                          {typeof l === 'string' ? l : l.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </details>
+          )}
+        </div>
+      )}
+
+      {/* Error Display */}
+      {submission.status === 'failed' && submission.error && (
+        <div className="mt-4 p-3 bg-red-50 border-l-4 border-red-500 rounded text-sm">
+          <strong className="text-red-900">Error:</strong>
+          <p className="text-red-700 mt-1">{submission.error}</p>
+        </div>
+      )}
+
+      {/* Block Reason */}
+      {submission.status === 'blocked' && submission.block_reason && (
+        <div className="mt-4 p-3 bg-amber-50 border-l-4 border-amber-500 rounded text-sm">
+          <strong className="text-amber-900">Blocked:</strong>
+          <p className="text-amber-700 mt-1">{submission.block_reason}</p>
+        </div>
       )}
     </div>
   )

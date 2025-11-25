@@ -6,12 +6,31 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.connection import get_db
 from app.database.repositories.comment_repo import CommentRepository
+from app.database.repositories.event_submission_repo import EventSubmissionRepository
 from app.auth.middleware import get_current_user_optional
 from app.models.user import UserPublic
 from pydantic import BaseModel
 from typing import Optional, List, Dict
+import re
+import httpx
+import uuid
+import json
+import logging
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/comments", tags=["comments"])
+
+# Get settings for service_farm URL
+from app.config import get_settings
+settings = get_settings()
+
+
+def extract_urls(text: str) -> List[str]:
+    """Extract URLs from text"""
+    url_pattern = r'https?://[^\s<>"]+'
+    urls = re.findall(url_pattern, text)
+    # Clean up URLs (remove trailing punctuation)
+    return [url.rstrip('.,;:!?)') for url in urls]
 
 
 class CommentCreate(BaseModel):
@@ -71,6 +90,87 @@ async def create_comment(
             parent_comment_id=comment_data.parent_comment_id,
             reaction_type=comment_data.reaction_type
         )
+
+        # Extract URLs from comment and create event submissions
+        urls = extract_urls(comment_data.text)
+        for url in urls:
+            try:
+                # Create event submission for each URL
+                submission = await EventSubmissionRepository.create(
+                    db=db,
+                    user_id=current_user.user_id,
+                    content=f"URL from comment: {comment_data.text[:100]}",
+                    urls=url
+                )
+
+                # Create ExtractionTask and trigger extraction
+                from app.models.extraction import ExtractionTask as ExtTask
+                from datetime import datetime
+
+                task_id = str(uuid.uuid4())
+
+                # Create extraction task in database
+                extraction_task = ExtTask(
+                    id=task_id,
+                    url=url,
+                    user_id=current_user.user_id,
+                    status="pending",
+                    created_at=datetime.utcnow(),
+                    updated_at=datetime.utcnow()
+                )
+                db.add(extraction_task)
+                await db.flush()
+
+                # Get instant preview from service_farm
+                preview_meta = None
+                try:
+                    async with httpx.AsyncClient(timeout=5.0) as client:
+                        preview_response = await client.get(
+                            f"{settings.service_farm_url}/api/preview",
+                            params={"url": url},
+                            timeout=5.0
+                        )
+                        if preview_response.status_code == 200:
+                            preview_data = preview_response.json()
+                            if preview_data.get("title"):
+                                preview_meta = {
+                                    "title": preview_data.get("title"),
+                                    "description": preview_data.get("description"),
+                                    "thumbnail_url": preview_data.get("image") or preview_data.get("thumbnail_url"),
+                                    "site_name": preview_data.get("site_name"),
+                                    "canonical_url": preview_data.get("url")
+                                }
+                except Exception as e:
+                    logger.warning(f"Preview fetch failed for {url}: {e}")
+
+                # Trigger extraction worker via /submit endpoint
+                try:
+                    async with httpx.AsyncClient(timeout=5.0) as client:
+                        submit_response = await client.post(
+                            f"{settings.service_farm_url}/submit",
+                            data={"url": url, "task_id": task_id},
+                            headers={"Content-Type": "application/x-www-form-urlencoded"},
+                            timeout=5.0
+                        )
+                        if submit_response.status_code in [200, 201, 202]:
+                            logger.info(f"✅ Submitted extraction task {task_id} via /submit")
+                        else:
+                            logger.warning(f"⚠️  /submit returned {submit_response.status_code}, worker will poll for task")
+                except Exception as e:
+                    logger.warning(f"⚠️  Failed to submit via /submit: {e}, worker will poll for pending tasks")
+
+                # Update submission with task_id, status, and preview
+                submission.task_id = task_id
+                submission.status = "extracting"
+                if preview_meta:
+                    submission.preview_meta = json.dumps(preview_meta)
+                await db.commit()
+
+                logger.info(f"🔗 Created extraction task from comment URL: {url} (task_id: {task_id})")
+
+            except Exception as e:
+                logger.error(f"❌ Failed to create event submission for URL {url}: {e}")
+                # Don't fail the comment if event submission fails
 
         # Return comment with user info
         return CommentResponse(
