@@ -213,6 +213,23 @@ const GraphPage: React.FC = () => {
         // People are not clickable - just decorative
     }, [navigate]);
 
+    // Configure force simulation after graph loads
+    useEffect(() => {
+        if (graphRef.current && data.nodes.length > 0) {
+            const fg = graphRef.current;
+
+            // Moderate repulsion to spread people out without scattering too far
+            fg.d3Force('charge').strength((node: any) => {
+                return node.type === 'person' ? -800 : -100;
+            });
+
+            // Medium link distance - not too close, not too far
+            fg.d3Force('link').distance(() => {
+                return 120; // Medium distance for balanced spacing
+            }).strength(0.8); // Moderate pull toward connected nodes
+        }
+    }, [data.nodes]);
+
     const nodeCanvasObject = useCallback((node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
         // Skip rendering if node position is not yet defined or invalid
         if (typeof node.x !== 'number' || typeof node.y !== 'number' ||
