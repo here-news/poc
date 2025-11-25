@@ -63,80 +63,39 @@ async def submit_url(
             detail=f"Insufficient credits. You have {db_user.credits_balance} credits, but need {SUBMISSION_COST}."
         )
 
-    # Normalize URL (TODO: implement URL normalization)
-    original_url = url
-
-    # Check for dead URLs (404 only)
+    # Delegate to service-farm's /submit endpoint
+    # This ensures proper URL normalization and deduplication
     try:
-        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
-            response = await client.head(url, follow_redirects=True)
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            submit_response = await client.post(
+                f"{settings.service_farm_url}/submit",
+                data={
+                    "url": url,
+                    "force": "true" if force else "false",
+                    "target_story_id": target_story_id or "",
+                    "user_id": user.user_id,
+                    "format": "json"
+                },
+                timeout=10.0
+            )
 
-            if response.status_code == 404:
+            if submit_response.status_code != 200:
+                error_detail = submit_response.json().get("detail", "Unknown error")
                 raise HTTPException(
-                    status_code=400,
-                    detail=f"URL is not accessible (HTTP {response.status_code}). Please check the URL and try again."
+                    status_code=submit_response.status_code,
+                    detail=f"Service farm error: {error_detail}"
                 )
-    except httpx.TimeoutException:
-        # Allow timeout - Playwright might still work
-        pass
+
+            result = submit_response.json()
+            task_id = result["task_id"]
+
+            print(f"✅ Task created via service-farm: {task_id} for {url}")
+
     except httpx.RequestError as e:
-        # Allow other errors - Playwright might handle them
-        print(f"⚠️ Pre-flight check failed for {url}: {e}")
-
-    # Check for recent duplicate submission (unless force=True)
-    if not force:
-        cutoff_time = datetime.utcnow() - timedelta(hours=24)
-        result = await db.execute(
-            select(ExtractionTask)
-            .where(ExtractionTask.url == url)
-            .where(ExtractionTask.created_at >= cutoff_time)
-            .order_by(ExtractionTask.created_at.desc())
-            .limit(1)
+        raise HTTPException(
+            status_code=503,
+            detail=f"Service farm unavailable: {str(e)}"
         )
-        existing_task = result.scalar_one_or_none()
-
-        if existing_task:
-            print(f"🔁 Found recent task for URL (within 24h): {existing_task.id}")
-
-            # Still deduct credits and link to user
-            await db.execute(
-                update(User)
-                .where(User.user_id == user.user_id)
-                .values(credits_balance=User.credits_balance - SUBMISSION_COST)
-            )
-
-            # Link URL to user
-            await db.execute(
-                insert(UserURL).values(
-                    user_id=user.user_id,
-                    task_id=existing_task.id,
-                    url=url,
-                    credits_spent=SUBMISSION_COST
-                )
-            )
-
-            await db.commit()
-
-            # Return existing task
-            if response_format == "json":
-                return {"task_id": existing_task.id, "status": "submitted", "reused": True}
-            else:
-                return RedirectResponse(url=f"/task/{existing_task.id}", status_code=303)
-
-    # Create new extraction task
-    task_id = str(uuid.uuid4())
-
-    new_task = ExtractionTask(
-        id=task_id,
-        url=url,
-        user_id=user.user_id,
-        status="pending",
-        target_story_id=target_story_id,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
-    )
-
-    db.add(new_task)
 
     # Deduct credits
     await db.execute(
@@ -145,7 +104,7 @@ async def submit_url(
         .values(credits_balance=User.credits_balance - SUBMISSION_COST)
     )
 
-    # Link URL to user
+    # Link URL to user (task already created by service-farm)
     user_url = UserURL(
         user_id=user.user_id,
         task_id=task_id,
@@ -155,24 +114,6 @@ async def submit_url(
     db.add(user_url)
 
     await db.commit()
-
-    print(f"✅ Task created: {task_id} for {url}")
-
-    # Trigger extraction in service_farm
-    try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            trigger_response = await client.post(
-                f"{settings.service_farm_url}/trigger/extract/{task_id}",
-                timeout=5.0
-            )
-
-            if trigger_response.status_code == 200:
-                print(f"✅ Triggered extraction for task {task_id}")
-            else:
-                print(f"⚠️  Failed to trigger extraction: {trigger_response.status_code}")
-    except Exception as e:
-        print(f"⚠️  Failed to trigger extraction worker: {e}")
-        # Don't fail the request - task is created, worker will pick it up
 
     # Return response
     if response_format == "json":
