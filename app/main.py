@@ -14,7 +14,7 @@ from pathlib import Path
 from contextlib import asynccontextmanager
 
 from app.config import get_settings
-from app.routers import auth, coherence, story, comments, chat, preview, events, extraction, event_page
+from app.routers import auth, coherence, story, comments, chat, preview, events, extraction, event_page, map
 from app.database.connection import init_db
 
 # Initialize settings
@@ -68,6 +68,7 @@ app.include_router(preview.router)
 app.include_router(events.router)
 app.include_router(extraction.router)  # URL extraction and archiving
 app.include_router(event_page.router, prefix="/api/event", tags=["event"])
+app.include_router(map.router)
 
 # Mount static files for frontend (after build)
 static_dir = Path("static")

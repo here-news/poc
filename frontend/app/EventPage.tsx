@@ -256,13 +256,23 @@ const EventPage: React.FC = () => {
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         {/* Main Content */}
                         <div className="lg:col-span-2 space-y-8">
-                            {event.content && (
+                            {event.overview && (
                                 <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-8 border border-gray-700">
-                                    <h2 className="text-2xl font-bold text-white mb-4">Full Story</h2>
-                                    <div className="prose prose-invert max-w-none text-gray-300 leading-relaxed">
-                                        {event.content.split('\n\n').map((para: string, idx: number) => (
-                                            <p key={idx} className="mb-4">{para}</p>
-                                        ))}
+                                    <h2 className="text-2xl font-bold text-white mb-6">Complete Event Overview</h2>
+                                    <div className="prose prose-invert prose-lg max-w-none text-gray-300 leading-relaxed">
+                                        {event.overview.split('\n').map((line: string, idx: number) => {
+                                            if (line.startsWith('## ')) {
+                                                return <h3 key={idx} className="text-xl font-bold text-white mt-8 mb-4">{line.replace('## ', '')}</h3>;
+                                            } else if (line.startsWith('**')) {
+                                                return <p key={idx} className="font-semibold text-blue-400 mb-2">{line.replace(/\*\*/g, '')}</p>;
+                                            } else if (line.startsWith('- ')) {
+                                                return <li key={idx} className="ml-6 mb-2">{line.replace('- ', '')}</li>;
+                                            } else if (line.trim() === '') {
+                                                return <div key={idx} className="h-2"></div>;
+                                            } else {
+                                                return <p key={idx} className="mb-4">{line}</p>;
+                                            }
+                                        })}
                                     </div>
                                 </div>
                             )}

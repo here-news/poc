@@ -10,4 +10,6 @@ jobs:
     runs-on: [self-hosted, deploy]
     steps:
       - name: Deploy webapp
-        run: /home/isaac/here_infra/scripts/deploy-webapp.sh
+        run: |
+          cd /home/isaac/here_webapp
+          ./scripts/deploy.sh
