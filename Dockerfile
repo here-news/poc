@@ -3,6 +3,11 @@ FROM node:20-alpine AS frontend
 WORKDIR /frontend
 COPY frontend/package*.json ./
 RUN npm install
+
+# Cache-busting for frontend code changes
+ARG GIT_COMMIT=unknown
+ENV GIT_COMMIT=${GIT_COMMIT}
+
 COPY frontend/tsconfig.json ./
 COPY frontend/tsconfig.node.json ./
 COPY frontend/vite.config.ts ./
@@ -19,6 +24,10 @@ WORKDIR /app
 # Install Python dependencies
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Cache-busting for code changes
+ARG GIT_COMMIT=unknown
+ENV GIT_COMMIT=${GIT_COMMIT}
 
 # Copy application code
 COPY app/ ./app/
