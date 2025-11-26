@@ -11,5 +11,6 @@ jobs:
     steps:
       - name: Deploy webapp
         run: |
-          cd /home/isaac/here_webapp
+          cd /home/isaac/here.news/webapp
+          git pull
           ./scripts/deploy.sh
